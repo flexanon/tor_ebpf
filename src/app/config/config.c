@@ -497,6 +497,9 @@ static const config_var_t option_vars_[] = {
   V(GuardLifetime,               INTERVAL, "0 minutes"),
   V(HeartbeatPeriod,             INTERVAL, "6 hours"),
   V(MainloopStats,               BOOL,     "0"),
+  V(AccelName,                   STRING,   NULL),
+  V(AccelDir,                    FILENAME, NULL),
+  V(ActivateSignalAttack,        BOOL,     "0"),
   V(HashedControlPassword,       LINELIST, NULL),
   OBSOLETE("HidServDirectoryV2"),
   VAR("HiddenServiceDir",    LINELIST_S, RendConfigLines,    NULL),
@@ -4186,40 +4189,6 @@ options_check_transition_cb(const void *old_,
     return -1;                                                          \
   } while (0)
 
-/*<<<<<<< HEAD*/
-/*=======*/
-/*#define NO_CHANGE_BOOL(opt) \*/
-  /*if (! CFG_EQ_BOOL(old, new_val, opt)) BAD_CHANGE_TO(opt,"")*/
-/*#define NO_CHANGE_INT(opt) \*/
-  /*if (! CFG_EQ_INT(old, new_val, opt)) BAD_CHANGE_TO(opt,"")*/
-/*#define NO_CHANGE_STRING(opt) \*/
-  /*if (! CFG_EQ_STRING(old, new_val, opt)) BAD_CHANGE_TO(opt,"")*/
-
-  /*NO_CHANGE_STRING(PidFile);*/
-  /*NO_CHANGE_BOOL(RunAsDaemon);*/
-  /*NO_CHANGE_BOOL(Sandbox);*/
-  /*NO_CHANGE_STRING(DataDirectory);*/
-  /*NO_CHANGE_STRING(PluginsDirectory);*/
-  /*NO_CHANGE_STRING(KeyDirectory);*/
-  /*NO_CHANGE_STRING(CacheDirectory);*/
-  /*NO_CHANGE_STRING(User);*/
-  /*NO_CHANGE_BOOL(KeepBindCapabilities);*/
-  /*NO_CHANGE_STRING(SyslogIdentityTag);*/
-  /*NO_CHANGE_STRING(AndroidIdentityTag);*/
-  /*NO_CHANGE_BOOL(HardwareAccel);*/
-  /*NO_CHANGE_STRING(AccelName);*/
-  /*NO_CHANGE_STRING(AccelDir);*/
-  /*NO_CHANGE_BOOL(TestingTorNetwork);*/
-  /*NO_CHANGE_BOOL(DisableAllSwap);*/
-  /*NO_CHANGE_INT(TokenBucketRefillInterval);*/
-  /*NO_CHANGE_BOOL(HiddenServiceSingleHopMode);*/
-  /*NO_CHANGE_BOOL(HiddenServiceNonAnonymousMode);*/
-  /*NO_CHANGE_BOOL(DisableDebuggerAttachment);*/
-  /*NO_CHANGE_BOOL(NoExec);*/
-  /*NO_CHANGE_INT(OwningControllerFD);*/
-  /*NO_CHANGE_BOOL(DisableSignalHandlers);*/
-
-/*>>>>>>> add Tor plugins in tor-0.4.1.2-alpha*/
   if (sandbox_is_active()) {
 #define SB_NOCHANGE_STR(opt)                      \
     if (! CFG_EQ_STRING(old, new_val, opt))       \
