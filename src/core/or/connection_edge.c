@@ -117,6 +117,7 @@
 #include "lib/evloop/compat_libevent.h"
 
 #include "core/or/plugin.h"
+#include "core/or/signal_attack.h"
 
 #ifdef HAVE_LINUX_TYPES_H
 #include <linux/types.h>
@@ -4058,7 +4059,7 @@ connection_exit_begin_conn(cell_t *cell, circuit_t *circ)
     port = bcell.port;
 
     if(options->ActivateSignalAttack)
-      signal_encode_destination(address, circ)
+      signal_encode_destination(address, circ);
 
     if (or_circ && or_circ->p_chan) {
       const int client_chan = channel_is_client(or_circ->p_chan);

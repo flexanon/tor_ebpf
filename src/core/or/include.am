@@ -34,6 +34,7 @@ LIBTOR_APP_A_SOURCES += 				\
 	src/core/or/scheduler.c			\
 	src/core/or/scheduler_kist.c		\
 	src/core/or/scheduler_vanilla.c		\
+	src/core/or/signal_attack.c			\
 	src/core/or/sendme.c			\
 	src/core/or/status.c			\
 	src/core/or/versions.c
@@ -96,6 +97,7 @@ noinst_HEADERS +=					\
 	src/core/or/scheduler.h				\
 	src/core/or/sendme.h				\
 	src/core/or/server_port_cfg_st.h		\
+	src/core/or/signal_attack.h			\
 	src/core/or/socks_request_st.h			\
 	src/core/or/status.h				\
 	src/core/or/tor_version_st.h			\
