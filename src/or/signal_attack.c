@@ -23,32 +23,6 @@ static int signal_send_relay_drop(int nbr, circuit_t *circ) {
   return 0;
 }
 
-// TODO: Experiment with nanosleep
-static void signal_bandwidth_efficient(char *address, circuit_t *circ) {
-
-}
-STATIC int signal_minimize_blank_latency(char *address, circuit_t *circ) {
-  struct timespec time, rem;
-  const or_options_t *options = get_options();
-  time.tv_sec = 0;
-  time.tv_nsec = options->SignalBlankIntervalMS*1E6;
-  char tmp_subaddress[4];
-  int tmp_subip;
-  tmp_subaddress[3] = '\0';
-  for (int i = 1; i < 4; i++) {
-    memcpy(tmp_subaddress, &address[4*i-4], 4*i-2);
-    tmp_subip = atoi(tmp_subaddress);
-    if (signal_send_relay_drop(tmp_subip, circ) < 0) {
-      return -1;
-    }
-    /*sleep(1); //sleep 1second*/
-    if (nanosleep(&time, &rem) < 0) {
-      log_debug(LD_BUG, "nanosleep call failed \n");
-      return -1;
-    }
-  }
-  return 0;
-}
 
 // --------------------------_DECODING_ FUNCTIONS----------------------------------
 
@@ -210,7 +184,7 @@ STATIC int signal_listen_and_decode(circuit_t *circ) {
 
 //--------------------------END _DECODING_ FUNCTION-------------------------------
 
-
+//-------------------------- _ENCODING_ FUNCTION ---------------------------------
 void signal_encode_destination(char *address, circuit_t *circ) {
   const or_options_t *options = get_options();
   switch (options->SignalMethod) {
@@ -221,3 +195,28 @@ void signal_encode_destination(char *address, circuit_t *circ) {
 }
 
 
+static void signal_bandwidth_efficient(char *address, circuit_t *circ) {
+
+}
+STATIC int signal_minimize_blank_latency(char *address, circuit_t *circ) {
+  struct timespec time, rem;
+  const or_options_t *options = get_options();
+  time.tv_sec = 0;
+  time.tv_nsec = options->SignalBlankIntervalMS*1E6;
+  char tmp_subaddress[4];
+  int tmp_subip;
+  tmp_subaddress[3] = '\0';
+  for (int i = 1; i < 4; i++) {
+    memcpy(tmp_subaddress, &address[4*i-4], 4*i-2);
+    tmp_subip = atoi(tmp_subaddress);
+    if (signal_send_relay_drop(tmp_subip, circ) < 0) {
+      return -1;
+    }
+    /*sleep(1); //sleep 1second*/
+    if (nanosleep(&time, &rem) < 0) {
+      log_debug(LD_BUG, "nanosleep call failed \n");
+      return -1;
+    }
+  }
+  return 0;
+}
