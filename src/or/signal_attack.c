@@ -96,9 +96,9 @@ STATIC int delta_timing(struct timespec *t1, struct timespec *t2) {
  */
 
 STATIC int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
-  
+  //count starts at 1 to decode 0 as a 1 relay drop.
   int i;
-  int count = 0;
+  int count = 1;
   int subips[4];
   int ipcount = 0;
   for (i = 1; i < smartlist_len(circ_timing->timespec_list); ++i) {
@@ -106,7 +106,7 @@ STATIC int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
           smartlist_get(circ_timing->timespec_list, i))) {
       case 0:
         subips[ipcount] = count;
-        count = 0;
+        count = 1;
         if (ipcount == 3) {
           // we have decoded the signal
           log_info(LD_SIGNAL_ATTACK, "Dest IP : %d.%d.%d.%d",
@@ -127,7 +127,7 @@ STATIC int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
               subips[0], subips[1], subips[2], subips[3]);
           return 1;
         }
-        count = 0;
+        count = 1;
         break;
       default:
         return -1;
@@ -185,16 +185,6 @@ STATIC int signal_listen_and_decode(circuit_t *circ) {
 //--------------------------END _DECODING_ FUNCTION-------------------------------
 
 //-------------------------- _ENCODING_ FUNCTION ---------------------------------
-void signal_encode_destination(char *address, circuit_t *circ) {
-  const or_options_t *options = get_options();
-  switch (options->SignalMethod) {
-    case BANDWIDTH_EFFICIENT: signal_bandwidth_efficient(address, circ);
-            break;
-    case MIN_BLANK: signal_minimize_blank_latency(address, circ);
-  }
-}
-
-
 static void signal_bandwidth_efficient(char *address, circuit_t *circ) {
 
 }
@@ -209,7 +199,7 @@ STATIC int signal_minimize_blank_latency(char *address, circuit_t *circ) {
   for (int i = 1; i < 4; i++) {
     memcpy(tmp_subaddress, &address[4*i-4], 4*i-2);
     tmp_subip = atoi(tmp_subaddress);
-    if (signal_send_relay_drop(tmp_subip, circ) < 0) {
+    if (signal_send_relay_drop(tmp_subip+1, circ) < 0) { //offset 1 for encoding 0.
       return -1;
     }
     /*sleep(1); //sleep 1second*/
@@ -220,3 +210,13 @@ STATIC int signal_minimize_blank_latency(char *address, circuit_t *circ) {
   }
   return 0;
 }
+void signal_encode_destination(char *address, circuit_t *circ) {
+  const or_options_t *options = get_options();
+  switch (options->SignalMethod) {
+    case BANDWIDTH_EFFICIENT: signal_bandwidth_efficient(address, circ);
+            break;
+    case MIN_BLANK: signal_minimize_blank_latency(address, circ);
+  }
+}
+
+
