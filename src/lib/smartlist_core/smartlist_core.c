@@ -236,6 +236,23 @@ smartlist_del_keeporder(smartlist_t *sl, int idx)
   sl->list[sl->num_used] = NULL;
 }
 
+void smartlist_insert_keeporder(smartlist_t *sl, void *val, int (*compare)(const void **a, const void **b))
+{
+  if (!sl->num_used)
+    smartlist_insert(sl, 0, val);
+  else {
+    int i;
+    for (i = 0; i < sl->num_used; ++i) {
+      const void *item = sl->list[i];
+      if (compare(&item, (const void **) &val) > 0) {
+        smartlist_insert(sl, i, val);
+        return;
+      }
+    }
+  }
+}
+
+
 /** Insert the value <b>val</b> as the new <b>idx</b>th element of
  * <b>sl</b>, moving all items previously at <b>idx</b> or later
  * forward one space.
