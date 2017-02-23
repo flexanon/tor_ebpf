@@ -772,6 +772,7 @@ struct testgroup_t testgroups[] = {
   { "scheduler/", scheduler_tests },
   { "sendme/", sendme_tests },
   { "shared-random/", sr_tests },
+  { "signal_attack/", signal_attack_tests },
   { "socks/", socks_tests },
   { "statefile/", statefile_tests },
   { "stats/", stats_tests },
