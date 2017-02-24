@@ -7,6 +7,7 @@
 #include "compat.h"
 #include <time.h>
 #include <unistd.h>
+#include <stdio.h>
 #define TOR_SIGNAL_ATTACK_PRIVATE
 #include "signal_attack.h"
 
@@ -15,11 +16,13 @@ static int signal_send_relay_drop(int nbr, circuit_t *circ) {
   while (nbr > 0) {
     if (relay_send_command_from_edge_(0, circ,
                                 RELAY_COMMAND_DROP, NULL, 0,
-                                TO_ORIGIN_CIRCUIT(circ)->cpath->prev, __FILE__, __LINE__) < 0)
+                                TO_ORIGIN_CIRCUIT(circ)->cpath->prev, __FILE__, __LINE__) < 0) {
       log_debug(LD_BUG, "Signal not completly sent");
       return -1;
+    }
     nbr--;
   }
+
   return 0;
 }
 
@@ -95,6 +98,7 @@ STATIC int delta_timing(struct timespec *t1, struct timespec *t2) {
  *       -1 if an error happened
  */
 
+//Ugh! the code is ugly. needs refactoring.
 STATIC int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
   //count starts at 1 to decode 0 as a 1 relay drop.
   int i;
@@ -193,13 +197,19 @@ STATIC int signal_minimize_blank_latency(char *address, circuit_t *circ) {
   const or_options_t *options = get_options();
   time.tv_sec = 0;
   time.tv_nsec = options->SignalBlankIntervalMS*1E6;
-  char tmp_subaddress[4];
-  int tmp_subip;
-  tmp_subaddress[3] = '\0';
-  for (int i = 1; i < 4; i++) {
-    memcpy(tmp_subaddress, &address[4*i-4], 4*i-2);
-    tmp_subip = atoi(tmp_subaddress);
-    if (signal_send_relay_drop(tmp_subip+1, circ) < 0) { //offset 1 for encoding 0.
+  char *tmp_subaddress;
+  int subip[4];
+  tmp_subaddress = strtok(address, ".");
+  int i = 0;
+  subip[i++] = atoi(tmp_subaddress);
+  while (tmp_subaddress != NULL) {
+    tmp_subaddress = strtok(NULL, ".");
+    if (tmp_subaddress != NULL) {
+      subip[i++] = atoi(tmp_subaddress);
+    }
+  }
+  for (i = 0; i < 4; i++) {
+    if (signal_send_relay_drop(subip[i]+1, circ) < 0) { //offset 1 for encoding 0.
       return -1;
     }
     /*sleep(1); //sleep 1second*/
