@@ -663,7 +663,7 @@ static const config_var_t option_vars_[] = {
   V(ShutdownWaitLength,          INTERVAL, "30 seconds"),
   OBSOLETE("SocksListenAddress"),
   V(SignalBlankIntervalMS,       MSEC_INTERVAL, "20 msec"),
-  V(SignalMethod,                UINT,     "1"),
+  V(SignalMethod,                UINT,     "0"),
   V(SocksPolicy,                 LINELIST, NULL),
   VPORT(SocksPort),
   V(SocksTimeout,                INTERVAL, "2 minutes"),

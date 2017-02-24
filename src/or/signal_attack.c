@@ -31,7 +31,7 @@ static int signal_send_relay_drop(int nbr, circuit_t *circ) {
 
 static smartlist_t *circ_timings;
 
-static int signal_compare_signal_decode_(const void **a_, const void **b_) {
+STATIC int signal_compare_signal_decode_(const void **a_, const void **b_) {
   const signal_decode_t *a = *a_;
   const signal_decode_t *b = *b_;
   circid_t circid_a = a->circid;
@@ -43,7 +43,8 @@ static int signal_compare_signal_decode_(const void **a_, const void **b_) {
   else
     return 1;
 }
-static int signal_compare_key_to_entry_(const void *_key, const void **_member) {
+
+STATIC int signal_compare_key_to_entry_(const void *_key, const void **_member) {
   const circid_t circid = *(circid_t *)_key;
   const signal_decode_t *entry = *_member;
   if (circid < entry->circid)
@@ -82,7 +83,7 @@ STATIC int delta_timing(struct timespec *t1, struct timespec *t2) {
                       (t2->tv_nsec-t1->tv_nsec)*1E-6;
   if (elapsed_ms  > SIGNAL_ATTACK_MAX_BLANK)
     return 2;
-  else if (elapsed_ms > options->SignalBlankIntervalMS)
+  else if (elapsed_ms >= options->SignalBlankIntervalMS)
     return 0;
   else if (elapsed_ms > 0)
     return 1;
@@ -105,6 +106,8 @@ STATIC int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
   int count = 1;
   int subips[4];
   int ipcount = 0;
+  /*log_info(LD_GENERAL, "timespec_list size %d\n and smartlist_circ size %d",*/
+      /*smartlist_len(circ_timing->timespec_list), smartlist_len(circ_timings));*/
   for (i = 1; i < smartlist_len(circ_timing->timespec_list); ++i) {
     switch (delta_timing(smartlist_get(circ_timing->timespec_list, i-1),
           smartlist_get(circ_timing->timespec_list, i))) {
@@ -114,10 +117,11 @@ STATIC int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
         if (ipcount == 3) {
           // we have decoded the signal
           log_info(LD_SIGNAL_ATTACK, "Dest IP : %d.%d.%d.%d",
-              subips[0], subips[1], subips[2], subips[3]);
+              subips[0]-1, subips[1]-1, subips[2]-1, subips[3]-1);
           return 1;
         }
         ipcount++;
+        /*log_info(LD_GENERAL, "ipcount increased to %d", ipcount);*/
         break;
       case 1:
         count++;
@@ -128,7 +132,7 @@ STATIC int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
           // we have decoded the signal
           subips[ipcount] = count;
           log_info(LD_SIGNAL_ATTACK, "Dest IP : %d.%d.%d.%d",
-              subips[0], subips[1], subips[2], subips[3]);
+              subips[0]-1, subips[1]-1, subips[2]-1, subips[3]-1);
           return 1;
         }
         count = 1;
@@ -154,17 +158,19 @@ static int signal_minimize_blank_latency_decode(signal_decode_t *circ_timing) {
 
 STATIC int signal_listen_and_decode(circuit_t *circ) {
   
+  if (!circ_timings)
+    circ_timings = smartlist_new();
   const or_options_t *options = get_options();
   // add to the smartilist the current time
   //todo
   signal_decode_t *circ_timing;
-  struct timespec *now = tor_malloc(sizeof(struct timespec));
+  struct timespec *now = tor_malloc_zero(sizeof(struct timespec));
   circid_t circid = circ->n_circ_id;
   circ_timing = smartlist_bsearch(circ_timings, &circid, 
       signal_compare_key_to_entry_);
   clock_gettime(CLOCK_REALTIME, now);
   if (!circ_timing) {
-    circ_timing = tor_malloc(sizeof(signal_decode_t));
+    circ_timing = tor_malloc_zero(sizeof(signal_decode_t));
     circ_timing->circid = circid;
     circ_timing->timespec_list = smartlist_new();
     circ_timing->first = *now;
@@ -182,14 +188,13 @@ STATIC int signal_listen_and_decode(circuit_t *circ) {
       log_debug(LD_BUG, "signal_listen_and_decode switch: no correct case\n");
       return -1;
   }
-
-  return 0;
+  return -1;
 }
 
 //--------------------------END _DECODING_ FUNCTION-------------------------------
 
 //-------------------------- _ENCODING_ FUNCTION ---------------------------------
-static void signal_bandwidth_efficient(char *address, circuit_t *circ) {
+STATIC void signal_bandwidth_efficient(char *address, circuit_t *circ) {
 
 }
 STATIC int signal_minimize_blank_latency(char *address, circuit_t *circ) {
