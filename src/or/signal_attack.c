@@ -58,7 +58,7 @@ STATIC int signal_compare_key_to_entry_(const void *_key, const void **_member) 
 STATIC void handle_timing_add(signal_decode_t *circ_timing, struct timespec *now,
     int SignalMethod) {
   switch (SignalMethod) {
-    case BANDWIDTH_EFFICIENT:
+    case MIN_BLANK:
       if (smartlist_len(circ_timing->timespec_list) > 255*4) {
         // free the element before the moving operation from del_keeporder
         tor_free(circ_timing->timespec_list->list[0]);
@@ -68,7 +68,7 @@ STATIC void handle_timing_add(signal_decode_t *circ_timing, struct timespec *now
       smartlist_add(circ_timing->timespec_list, now);
       circ_timing->last = *now;
       break;
-    case MIN_BLANK:
+    case BANDWIDTH_EFFICIENT:
       //todo
       break;
     default:
@@ -100,7 +100,7 @@ STATIC int delta_timing(struct timespec *t1, struct timespec *t2) {
  */
 
 //Ugh! the code is ugly. needs refactoring.
-STATIC int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
+STATIC int signal_minimize_blank_latency_decode(signal_decode_t *circ_timing) {
   //count starts at 1 to decode 0 as a 1 relay drop.
   int i;
   int count = 1;
@@ -144,7 +144,7 @@ STATIC int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
   }
   return 0;
 }
-static int signal_minimize_blank_latency_decode(signal_decode_t *circ_timing) {
+static int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
   
   return 0;
 }

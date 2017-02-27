@@ -153,7 +153,6 @@ test_circ_timing_list() {
   tt_int_op(smartlist_len(list), ==, 4);
   tt_assert(tmp_circ_timing);
   tt_int_op(tmp_circ_timing->circid, ==, 1002303);
- 
  done:
   free(TO_ORIGIN_CIRCUIT(fake_circ1)->cpath);
   free(fake_circ1);
@@ -178,23 +177,39 @@ test_signal_decoding() {
     "0.122.232.12",
     "12.23.12.124",
   };
-  int should_call[3] = {
+  int should_call_min_blank[3] = {
     183+233+11+83,
     1+123+233+13,
     13+24+13+125,
   };
+  //todo
+  int should_call_bw_effcient[3] = {
+    0,
+    0,
+    0,
+  };
   MOCK(relay_send_command_from_edge_, mock_relay_send_command_from_edge_decode);
-  for (int i = 0; i < 3; i++) {
-    char *address = tor_malloc(strlen(addresses[i]+1));
-    strcpy(address, addresses[i]);
-    r = signal_minimize_blank_latency(address, fake_circ[i]);
-    tt_int_op(r, ==, 0);
-    tt_int_op(mock_nbr_called, ==, should_call[i]);
-    mock_nbr_called = 0;
-    sleep(1);
-    r = signal_listen_and_decode(fake_circ[i]);
-    tt_int_op(r, ==, 1); //successfully decode the address
+  for (int j = 0; j < 2; j++) {
+    if (j == 1)
+      get_options_mutable()->SignalMethod = BANDWIDTH_EFFICIENT;
+    for (int i = 0; i < 3; i++) {
+      char *address = tor_malloc(strlen(addresses[i]+1));
+      strcpy(address, addresses[i]);
+      if (j == 0)
+        r = signal_minimize_blank_latency(address, fake_circ[i]);
+        tt_int_op(mock_nbr_called, ==, should_call_min_blank[i]);
+      else
+        r = signal_bandwidth_efficient(address, fake_circ[i]);
+        tt_int_op(mock_nbr_called, ==, should_call_bw_efficient[i]);
+      tt_int_op(r, ==, 0);
+      mock_nbr_called = 0;
+      sleep(1);
+      r = signal_listen_and_decode(fake_circ[i]);
+      tt_int_op(r, ==, 1); //successfully decode the address
+    }
   }
+
+
  done:
   UNMOCK(relay_send_command_from_edge_);
   for (int i = 0; i < 3; i++) {
