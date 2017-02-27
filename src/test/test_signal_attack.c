@@ -128,8 +128,10 @@ test_circ_timing_list() {
 
   smartlist_insert_keeporder(list, circ_timing3,
       signal_compare_signal_decode_);
+  tt_int_op(smartlist_len(list), ==, 1);
   smartlist_insert_keeporder(list, circ_timing2,
       signal_compare_signal_decode_);
+  tt_int_op(smartlist_len(list), ==, 2);
   tmp_circ_timing = smartlist_bsearch(list, &dummy_circ_id, 
       signal_compare_key_to_entry_);
   tt_assert(tmp_circ_timing);
@@ -141,12 +143,14 @@ test_circ_timing_list() {
   tt_int_op(tmp_circ_timing->circid, ==, 10);
   smartlist_insert_keeporder(list, circ_timing4,
       signal_compare_signal_decode_);
+  tt_int_op(smartlist_len(list), ==, 3);
   smartlist_insert_keeporder(list, circ_timing1,
       signal_compare_signal_decode_);
   tt_int_op(((signal_decode_t *)smartlist_get(list, 0))->circid, ==, 0);
   dummy_circ_id = 1002303;
   tmp_circ_timing = smartlist_bsearch(list, &dummy_circ_id, 
       signal_compare_key_to_entry_);
+  tt_int_op(smartlist_len(list), ==, 4);
   tt_assert(tmp_circ_timing);
   tt_int_op(tmp_circ_timing->circid, ==, 1002303);
  
@@ -171,12 +175,12 @@ test_signal_decoding() {
   int r;
   char *addresses[] = {
     "182.232.10.82",
-    "12.122.232.12",
+    "0.122.232.12",
     "12.23.12.124",
   };
   int should_call[3] = {
     183+233+11+83,
-    13+123+233+13,
+    1+123+233+13,
     13+24+13+125,
   };
   MOCK(relay_send_command_from_edge_, mock_relay_send_command_from_edge_decode);
