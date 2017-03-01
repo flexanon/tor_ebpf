@@ -75,28 +75,57 @@ test_elapsed_signal_encoding() {
     33+33+33+33,
     130+1+24+24,
   };
+  int should_call_bw_efficient[4] = {
+    3+2+3+2+3+3+2+2\
+      +2+3+3+3+3+3+2+2\
+      +3+3+3+3+2+2+3+3\
+      +2+3+3+3+3+2+3+2,
+    2+3+3+3+3+2+3+2\
+      +2+2+2+2+2+2+2+3\
+      +2+2+2+3+2+3+3+3\
+      +3+3+3+3+3+3+3+3,
+    2+2+3+2+2+2+2+2\
+      +2+2+3+2+2+2+2+2\
+      +2+2+3+2+2+2+2+2\
+      +2+2+3+2+2+2+2+2,
+    2+3+2+2+2+2+2+3\
+      +2+2+2+2+2+2+2+2\
+      +2+2+2+3+2+3+3+3\
+      +2+2+2+3+2+3+3+3,
+  };
   circuit_t *fake_circ = fake_origin_circuit_new(42);
   /* Replace subcall of signal_minimize_blank_latency by a dummy function */
   MOCK(relay_send_command_from_edge_, mock_relay_send_command_from_edge);
-  for (int i = 0; i < 4; i++) {
-    char *address = tor_malloc(strlen(addresses[i]+1));
-    strcpy(address, addresses[i]);
-  //call signal encoding function
-    clock_gettime(CLOCK_REALTIME, &time_now);
-    int r = signal_minimize_blank_latency(address, fake_circ);
-    tt_int_op(mock_nbr_called, ==, should_call[i]);
-    mock_nbr_called = 0;
-    tt_int_op(r, ==, 0);
-    clock_gettime(CLOCK_REALTIME, &time_then);
-    elapsed_ms = (time_then.tv_sec-time_now.tv_sec)*1000.0 +\
-                 (time_then.tv_nsec-time_now.tv_nsec)*ONE_OVER_10SIX;
-  //set time_then
-  //assert that elapsed time is > 3*default time used
-    tt_int_op(elapsed_ms, >=, 3*(get_options_mutable()->SignalBlankIntervalMS));
-    fake_circ->n_circ_id++;
-    free(address);
+  for (int j = 0; j < 2; j++) {
+    for (int i = 0; i < 4; i++) {
+      char *address = tor_malloc(strlen(addresses[i]+1));
+      strcpy(address, addresses[i]);
+    //call signal encoding function
+      clock_gettime(CLOCK_REALTIME, &time_now);
+      int r;
+      if (j == 0) {
+        r = signal_minimize_blank_latency(address, fake_circ);
+        tt_int_op(mock_nbr_called, ==, should_call[i]);
+      }
+      else {
+        r = signal_bandwidth_efficient(address, fake_circ);
+        tt_int_op(mock_nbr_called, ==, should_call_bw_efficient[i]);
+      }
+      mock_nbr_called = 0;
+      tt_int_op(r, ==, 0);
+      clock_gettime(CLOCK_REALTIME, &time_then);
+      elapsed_ms = (time_then.tv_sec-time_now.tv_sec)*1000.0 +\
+                   (time_then.tv_nsec-time_now.tv_nsec)*ONE_OVER_10SIX;
+    //set time_then
+    //assert that elapsed time is > 3*default time used
+      if (j == 0)
+        tt_int_op(elapsed_ms, >=, 3*(get_options_mutable()->SignalBlankIntervalMS));
+      else
+        tt_int_op(elapsed_ms, >=, 32*(get_options_mutable()->SignalBlankIntervalMS));
+      fake_circ->n_circ_id++;
+      free(address);
+    }
   }
- 
  done:
   UNMOCK(relay_send_command_from_edge_);
   tor_free(TO_ORIGIN_CIRCUIT(fake_circ)->cpath);
@@ -183,10 +212,19 @@ test_signal_decoding() {
     13+24+13+125,
   };
   //todo
-  int should_call_bw_effcient[3] = {
-    0,
-    0,
-    0,
+  int should_call_bw_efficient[3] = {
+    3+2+3+3+2+3+3+2\
+      +3+3+3+2+3+2+2+2\
+      +2+2+2+2+3+2+3+2\
+      +2+3+2+3+2+2+3+2,
+    2+2+2+2+2+2+2+3\
+      +2+3+3+3+3+2+3+3\
+      +3+3+3+2+3+2+2+2\
+      +2+2+2+2+3+3+2+3,
+    2+2+2+2+3+3+2+3\
+      +2+2+2+3+2+3+3+3\
+      +2+2+2+2+3+3+2+3
+      +2+3+3+3+3+3+2+2,
   };
   MOCK(relay_send_command_from_edge_, mock_relay_send_command_from_edge_decode);
   for (int j = 0; j < 2; j++) {
@@ -195,12 +233,14 @@ test_signal_decoding() {
     for (int i = 0; i < 3; i++) {
       char *address = tor_malloc(strlen(addresses[i]+1));
       strcpy(address, addresses[i]);
-      if (j == 0)
+      if (j == 0) {
         r = signal_minimize_blank_latency(address, fake_circ[i]);
         tt_int_op(mock_nbr_called, ==, should_call_min_blank[i]);
-      else
+      }
+      else {
         r = signal_bandwidth_efficient(address, fake_circ[i]);
         tt_int_op(mock_nbr_called, ==, should_call_bw_efficient[i]);
+      }
       tt_int_op(r, ==, 0);
       mock_nbr_called = 0;
       sleep(1);

