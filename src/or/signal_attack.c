@@ -69,8 +69,7 @@ STATIC void handle_timing_add(signal_decode_t *circ_timing, struct timespec *now
       circ_timing->last = *now;
       break;
     case BANDWIDTH_EFFICIENT:
-      //todo
-        if (smartlist_len(circ_timing->timespec_list) > 32*3+1) {
+      if (smartlist_len(circ_timing->timespec_list) > 32*3+1) {
         tor_free(circ_timing->timespec_list->list[0]);
         smartlist_del_keeporder(circ_timing->timespec_list, 0);
         circ_timing->first = *(struct timespec *) smartlist_get(circ_timing->timespec_list, 0);
@@ -155,8 +154,11 @@ static int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
   int i, bit;
   int count = 1;
   int nbr_sub_ip_decoded = 0;
-  char subips[4][8];
-  int nth_bit = 7;
+  char subips[4][9];
+  for (i = 0; i < 4; i++) {
+    subips[i][8] = '\0';
+  }
+  int nth_bit = 0;
   for (i = 1; i < smartlist_len(circ_timing->timespec_list); i++) {
     switch(delta_timing(smartlist_get(circ_timing->timespec_list, i-1),
         smartlist_get(circ_timing->timespec_list, i))) {
@@ -166,24 +168,26 @@ static int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
         else if (count == 3)
           bit = 1;
         else {
-          log_info(LD_SIGNAL_ATTACK, "Signal distorded or no signal, count: %d", count);
+          /*log_info(LD_SIGNAL_ATTACK, "Signal distorded or no signal, count: %d", count);*/
           /*return 0; // no signal or distorded*/
+          count = 1;
+          continue;
         }
         if (bit & 1)
-          subips[nbr_sub_ip_decoded][nth_bit--] = '1';
+          subips[nbr_sub_ip_decoded][nth_bit] = '1';
         else
-          subips[nbr_sub_ip_decoded][nth_bit--] = '0';
-        log_info(LD_SIGNAL_ATTACK, "nth_bit: %d", nth_bit);
-        if (nth_bit < 0) {
+          subips[nbr_sub_ip_decoded][nth_bit] = '0';
+        nth_bit++;
+        if (nth_bit > 7) {
           // we have decoded a subip
-          log_info(LD_SIGNAL_ATTACK, "subip ip found:%s\n",
-              subips[nbr_sub_ip_decoded]);
+          /*log_info(LD_SIGNAL_ATTACK, "subip ip found:%s",*/
+              /*subips[nbr_sub_ip_decoded]);*/
           if (nbr_sub_ip_decoded == 3) {
-            log_info(LD_SIGNAL_ATTACK, "dest IP in binary: %s.%s.%s.%s\n",
+            log_info(LD_SIGNAL_ATTACK, "dest IP in binary: %s.%s.%s.%s",
                 subips[0], subips[1], subips[2], subips[3]);
             return 1;
           }
-          nth_bit = 7;
+          nth_bit = 0;
           nbr_sub_ip_decoded++;
         }
         count = 1;
@@ -192,8 +196,7 @@ static int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
         count++;
         break;
       case 2:
-        if (nbr_sub_ip_decoded == 3 && nth_bit == 0) {
-          int bit;
+        if (nbr_sub_ip_decoded == 3 && nth_bit == 7) {
           if (count == 2)
             bit = 0;
           else if (count == 3)
@@ -203,12 +206,15 @@ static int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
                 subips[0], subips[1], subips[2], subips[3], count);
             /*return 0;*/
           }
-          subips[nbr_sub_ip_decoded][nth_bit] = bit;
+          if (bit & 1)
+            subips[nbr_sub_ip_decoded][nth_bit] = '1';
+          else
+            subips[nbr_sub_ip_decoded][nth_bit] = '0';
           log_info(LD_SIGNAL_ATTACK, "dest IP in binary: %s.%s.%s.%s\n",
                 subips[0], subips[1], subips[2], subips[3]);
           return 1;
         }
-        return 0;
+
         break;
       default:
         return -1;

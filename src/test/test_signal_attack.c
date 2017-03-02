@@ -217,13 +217,13 @@ test_signal_decoding() {
       +3+3+3+2+3+2+2+2\
       +2+2+2+2+3+2+3+2\
       +2+3+2+3+2+2+3+2,
-    2+2+2+2+2+2+2+3\
-      +2+3+3+3+3+2+3+3\
+    2+2+2+2+2+2+2+2\
+      +2+3+3+3+3+2+3+2\
       +3+3+3+2+3+2+2+2\
-      +2+2+2+2+3+3+2+3,
-    2+2+2+2+3+3+2+3\
+      +2+2+2+2+3+3+2+2,
+    2+2+2+2+3+3+2+2\
       +2+2+2+3+2+3+3+3\
-      +2+2+2+2+3+3+2+3
+      +2+2+2+2+3+3+2+2\
       +2+3+3+3+3+3+2+2,
   };
   MOCK(relay_send_command_from_edge_, mock_relay_send_command_from_edge_decode);
@@ -242,9 +242,9 @@ test_signal_decoding() {
         tt_int_op(mock_nbr_called, ==, should_call_bw_efficient[i]);
       }
       tt_int_op(r, ==, 0);
-      mock_nbr_called = 0;
       sleep(1);
       r = signal_listen_and_decode(fake_circ[i]);
+      mock_nbr_called = 0;
       tt_int_op(r, ==, 1); //successfully decode the address
     }
   }
