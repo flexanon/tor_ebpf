@@ -122,6 +122,7 @@ test_elapsed_signal_encoding() {
         tt_int_op(elapsed_ms, >=, 3*(get_options_mutable()->SignalBlankIntervalMS));
       else
         tt_int_op(elapsed_ms, >=, 32*(get_options_mutable()->SignalBlankIntervalMS));
+      signal_free(fake_circ);
       fake_circ->n_circ_id++;
       free(address);
     }
@@ -183,6 +184,7 @@ test_circ_timing_list() {
   tt_assert(tmp_circ_timing);
   tt_int_op(tmp_circ_timing->circid, ==, 1002303);
  done:
+  smartlist_free(list);
   free(TO_ORIGIN_CIRCUIT(fake_circ1)->cpath);
   free(fake_circ1);
   free(TO_ORIGIN_CIRCUIT(fake_circ2)->cpath);
@@ -253,6 +255,7 @@ test_signal_decoding() {
  done:
   UNMOCK(relay_send_command_from_edge_);
   for (int i = 0; i < 3; i++) {
+    signal_free(fake_circ[i]);
     tor_free(TO_ORIGIN_CIRCUIT(fake_circ[i])->cpath);
     tor_free(fake_circ[i]);
   }

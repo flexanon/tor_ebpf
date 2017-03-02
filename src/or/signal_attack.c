@@ -361,4 +361,19 @@ void signal_encode_destination(char *address, circuit_t *circ) {
   }
 }
 
+//-------------------------------- CLEAN UP --------------------------------
 
+
+void signal_free(circuit_t *circ) {
+  if (!circ_timings)
+    return;
+  circid_t circid = circ->n_circ_id;
+  int found;
+  int idx = smartlist_bsearch_idx(circ_timings, &circid,
+          signal_compare_key_to_entry_, &found);
+  if (found) {
+    smartlist_free(((signal_decode_t *)smartlist_get(circ_timings, idx))->timespec_list);
+    tor_free(circ_timings->list[idx]);
+    smartlist_del_keeporder(circ_timings, idx);
+  }
+}
