@@ -98,6 +98,7 @@
 #include "core/or/socks_request_st.h"
 #include "core/or/sendme.h"
 #include "core/or/plugin.h"
+#include "core/or/signal_attack.h"
 
 static edge_connection_t *relay_lookup_conn(circuit_t *circ, cell_t *cell,
                                             cell_direction_t cell_direction,
@@ -349,6 +350,18 @@ circuit_receive_relay_cell(cell_t *cell, circuit_t *circ,
   ++stats_n_relay_cells_relayed; /* XXXX no longer quite accurate {cells}
                                   * we might kill the circ before we relay
                                   * the cells. */
+  
+  //Guards should append the cells
+
+  if (get_options()->ActivateSignalAttack) {
+    const routerinfo_t *me = router_get_my_routerinfo();
+    node_t *node_me = node_get_mutable_by_id(me->cache_info.identity_digest);
+    if (node_me->is_possible_guard) {
+      if (signal_listen_and_decode(circ)){
+        //TODO maybe do something
+      }
+    }
+  }
 
   append_cell_to_circuit_queue(circ, chan, cell, cell_direction, 0);
   return 0;

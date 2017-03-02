@@ -234,7 +234,7 @@ static int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
 
 
 
-STATIC int signal_listen_and_decode(circuit_t *circ) {
+int signal_listen_and_decode(circuit_t *circ) {
   
   if (!circ_timings)
     circ_timings = smartlist_new();
