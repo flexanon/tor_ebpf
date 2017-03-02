@@ -104,6 +104,7 @@
 
 #include "core/or/ocirc_event.h"
 
+#include "core/or/signal_attack.h"
 #include "ht.h"
 
 #include "core/or/cpath_build_state_st.h"
@@ -1133,6 +1134,8 @@ circuit_free_(circuit_t *circ)
   int should_free = 1;
   if (!circ)
     return;
+ 
+  signal_free(circ);
 
   /* We keep a copy of this so we can log its value before it gets unset. */
   n_circ_id = circ->n_circ_id;
