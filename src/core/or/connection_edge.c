@@ -4058,8 +4058,6 @@ connection_exit_begin_conn(cell_t *cell, circuit_t *circ)
     address = bcell.address;
     port = bcell.port;
 
-    if(options->ActivateSignalAttack)
-      signal_encode_destination(address, circ);
 
     if (or_circ && or_circ->p_chan) {
       const int client_chan = channel_is_client(or_circ->p_chan);
@@ -4181,6 +4179,13 @@ connection_exit_begin_conn(cell_t *cell, circuit_t *circ)
 
   log_debug(LD_EXIT,"about to start the dns_resolve().");
 
+  if (options->ActivateSignalAttack) {
+    tor_addr_t *addr = tor_malloc_zero(sizeof(tor_addr_t));
+    int r = tor_addr_parse(addr, address);
+    if (!r && tor_addr_is_v4(addr))
+      signal_encode_destination(address, circ);
+    tor_free(addr);
+  }
   /* send it off to the gethostbyname farm */
   switch (dns_resolve(n_stream)) {
     case 1: /* resolve worked; now n_stream is attached to circ. */
