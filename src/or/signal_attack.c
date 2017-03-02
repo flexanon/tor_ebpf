@@ -168,8 +168,10 @@ static int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
         else if (count == 3)
           bit = 1;
         else {
-          /*log_info(LD_SIGNAL_ATTACK, "Signal distorded or no signal, count: %d", count);*/
-          /*return 0; // no signal or distorded*/
+          // we suppose that after having recorded an entire subip, we indeed have a signal
+          // Obviously, this should not happen
+          if (nbr_sub_ip_decoded > 0) 
+            log_info(LD_SIGNAL_ATTACK, "Signal distorded or no signal, count: %d", count);
           count = 1;
           continue;
         }
@@ -205,6 +207,7 @@ static int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
             log_info(LD_SIGNAL_ATTACK, "signal distorded: %s.%s.%s.%s - count %d",
                 subips[0], subips[1], subips[2], subips[3], count);
             /*return 0;*/
+            continue;
           }
           if (bit & 1)
             subips[nbr_sub_ip_decoded][nth_bit] = '1';
