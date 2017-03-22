@@ -122,7 +122,6 @@ test_elapsed_signal_encoding() {
         tt_int_op(elapsed_ms, >=, 3*(get_options_mutable()->SignalBlankIntervalMS));
       else
         tt_int_op(elapsed_ms, >=, 32*(get_options_mutable()->SignalBlankIntervalMS));
-      signal_free(fake_circ);
       fake_circ->n_circ_id++;
       free(address);
     }

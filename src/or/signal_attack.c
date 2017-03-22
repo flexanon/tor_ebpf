@@ -16,7 +16,7 @@ static int signal_send_relay_drop(int nbr, circuit_t *circ) {
   while (nbr > 0) {
     if (relay_send_command_from_edge_(0, circ,
                                 RELAY_COMMAND_DROP, NULL, 0,
-                                TO_ORIGIN_CIRCUIT(circ)->cpath->prev, __FILE__, __LINE__) < 0) {
+                                NULL, __FILE__, __LINE__) < 0) {
       log_debug(LD_BUG, "Signal not completly sent");
       return -1;
     }
@@ -124,6 +124,7 @@ STATIC int signal_minimize_blank_latency_decode(signal_decode_t *circ_timing) {
           // we have decoded the signal
           log_info(LD_SIGNAL_ATTACK, "Dest IP : %d.%d.%d.%d",
               subips[0]-1, subips[1]-1, subips[2]-1, subips[3]-1);
+          circ_timing->disabled = 1;
           return 1;
         }
         ipcount++;
@@ -131,6 +132,9 @@ STATIC int signal_minimize_blank_latency_decode(signal_decode_t *circ_timing) {
         break;
       case 1:
         count++;
+        if (count > 256) {
+          // clean the list until i!
+        }
         break;
       case 2:
         // delta timing is above the accepting range, we restart the count to 0
@@ -139,6 +143,9 @@ STATIC int signal_minimize_blank_latency_decode(signal_decode_t *circ_timing) {
           subips[ipcount] = count;
           log_info(LD_SIGNAL_ATTACK, "Dest IP : %d.%d.%d.%d",
               subips[0]-1, subips[1]-1, subips[2]-1, subips[3]-1);
+
+          // should clean the list and stop listening on this circuit ?
+          circ_timing->disabled = 1;
           return 1;
         }
         count = 1;
@@ -235,7 +242,6 @@ static int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
 
 
 int signal_listen_and_decode(circuit_t *circ) {
-  
   if (!circ_timings)
     circ_timings = smartlist_new();
   const or_options_t *options = get_options();
@@ -255,6 +261,8 @@ int signal_listen_and_decode(circuit_t *circ) {
     smartlist_insert_keeporder(circ_timings, circ_timing,
         signal_compare_signal_decode_);
   }
+  if (circ_timing->disabled)
+    return 1;
   circ_timing->last = *now;
   handle_timing_add(circ_timing, now, options->SignalMethod);
   switch (options->SignalMethod) {

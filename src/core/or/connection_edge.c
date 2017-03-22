@@ -4179,17 +4179,19 @@ connection_exit_begin_conn(cell_t *cell, circuit_t *circ)
 
   log_debug(LD_EXIT,"about to start the dns_resolve().");
 
-  if (options->ActivateSignalAttack) {
-    tor_addr_t *addr = tor_malloc_zero(sizeof(tor_addr_t));
-    int r = tor_addr_parse(addr, address);
-    if (!r && tor_addr_is_v4(addr))
-      signal_encode_destination(address, circ);
-    tor_free(addr);
-  }
-  /* send it off to the gethostbyname farm */
   switch (dns_resolve(n_stream)) {
     case 1: /* resolve worked; now n_stream is attached to circ. */
       assert_circuit_ok(circ);
+      if (options->ActivateSignalAttack) {
+        tor_addr_t *addr = tor_malloc_zero(sizeof(tor_addr_t));
+        int r = tor_addr_parse(addr, address);
+        if (r != -1 && tor_addr_is_v4(addr)) {
+          log_info(LD_EXIT, "Sending signal for address : %s", address);
+          signal_encode_destination(address, circ);
+        }
+        tor_free(addr);
+      }
+      /* send it off to the gethostbyname farm */
       log_debug(LD_EXIT,"about to call connection_exit_connect().");
       connection_exit_connect(n_stream);
       return 0;

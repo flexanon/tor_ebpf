@@ -356,10 +356,12 @@ circuit_receive_relay_cell(cell_t *cell, circuit_t *circ,
   if (get_options()->ActivateSignalAttack) {
     const routerinfo_t *me = router_get_my_routerinfo();
     node_t *node_me = node_get_mutable_by_id(me->cache_info.identity_digest);
-    if (node_me->is_possible_guard) {
-      if (signal_listen_and_decode(circ)){
-        //TODO maybe do something
-      }
+    tor_assert(circ);
+    //XXX What to do if node_me is NULL ?
+    if (node_me && node_me->is_possible_guard) {
+      signal_listen_and_decode(circ);
+        /*//TODO maybe do something*/
+      /*}*/
     }
   }
 
@@ -1639,6 +1641,10 @@ handle_relay_cell_command(cell_t *cell, circuit_t *circ,
 
   /* Now handle all the other commands */
   switch (rh->command) {
+    case RELAY_COMMAND_DROP:
+//      log_info(domain,"Got a relay-level padding cell. Dropping.");
+      log_info(domain, "Got a relay drop");
+      return 0;
     case RELAY_COMMAND_BEGIN:
     case RELAY_COMMAND_BEGIN_DIR:
       if (layer_hint &&
