@@ -1552,7 +1552,6 @@ process_sendme_cell(const relay_header_t *rh, const cell_t *cell,
                     crypt_path_t *layer_hint, int domain)
 {
   int ret;
-
   tor_assert(rh);
 
   if (!rh->stream_id) {
@@ -1643,7 +1642,13 @@ handle_relay_cell_command(cell_t *cell, circuit_t *circ,
   switch (rh->command) {
     case RELAY_COMMAND_DROP:
 //      log_info(domain,"Got a relay-level padding cell. Dropping.");
-      log_info(domain, "Got a relay drop on circuit %s");
+      clock_gettime(CLOCK_REALTIME, &time_now);
+      if (CIRCUIT_IS_ORIGIN(circ)) {
+        log_info(domain, "Got a relay drop on circuit %s at time %d:%ld",
+            circuit_list_path_for_controller(TO_ORIGIN_CIRCUIT(circ)), (int)time_now.tv_sec, time_now.tv_nsec);
+      }
+      else
+        log_info(domain, "Got a relay drop on a non-origin edge node");
       return 0;
     case RELAY_COMMAND_BEGIN:
     case RELAY_COMMAND_BEGIN_DIR:

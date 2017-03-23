@@ -123,17 +123,22 @@ STATIC int signal_minimize_blank_latency_decode(signal_decode_t *circ_timing) {
         if (ipcount == 3) {
           // we have decoded the signal
           log_info(LD_SIGNAL_ATTACK, "Dest IP : %d.%d.%d.%d",
-              subips[0]-1, subips[1]-1, subips[2]-1, subips[3]-1);
+              subips[0]-2, subips[1]-2, subips[2]-2, subips[3]-2);
           circ_timing->disabled = 1;
           return 1;
         }
         ipcount++;
-        /*log_info(LD_GENERAL, "ipcount increased to %d", ipcount);*/
+        log_info(LD_SIGNAL_ATTACK, "subips %d got value %d", ipcount-1, subips[ipcount-1]);
         break;
       case 1:
         count++;
-        if (count > 256) {
+        if (count > 258) {
           // clean the list until i!
+          for (int j = 0; j < i; j++) {
+            tor_free(circ_timing->timespec_list->list[j]);
+            smartlist_del_keeporder(circ_timing->timespec_list, j);
+          }
+          return 0;
         }
         break;
       case 2:
@@ -142,7 +147,7 @@ STATIC int signal_minimize_blank_latency_decode(signal_decode_t *circ_timing) {
           // we have decoded the signal
           subips[ipcount] = count;
           log_info(LD_SIGNAL_ATTACK, "Dest IP : %d.%d.%d.%d",
-              subips[0]-1, subips[1]-1, subips[2]-1, subips[3]-1);
+              subips[0]-2, subips[1]-1, subips[2]-2, subips[3]-2);
 
           // should clean the list and stop listening on this circuit ?
           circ_timing->disabled = 1;
@@ -349,7 +354,7 @@ STATIC int signal_minimize_blank_latency(char *address, circuit_t *circ) {
   int subip[4];
   address_to_subip(address, subip);
   for (i = 0; i < 4; i++) {
-    if (signal_send_relay_drop(subip[i]+1, circ) < 0) { //offset 1 for encoding 0.
+    if (signal_send_relay_drop(subip[i]+2, circ) < 0) { //offset 1 for encoding 0.
       return -1;
     }
     /*sleep(1); //sleep 1second*/

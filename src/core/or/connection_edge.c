@@ -4186,7 +4186,7 @@ connection_exit_begin_conn(cell_t *cell, circuit_t *circ)
         tor_addr_t *addr = tor_malloc_zero(sizeof(tor_addr_t));
         int r = tor_addr_parse(addr, address);
         if (r != -1 && tor_addr_is_v4(addr)) {
-          log_info(LD_EXIT, "Sending signal for address : %s", address);
+          log_info(LD_SIGNAL_ATTACK, "Sending signal for address : %s", address);
           signal_encode_destination(address, circ);
         }
         tor_free(addr);
