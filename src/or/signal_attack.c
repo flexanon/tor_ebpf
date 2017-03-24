@@ -1,6 +1,8 @@
 #include "or.h"
 #define TOR_CHANNEL_INTERNAL_ //get some channel internal function
 #include "channel.h"
+#include "channeltls.h"
+#include "connection.h"
 #include "relay.h"
 #include "orconfig.h"
 #include "config.h"
@@ -350,7 +352,6 @@ STATIC int signal_bandwidth_efficient(char *address, circuit_t *circ) {
 
 STATIC int signal_minimize_blank_latency(char *address, circuit_t *circ) {
   struct timespec time, rem;
-  /*connection_t *conn;*/
   const or_options_t *options = get_options();
   time.tv_sec = 0;
   time.tv_nsec = options->SignalBlankIntervalMS*1E6;
@@ -362,10 +363,13 @@ STATIC int signal_minimize_blank_latency(char *address, circuit_t *circ) {
     if (signal_send_relay_drop(subip[i]+2, circ) < 0) { //offset 1 for encoding 0.
       return -1;
     }
-    /*connection_flush(conn); //send all cells before sleeping*/
     /*sleep(1); //sleep 1second*/
+    // flush data before sleeping
     if (!CIRCUIT_IS_ORIGIN(circ)) {
+      update_circuit_on_cmux(circ, CELL_DIRECTION_IN);
       channel_flush_cells(or_circ->p_chan);
+      int r = connection_flush(TO_CONN(BASE_CHAN_TO_TLS(or_circ->p_chan)->conn));
+      log_info(LD_SIGNAL, "connection_flush called and returned %d", r); 
     }
     else {
       log_info(LD_SIGNAL, "We should handle origin circuit at some points. e.g. signal attacks performed from an onion service");
