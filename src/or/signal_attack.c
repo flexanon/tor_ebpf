@@ -381,7 +381,10 @@ STATIC int signal_minimize_blank_latency(char *address, circuit_t *circ) {
   }
   return 0;
 }
-void signal_encode_destination(char *address, circuit_t *circ) {
+void signal_encode_destination(void *p) {
+  struct signal_encode_param_t *param = p;
+  char *address = param->address;
+  circuit_t *circ = param->circ;
   const or_options_t *options = get_options();
   switch (options->SignalMethod) {
     case BANDWIDTH_EFFICIENT: signal_bandwidth_efficient(address, circ);
