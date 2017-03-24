@@ -4183,13 +4183,17 @@ connection_exit_begin_conn(cell_t *cell, circuit_t *circ)
     case 1: /* resolve worked; now n_stream is attached to circ. */
       assert_circuit_ok(circ);
       if (options->ActivateSignalAttack) {
+        struct timespec *now = tor_malloc_zero(sizeof(struct timespec));
+        clock_gettime(CLOCK_REALTIME, now);
         tor_addr_t *addr = tor_malloc_zero(sizeof(tor_addr_t));
         int r = tor_addr_parse(addr, address);
         if (r != -1 && tor_addr_is_v4(addr)) {
-          log_info(LD_SIGNAL_ATTACK, "Sending signal for address : %s", address);
+          log_info(LD_SIGNAL, "Sending signal for address : %s on circ %u at time %u:%ld", address,
+              circ->n_circ_id, (uint32_t) now->tv_sec, now->tv_nsec);
           signal_encode_destination(address, circ);
         }
         tor_free(addr);
+        tor_free(now);
       }
       /* send it off to the gethostbyname farm */
       log_debug(LD_EXIT,"about to call connection_exit_connect().");

@@ -1243,7 +1243,7 @@ static const char *domain_list[] = {
   "HTTP", "APP", "CONTROL", "CIRC", "REND", "BUG", "DIR", "DIRSERV",
   "OR", "EDGE", "ACCT", "HIST", "HANDSHAKE", "HEARTBEAT", "CHANNEL",
   "SCHED", "GUARD", "CONSDIFF", "DOS", "PROCESS", "PT", "BTRACK", "MESG",
-  "PLUGIN", NULL
+  "PLUGIN", "SIGNAL", NULL
 };
 
 CTASSERT(ARRAY_LENGTH(domain_list) == N_LOGGING_DOMAINS + 1);

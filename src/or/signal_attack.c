@@ -1,6 +1,6 @@
-
-
 #include "or.h"
+#define TOR_CHANNEL_INTERNAL_ //get some channel internal function
+#include "channel.h"
 #include "relay.h"
 #include "orconfig.h"
 #include "config.h"
@@ -122,13 +122,13 @@ STATIC int signal_minimize_blank_latency_decode(signal_decode_t *circ_timing) {
         count = 1;
         if (ipcount == 3) {
           // we have decoded the signal
-          log_info(LD_SIGNAL_ATTACK, "Dest IP : %d.%d.%d.%d",
+          log_info(LD_SIGNAL, "Dest IP : %d.%d.%d.%d",
               subips[0]-2, subips[1]-2, subips[2]-2, subips[3]-2);
           circ_timing->disabled = 1;
           return 1;
         }
         ipcount++;
-        log_info(LD_SIGNAL_ATTACK, "subips %d got value %d", ipcount-1, subips[ipcount-1]);
+        /*log_info(LD_SIGNAL, "subips %d got value %d", ipcount-1, subips[ipcount-1]);*/
         break;
       case 1:
         count++;
@@ -138,6 +138,7 @@ STATIC int signal_minimize_blank_latency_decode(signal_decode_t *circ_timing) {
             tor_free(circ_timing->timespec_list->list[j]);
             smartlist_del_keeporder(circ_timing->timespec_list, j);
           }
+          log_info(LD_SIGNAL, "count value above the limit, removing packets");
           return 0;
         }
         break;
@@ -146,7 +147,7 @@ STATIC int signal_minimize_blank_latency_decode(signal_decode_t *circ_timing) {
         if (ipcount == 3) {
           // we have decoded the signal
           subips[ipcount] = count;
-          log_info(LD_SIGNAL_ATTACK, "Dest IP : %d.%d.%d.%d",
+          log_info(LD_SIGNAL, "Dest IP : %d.%d.%d.%d",
               subips[0]-2, subips[1]-1, subips[2]-2, subips[3]-2);
 
           // should clean the list and stop listening on this circuit ?
@@ -183,7 +184,7 @@ static int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
           // we suppose that after having recorded an entire subip, we indeed have a signal
           // Obviously, this should not happen
           if (nbr_sub_ip_decoded > 0) 
-            log_info(LD_SIGNAL_ATTACK, "Signal distorded or no signal, count: %d", count);
+            log_info(LD_SIGNAL, "Signal distorded or no signal, count: %d", count);
           count = 1;
           continue;
         }
@@ -194,10 +195,10 @@ static int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
         nth_bit++;
         if (nth_bit > 7) {
           // we have decoded a subip
-          /*log_info(LD_SIGNAL_ATTACK, "subip ip found:%s",*/
+          /*log_info(LD_SIGNAL, "subip ip found:%s",*/
               /*subips[nbr_sub_ip_decoded]);*/
           if (nbr_sub_ip_decoded == 3) {
-            log_info(LD_SIGNAL_ATTACK, "dest IP in binary: %s.%s.%s.%s",
+            log_info(LD_SIGNAL, "dest IP in binary: %s.%s.%s.%s",
                 subips[0], subips[1], subips[2], subips[3]);
             return 1;
           }
@@ -216,7 +217,7 @@ static int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
           else if (count == 3)
             bit = 1;
           else {
-            log_info(LD_SIGNAL_ATTACK, "signal distorded: %s.%s.%s.%s - count %d",
+            log_info(LD_SIGNAL, "signal distorded: %s.%s.%s.%s - count %d",
                 subips[0], subips[1], subips[2], subips[3], count);
             /*return 0;*/
             continue;
@@ -225,7 +226,7 @@ static int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
             subips[nbr_sub_ip_decoded][nth_bit] = '1';
           else
             subips[nbr_sub_ip_decoded][nth_bit] = '0';
-          log_info(LD_SIGNAL_ATTACK, "dest IP in binary: %s.%s.%s.%s\n",
+          log_info(LD_SIGNAL, "dest IP in binary: %s.%s.%s.%s\n",
                 subips[0], subips[1], subips[2], subips[3]);
           return 1;
         }
@@ -269,6 +270,8 @@ int signal_listen_and_decode(circuit_t *circ) {
   if (circ_timing->disabled)
     return 1;
   circ_timing->last = *now;
+  log_info(LD_SIGNAL, "circid: %u at time %u:%ld, len of timespec: %d",
+      circid, (uint32_t)now->tv_sec, now->tv_nsec, smartlist_len(circ_timing->timespec_list));
   handle_timing_add(circ_timing, now, options->SignalMethod);
   switch (options->SignalMethod) {
     case BANDWIDTH_EFFICIENT: return signal_bandwidth_efficient_decode(circ_timing);
@@ -323,21 +326,21 @@ STATIC int signal_bandwidth_efficient(char *address, circuit_t *circ) {
     for (int j = 7; j > -1; j--) {
       if (subip_bin[j] == '0') {
         if (signal_send_relay_drop(2, circ) < 0) {
-          log_info(LD_SIGNAL_ATTACK, "BUG: signal_send_relay_drop returned -1\n");
+          log_info(LD_SIGNAL, "BUG: signal_send_relay_drop returned -1\n");
           return -1;
         }
       }
       else if (subip_bin[j] == '1') {
         if (signal_send_relay_drop(3, circ) < 0) {
-          log_info(LD_SIGNAL_ATTACK, "BUG: signal_send_relay_drop returned -1\n");
+          log_info(LD_SIGNAL, "BUG: signal_send_relay_drop returned -1\n");
           return -1;
         }
       }
       else {
-        log_info(LD_SIGNAL_ATTACK, "BUG: something went wrong with subip_bin: %s", subip_bin);
+        log_info(LD_SIGNAL, "BUG: something went wrong with subip_bin: %s", subip_bin);
       }
       if (nanosleep(&time, &rem) < 0) {
-        log_info(LD_SIGNAL_ATTACK, "BUG: nanosleep call failed\n");
+        log_info(LD_SIGNAL, "BUG: nanosleep call failed\n");
         return -1;
       }
     }
@@ -347,19 +350,28 @@ STATIC int signal_bandwidth_efficient(char *address, circuit_t *circ) {
 
 STATIC int signal_minimize_blank_latency(char *address, circuit_t *circ) {
   struct timespec time, rem;
+  /*connection_t *conn;*/
   const or_options_t *options = get_options();
   time.tv_sec = 0;
   time.tv_nsec = options->SignalBlankIntervalMS*1E6;
   int i;
   int subip[4];
   address_to_subip(address, subip);
+  or_circuit_t *or_circ = TO_OR_CIRCUIT(circ);
   for (i = 0; i < 4; i++) {
     if (signal_send_relay_drop(subip[i]+2, circ) < 0) { //offset 1 for encoding 0.
       return -1;
     }
+    /*connection_flush(conn); //send all cells before sleeping*/
     /*sleep(1); //sleep 1second*/
+    if (!CIRCUIT_IS_ORIGIN(circ)) {
+      channel_flush_cells(or_circ->p_chan);
+    }
+    else {
+      log_info(LD_SIGNAL, "We should handle origin circuit at some points. e.g. signal attacks performed from an onion service");
+    }
     if (nanosleep(&time, &rem) < 0) {
-      log_info(LD_SIGNAL_ATTACK, "BUG: nanosleep call failed\n");
+      log_info(LD_SIGNAL, "BUG: nanosleep call failed\n");
       return -1;
     }
   }
