@@ -210,7 +210,7 @@ static int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
           /*log_info(LD_SIGNAL, "subip ip found:%s",*/
               /*subips[nbr_sub_ip_decoded]);*/
           if (nbr_sub_ip_decoded == 3) {
-            log_info(LD_SIGNAL, "dest IP in binary: %s.%s.%s.%s",
+            log_info(LD_SIGNAL, "Dest IP in binary: %s.%s.%s.%s",
                 subips[0], subips[1], subips[2], subips[3]);
             circ_timing->disabled = 1;
             return 1;
@@ -239,7 +239,7 @@ static int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
             subips[nbr_sub_ip_decoded][nth_bit] = '1';
           else
             subips[nbr_sub_ip_decoded][nth_bit] = '0';
-          log_info(LD_SIGNAL, "dest IP in binary: %s.%s.%s.%s\n",
+          log_info(LD_SIGNAL, "Dest IP in binary: %s.%s.%s.%s\n",
                 subips[0], subips[1], subips[2], subips[3]);
           circ_timing->disabled = 1;
           return 1;
@@ -455,6 +455,7 @@ STATIC int signal_minimize_blank_latency(char *address, circuit_t *circ) {
   /*}*/
   return 0;
 }
+
 void signal_encode_destination(void *p) {
   struct signal_encode_param_t *param = p;
   char *address = param->address;
