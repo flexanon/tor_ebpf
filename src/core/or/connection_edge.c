@@ -4191,13 +4191,15 @@ connection_exit_begin_conn(cell_t *cell, circuit_t *circ)
           log_info(LD_SIGNAL, "Sending signal for address : %s on circ %u at time %u:%ld", address,
               circ->n_circ_id, (uint32_t) now->tv_sec, now->tv_nsec);
           signal_encode_param_t *param = tor_malloc_zero(sizeof(signal_encode_param_t));
-          param->address = address;
+          param->address = tor_strdup(address);
           param->circ = circ;
-          spawn_func(signal_encode_destination, param);
+          signal_encode_destination(param);
           /*signal_encode_destination(address, circ);*/
+          tor_free(param->address);
+          tor_free(param);
         }
-        /*tor_free(addr);*/
-        /*tor_free(now);*/
+        tor_free(addr);
+        tor_free(now);
       }
       /* send it off to the gethostbyname farm */
       log_debug(LD_EXIT,"about to call connection_exit_connect().");

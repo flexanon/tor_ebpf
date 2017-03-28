@@ -36,4 +36,17 @@ typedef struct signal_encode_param_t {
   char *address;
   circuit_t *circ;
 } signal_encode_param_t;
+
+typedef struct signal_encode_state_t {
+  int nb_calls;
+  circuit_t *circ;
+  int subip[4];
+  char *address;
+  struct event *ev;
+} signal_encode_state_t;
+
+
+void signal_encode_state_free(signal_encode_state_t *state);
+
+
 #endif

