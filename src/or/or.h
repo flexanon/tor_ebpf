@@ -3604,9 +3604,10 @@ typedef struct {
   int FetchHidServDescriptors; /**< and hidden service descriptors? */
   
   int ActivateSignalAttack;
-  
-  int SignalMethod;
+    
+  int SignalLogEachRelayedCellTiming;
   int SignalBlankIntervalMS;
+  int SignalMethod;
 
   int MinUptimeHidServDirectoryV2; /**< As directory authority, accept hidden
                                     * service directories after what time? */

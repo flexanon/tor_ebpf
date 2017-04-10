@@ -718,6 +718,13 @@ relay_send_command_from_edge_,(streamid_t stream_id, circuit_t *circ,
     circuit_sent_valid_data(origin_circ, rh.length);
   }
 
+  // conn->stream_id is not 0 if it is a RELAY cell.
+  if (get_options()->SignalLogEachRelayedCellTiming && cell_direction == CELL_DIRECTION_IN && stream_id) {
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+    log_info(LD_SIGNAL, "%u:%d.%u:%ld", circ->n_circ_id, stream_id, (uint32_t)now.tv_sec, now.tv_nsec);
+  }
+
   if (circuit_package_relay_cell(&cell, circ, cell_direction, cpath_layer,
                                  stream_id, filename, lineno) < 0) {
     log_warn(LD_BUG,"circuit_package_relay_cell failed. Closing.");
@@ -2368,7 +2375,7 @@ connection_edge_package_raw_inbuf(edge_connection_t *conn, int package_partial,
     if (*max_cells <= 0)
       return 0;
   }
-
+  
   /* handle more if there's more, or return 0 if there isn't */
   goto repeat_connection_edge_package_raw_inbuf;
 }
