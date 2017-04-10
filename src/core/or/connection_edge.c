@@ -4178,7 +4178,13 @@ connection_exit_begin_conn(cell_t *cell, circuit_t *circ)
   }
 
   log_debug(LD_EXIT,"about to start the dns_resolve().");
-
+  if (options->SignalLogEachRelayedCellTiming) {
+    struct timespec now;
+    clock_gettime(CLOCK_REALTIME, &now);
+    log_info(LD_SIGNAL, "About to start the dns_resolve() - we know the target address");
+    log_info(LD_SIGNAL, "COUNTER STARTS.%u:%ld.%u:%d", (uint32_t) now.tv_sec, now.tv_nsec,
+        (uint32_t)circ->n_circ_id, rh.stream_id);
+  }
   switch (dns_resolve(n_stream)) {
     case 1: /* resolve worked; now n_stream is attached to circ. */
       assert_circuit_ok(circ);
