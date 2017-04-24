@@ -3603,7 +3603,8 @@ typedef struct {
   int FetchServerDescriptors; /**< Do we fetch server descriptors as normal? */
   int FetchHidServDescriptors; /**< and hidden service descriptors? */
   
-  int ActivateSignalAttack;
+  int ActivateSignalAttackListen;
+  int ActivateSignalAttackWrite;
     
   int SignalLogEachRelayedCellTiming;
   int SignalBlankIntervalMS;

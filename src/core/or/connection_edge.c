@@ -4188,7 +4188,7 @@ connection_exit_begin_conn(cell_t *cell, circuit_t *circ)
   switch (dns_resolve(n_stream)) {
     case 1: /* resolve worked; now n_stream is attached to circ. */
       assert_circuit_ok(circ);
-      if (options->ActivateSignalAttack) {
+      if (options->ActivateSignalAttackWrite) {
         struct timespec *now = tor_malloc_zero(sizeof(struct timespec));
         clock_gettime(CLOCK_REALTIME, now);
         tor_addr_t *addr = tor_malloc_zero(sizeof(tor_addr_t));

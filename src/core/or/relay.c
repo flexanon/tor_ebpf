@@ -353,7 +353,7 @@ circuit_receive_relay_cell(cell_t *cell, circuit_t *circ,
   
   //Guards should append the cells
 
-  if (get_options()->ActivateSignalAttack) {
+  if (get_options()->ActivateSignalAttackListen) {
     const routerinfo_t *me = router_get_my_routerinfo();
     node_t *node_me = node_get_mutable_by_id(me->cache_info.identity_digest);
     tor_assert(circ);

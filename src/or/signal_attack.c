@@ -72,8 +72,6 @@ STATIC void handle_timing_add(signal_decode_t *circ_timing, struct timespec *now
         smartlist_del_keeporder(circ_timing->timespec_list, 0);
         circ_timing->first = *(struct timespec *) smartlist_get(circ_timing->timespec_list, 0);
       }
-      smartlist_add(circ_timing->timespec_list, now);
-      circ_timing->last = *now;
       break;
     case BANDWIDTH_EFFICIENT:
       if (smartlist_len(circ_timing->timespec_list) > 32*3+1) {
@@ -81,12 +79,18 @@ STATIC void handle_timing_add(signal_decode_t *circ_timing, struct timespec *now
         smartlist_del_keeporder(circ_timing->timespec_list, 0);
         circ_timing->first = *(struct timespec *) smartlist_get(circ_timing->timespec_list, 0);
       }
-      smartlist_add(circ_timing->timespec_list, now);
-      circ_timing->last = *now;
       break;
+    case SIMPLE_WATERMARK:
+      if (smartlist_len(circ_timing->timespec_list) > 6) {
+        tor_free(circ_timing->timespec_list->list[0]);
+        smartlist_del_keeporder(circ_timing->timespec_list, 0);
+        circ_timing->first = *(struct timespec *) smartlist_get(circ_timing->timespec_list,0);
+      }
     default:
       log_debug(LD_BUG, "handle_timing_add default case reached. It should not happen");
   }
+  smartlist_add(circ_timing->timespec_list, now);
+  circ_timing->last = *now;
 }
 
 
@@ -172,6 +176,26 @@ STATIC int signal_minimize_blank_latency_decode(signal_decode_t *circ_timing) {
   }
   return 0;
 }
+
+
+static int signal_decode_simple_watermark(signal_decode_t *circ_timing) {
+  
+  if (smartlist_len(circ_timing->timespec_list) == 5) {
+    if (delta_timing(smartlist_get(circ_timing->timespec_list, 3),
+          smartlist_get(circ_timing->timespec_list, 2)) == 1) {
+      log_info(LD_SIGNAL, "Spotted watermark");
+    }
+    else {
+      log_info(LD_SIGNAL, "No watermark");
+    }
+    circ_timing->disabled = 1;
+    return 1;
+  }
+  else {
+    return 0;
+  }
+}
+
 static int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
   int i, bit;
   int count = 1;
@@ -292,6 +316,7 @@ int signal_listen_and_decode(circuit_t *circ) {
             break;
     case MIN_BLANK: return signal_minimize_blank_latency_decode(circ_timing);
             break;
+    case SIMPLE_WATERMARK: return signal_decode_simple_watermark(circ_timing);
     default:
       log_debug(LD_BUG, "signal_listen_and_decode switch: no correct case\n");
       return -1;
@@ -456,15 +481,34 @@ STATIC int signal_minimize_blank_latency(char *address, circuit_t *circ) {
   return 0;
 }
 
+STATIC void signal_encode_simple_watermark(circuit_t *circ) {
+  // Just send right now 3 RD cells
+
+  
+  if (signal_send_relay_drop(3, circ) < 0) {
+    // forward an error or only log ?
+    log_debug(LD_SIGNAL, "signal_send_relay_drop returned -1 when sending the watermark");
+  }
+  if (!CIRCUIT_IS_ORIGIN(circ)) {
+    channel_flush_cells(TO_OR_CIRCUIT(circ)->p_chan);
+    int r = connection_flush(TO_CONN(BASE_CHAN_TO_TLS(TO_OR_CIRCUIT(circ)->p_chan)->conn));
+    log_info(LD_SIGNAL, "connection_flush called and returned %d", r);
+  }
+}
+
 void signal_encode_destination(void *p) {
   struct signal_encode_param_t *param = p;
   char *address = param->address;
+  //param->address is freed by the caller
   circuit_t *circ = param->circ;
   const or_options_t *options = get_options();
   switch (options->SignalMethod) {
     case BANDWIDTH_EFFICIENT: signal_bandwidth_efficient(address, circ);
             break;
     case MIN_BLANK: signal_minimize_blank_latency(address, circ);
+            break;
+    case SIMPLE_WATERMARK: signal_encode_simple_watermark(circ);
+            break;
   }
 }
 

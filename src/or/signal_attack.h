@@ -5,6 +5,7 @@
 
 #define BANDWIDTH_EFFICIENT 0
 #define MIN_BLANK 1
+#define SIMPLE_WATERMARK 2
 #define SIGNAL_ATTACK_MAX_BLANK 2000
 
 //void signal_encode_destination(char *address, circuit_t *circ);
@@ -22,6 +23,7 @@ STATIC int signal_compare_key_to_entry_(const void *_key, const void **_member);
 STATIC int signal_minimize_blank_latency(char *address, circuit_t *circ);
 STATIC int signal_bandwidth_efficient(char *address, circuit_t *circuit);
 STATIC void subip_to_subip_bin(uint8_t, char *subip_bin);
+STATIC void signal_encode_simple_watermark(circuit_t *circuit);
 #endif
 
 typedef struct signal_decode_t {
