@@ -102,10 +102,10 @@ STATIC int delta_timing(struct timespec *t1, struct timespec *t2) {
     return 2;
   else if (elapsed_ms >= (options->SignalBlankIntervalMS*0.95))
     return 0;
-  else if (elapsed_ms > 0)
+  else if (elapsed_ms >= 0)
     return 1;
   else {
-    log_debug(LD_BUG, "delta_timing compute a negative delta");
+    log_info(LD_SIGNAL, "BUG: delta_timing compute a negative delta");
     return -1;
   }
 }
@@ -181,12 +181,16 @@ STATIC int signal_minimize_blank_latency_decode(signal_decode_t *circ_timing) {
 static int signal_decode_simple_watermark(signal_decode_t *circ_timing) {
   
   if (smartlist_len(circ_timing->timespec_list) == 5) {
-    if (delta_timing(smartlist_get(circ_timing->timespec_list, 3),
-          smartlist_get(circ_timing->timespec_list, 2)) == 1) {
+    int r = delta_timing(smartlist_get(circ_timing->timespec_list, 2),
+          smartlist_get(circ_timing->timespec_list, 3));
+   
+    int r2 = delta_timing(smartlist_get(circ_timing->timespec_list, 1),
+          smartlist_get(circ_timing->timespec_list, 2));
+    if (r == 1 && (r2 == 0 || r2 == 2)) {
       log_info(LD_SIGNAL, "Spotted watermark");
     }
     else {
-      log_info(LD_SIGNAL, "No watermark");
+      log_info(LD_SIGNAL, "No watermark r:%d", r);
     }
     circ_timing->disabled = 1;
     return 1;
