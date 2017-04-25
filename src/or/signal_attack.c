@@ -183,10 +183,12 @@ static int signal_decode_simple_watermark(signal_decode_t *circ_timing) {
   if (smartlist_len(circ_timing->timespec_list) == 5) {
     int r = delta_timing(smartlist_get(circ_timing->timespec_list, 2),
           smartlist_get(circ_timing->timespec_list, 3));
+    int r2 = delta_timing(smartlist_get(circ_timing->timespec_list, 3),
+          smartlist_get(circ_timing->timespec_list, 4));
    
-    int r2 = delta_timing(smartlist_get(circ_timing->timespec_list, 1),
+    int r3 = delta_timing(smartlist_get(circ_timing->timespec_list, 1),
           smartlist_get(circ_timing->timespec_list, 2));
-    if (r == 1 && (r2 == 0 || r2 == 2)) {
+    if ((r == 1 || r2 == 1) && (r3 == 0 || r3 == 2)) {
       log_info(LD_SIGNAL, "Spotted watermark");
     }
     else {
