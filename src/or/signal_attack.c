@@ -192,7 +192,7 @@ static int signal_decode_simple_watermark(signal_decode_t *circ_timing) {
       log_info(LD_SIGNAL, "Spotted watermark");
     }
     else {
-      log_info(LD_SIGNAL, "No watermark r:%d", r);
+      log_info(LD_SIGNAL, "No watermark r:%d, r2:%d, r3:%d", r, r2, r3);
     }
     circ_timing->disabled = 1;
     return 1;
@@ -314,7 +314,7 @@ int signal_listen_and_decode(circuit_t *circ) {
   if (circ_timing->disabled)
     return 1;
   circ_timing->last = *now;
-  log_info(LD_SIGNAL, "circid: %u at time %u:%ld, len of timespec: %d",
+  log_info(LD_SIGNAL, "circid: %u at time %u:%ld, index of timespec: %d",
       circid, (uint32_t)now->tv_sec, now->tv_nsec, smartlist_len(circ_timing->timespec_list));
   handle_timing_add(circ_timing, now, options->SignalMethod);
   switch (options->SignalMethod) {
