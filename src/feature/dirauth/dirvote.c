@@ -1516,7 +1516,11 @@ networkstatus_compute_consensus(smartlist_t *votes,
   smartlist_t *flags;
   const char *flavor_name;
   uint32_t max_unmeasured_bw_kb = DEFAULT_MAX_UNMEASURED_BW_KB;
-  int64_t G, M, E, D, T; /* For bandwidth weights */
+  int64_t G=0, M=0, E=0, D=0, T=0; /* For bandwidth weights */
+  if (get_options()->TestingTorNetwork) {
+    /* default to 1 for weights to ensure it get included */
+    T = D = E = G = M = 1;
+  }
   const routerstatus_format_type_t rs_format =
     flavor == FLAV_NS ? NS_V3_CONSENSUS : NS_V3_CONSENSUS_MICRODESC;
   char *params = NULL;
