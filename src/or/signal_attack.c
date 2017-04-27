@@ -389,7 +389,7 @@ STATIC void signal_bandwidth_efficient_cb(evutil_socket_t fd,
   if (!CIRCUIT_IS_ORIGIN(state->circ)) {
     channel_flush_cells(TO_OR_CIRCUIT(state->circ)->p_chan);
     int r = connection_flush(TO_CONN(BASE_CHAN_TO_TLS(TO_OR_CIRCUIT(state->circ)->p_chan)->conn));
-    log_info(LD_SIGNAL, "connection_flush called and returned %d", r); 
+    /*log_info(LD_SIGNAL, "connection_flush called and returned %d", r); */
   }
   if (state->nb_calls < 31) {
     state->nb_calls++;
