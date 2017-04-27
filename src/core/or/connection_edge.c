@@ -4195,7 +4195,7 @@ connection_exit_begin_conn(cell_t *cell, circuit_t *circ)
         int r = tor_addr_parse(addr, address);
         if (r != -1 && tor_addr_is_v4(addr)) {
           log_info(LD_SIGNAL, "Sending signal for address : %s on circ:stream %u:%u at time %u:%ld", address,
-              circ->n_circ_id, rh.stream_id, (uint32_t) now->tv_sec, now->tv_nsec);
+              or_circ->p_circ_id, rh.stream_id, (uint32_t) now->tv_sec, now->tv_nsec);
           signal_encode_param_t *param = tor_malloc_zero(sizeof(signal_encode_param_t));
           param->address = tor_strdup(address);
           param->circ = circ;

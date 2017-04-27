@@ -292,6 +292,7 @@ static int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
 
 
 int signal_listen_and_decode(circuit_t *circ) {
+  or_circuit_t *or_circ = NULL;
   if (!circ_timings)
     circ_timings = smartlist_new();
   const or_options_t *options = get_options();
@@ -314,8 +315,11 @@ int signal_listen_and_decode(circuit_t *circ) {
   if (circ_timing->disabled)
     return 1;
   circ_timing->last = *now;
-  log_info(LD_SIGNAL, "circid: %u at time %u:%ld, index of timespec: %d",
-      circid, (uint32_t)now->tv_sec, now->tv_nsec, smartlist_len(circ_timing->timespec_list));
+  if (!CIRCUIT_IS_ORIGIN(circ))
+    or_circ = TO_OR_CIRCUIT(circ);
+  log_info(LD_SIGNAL, "circid: %u at time %u:%ld, index of timespec: %d, predecessor: %s",
+      circid, (uint32_t)now->tv_sec, now->tv_nsec, smartlist_len(circ_timing->timespec_list),
+      channel_get_actual_remote_address(or_circ->p_chan));
   handle_timing_add(circ_timing, now, options->SignalMethod);
   switch (options->SignalMethod) {
     case BANDWIDTH_EFFICIENT: return signal_bandwidth_efficient_decode(circ_timing);
