@@ -285,10 +285,7 @@ static int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
 }
 
 
-/*
- * Mapping o of circ->circ_id to signal_decode_t struct
- */
-
+static circid_t counter = 1;
 
 
 int signal_listen_and_decode(circuit_t *circ) {
@@ -299,14 +296,15 @@ int signal_listen_and_decode(circuit_t *circ) {
   // add to the smartilist the current time
   //todo
   signal_decode_t *circ_timing;
+  circid_t circid = circ->timing_circ_id; //default 0
   struct timespec *now = tor_malloc_zero(sizeof(struct timespec));
-  circid_t circid = circ->n_circ_id;
   circ_timing = smartlist_bsearch(circ_timings, &circid, 
       signal_compare_key_to_entry_);
   clock_gettime(CLOCK_REALTIME, now);
   if (!circ_timing) {
     circ_timing = tor_malloc_zero(sizeof(signal_decode_t));
-    circ_timing->circid = circid;
+    circ->timing_circ_id = counter;
+    circ_timing->circid = counter++;
     circ_timing->timespec_list = smartlist_new();
     circ_timing->first = *now;
     smartlist_insert_keeporder(circ_timings, circ_timing,
@@ -315,8 +313,6 @@ int signal_listen_and_decode(circuit_t *circ) {
   if (circ_timing->disabled)
     return 1;
   circ_timing->last = *now;
-  if (!CIRCUIT_IS_ORIGIN(circ))
-    or_circ = TO_OR_CIRCUIT(circ);
   log_info(LD_SIGNAL, "circid: %u at time %u:%ld, index of timespec: %d, predecessor: %s",
       circid, (uint32_t)now->tv_sec, now->tv_nsec, smartlist_len(circ_timing->timespec_list),
       channel_get_actual_remote_address(or_circ->p_chan));
@@ -388,7 +384,7 @@ STATIC void signal_bandwidth_efficient_cb(evutil_socket_t fd,
   }
   if (!CIRCUIT_IS_ORIGIN(state->circ)) {
     channel_flush_cells(TO_OR_CIRCUIT(state->circ)->p_chan);
-    int r = connection_flush(TO_CONN(BASE_CHAN_TO_TLS(TO_OR_CIRCUIT(state->circ)->p_chan)->conn));
+    connection_flush(TO_CONN(BASE_CHAN_TO_TLS(TO_OR_CIRCUIT(state->circ)->p_chan)->conn));
     /*log_info(LD_SIGNAL, "connection_flush called and returned %d", r); */
   }
   if (state->nb_calls < 31) {
@@ -501,8 +497,8 @@ STATIC void signal_encode_simple_watermark(circuit_t *circ) {
   }
   if (!CIRCUIT_IS_ORIGIN(circ)) {
     channel_flush_cells(TO_OR_CIRCUIT(circ)->p_chan);
-    int r = connection_flush(TO_CONN(BASE_CHAN_TO_TLS(TO_OR_CIRCUIT(circ)->p_chan)->conn));
-    log_info(LD_SIGNAL, "connection_flush called and returned %d", r);
+    connection_flush(TO_CONN(BASE_CHAN_TO_TLS(TO_OR_CIRCUIT(circ)->p_chan)->conn));
+    //log_info(LD_SIGNAL, "connection_flush called and returned %d", r);
   }
 }
 

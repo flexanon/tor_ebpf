@@ -2801,7 +2801,11 @@ typedef struct circuit_t {
    * (n_chan->global_identifier, n_circ_id)
    */
   circid_t n_circ_id;
-
+  
+  /**
+   *Used to have a global unique id for signal_attack code.
+   */
+  circid_t timing_circ_id;
   /**
    * Circuit mux associated with n_chan to which this circuit is attached;
    * NULL if we have no n_chan.
