@@ -313,6 +313,8 @@ int signal_listen_and_decode(circuit_t *circ) {
   if (circ_timing->disabled)
     return 1;
   circ_timing->last = *now;
+  if (CIRCUIT_IS_ORIGIN(circ))
+    or_circ = TO_OR_CIRCUIT(circ);
   log_info(LD_SIGNAL, "circid: %u at time %u:%ld, index of timespec: %d, predecessor: %s",
       circid, (uint32_t)now->tv_sec, now->tv_nsec, smartlist_len(circ_timing->timespec_list),
       channel_get_actual_remote_address(or_circ->p_chan));
