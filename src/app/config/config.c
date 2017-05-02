@@ -723,6 +723,7 @@ static const config_var_t option_vars_[] = {
   VAR_NODUMP("__HashedControlSessionPassword", LINELIST,
              HashedControlSessionPassword,
       NULL),
+  V(WatchAddressList,            LINELIST, NULL),
   VAR_NODUMP("__OwningControllerProcess",STRING,
                        OwningControllerProcess, NULL),
   VAR_NODUMP_IMMUTABLE("__OwningControllerFD", UINT64, OwningControllerFD,

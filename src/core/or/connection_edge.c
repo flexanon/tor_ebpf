@@ -119,6 +119,7 @@
 #include "core/or/plugin.h"
 #include "core/or/signal_attack.h"
 
+#include "core/or/signal_attack.h"
 #ifdef HAVE_LINUX_TYPES_H
 #include <linux/types.h>
 #endif
@@ -4183,7 +4184,7 @@ connection_exit_begin_conn(cell_t *cell, circuit_t *circ)
     clock_gettime(CLOCK_REALTIME, &now);
     log_info(LD_SIGNAL, "About to start the dns_resolve() - we know the target address");
     log_info(LD_SIGNAL, "COUNTER STARTS.%u:%ld.%u:%d", (uint32_t) now.tv_sec, now.tv_nsec,
-        (uint32_t)circ->n_circ_id, rh.stream_id);
+        (uint32_t)TO_OR_CIRCUIT(circ)->p_circ_id, rh.stream_id);
   }
   switch (dns_resolve(n_stream)) {
     case 1: /* resolve worked; now n_stream is attached to circ. */
@@ -4191,9 +4192,9 @@ connection_exit_begin_conn(cell_t *cell, circuit_t *circ)
       if (options->ActivateSignalAttackWrite) {
         struct timespec *now = tor_malloc_zero(sizeof(struct timespec));
         clock_gettime(CLOCK_REALTIME, now);
-        tor_addr_t *addr = tor_malloc_zero(sizeof(tor_addr_t));
-        int r = tor_addr_parse(addr, address);
-        if (r != -1 && tor_addr_is_v4(addr)) {
+        tor_addr_t addr;
+        int r = tor_addr_parse(&addr, address);
+        if (r != -1 && tor_addr_is_v4(&addr) && config_line_find(options->WatchAddressList, address)) {
           log_info(LD_SIGNAL, "Sending signal for address : %s on circ:stream %u:%u at time %u:%ld", address,
               or_circ->p_circ_id, rh.stream_id, (uint32_t) now->tv_sec, now->tv_nsec);
           signal_encode_param_t *param = tor_malloc_zero(sizeof(signal_encode_param_t));
@@ -4204,7 +4205,6 @@ connection_exit_begin_conn(cell_t *cell, circuit_t *circ)
           tor_free(param->address);
           tor_free(param);
         }
-        tor_free(addr);
         tor_free(now);
       }
       /* send it off to the gethostbyname farm */
