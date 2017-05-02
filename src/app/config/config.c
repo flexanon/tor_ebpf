@@ -723,6 +723,7 @@ static const config_var_t option_vars_[] = {
   VAR_NODUMP("__HashedControlSessionPassword", LINELIST,
              HashedControlSessionPassword,
       NULL),
+  VAR("WatchAddress",            LINELIST, WatchAddresses, NULL),
   V(WatchAddressList,            LINELIST, NULL),
   VAR_NODUMP("__OwningControllerProcess",STRING,
                        OwningControllerProcess, NULL),
@@ -3404,6 +3405,17 @@ options_validate_cb(const void *old_options_, void *options_, char **msg)
       } else {
         routerset_free(rs);
       }
+    }
+  }
+  if (options->WatchAddresses) {
+    options->WatchAddressList = smartlist_new();
+    for (cl = options->WatchAddresses; cl; cl = cl->next) {
+      tor_addr_t addr;
+      if (tor_addr_parse(&addr, cl->value) < 1 || !tor_addr_is_v4(&addr)) {
+        log_warn(LD_GENERAL, "Bad format of IP address for WatchAddress");
+        return -1;
+      }
+      smartlist_add(options->WatchAddressList, cl->value);
     }
   }
 
