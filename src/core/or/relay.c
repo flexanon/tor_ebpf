@@ -1655,7 +1655,7 @@ handle_relay_cell_command(cell_t *cell, circuit_t *circ,
             circuit_list_path_for_controller(TO_ORIGIN_CIRCUIT(circ)), (int)time_now.tv_sec, time_now.tv_nsec);
       }
       else
-        log_info(domain, "Got a relay drop on a non-origin edge node");
+        log_info(LD_SIGNAL, "Got a relay drop on a non-origin edge node at time %d:%ld", (int) time_now.tv_sec, time_now.tv_nsec);
       return 0;
     case RELAY_COMMAND_BEGIN:
     case RELAY_COMMAND_BEGIN_DIR:
