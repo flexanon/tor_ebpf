@@ -87,7 +87,7 @@ STATIC void handle_timing_add(signal_decode_t *circ_timing, struct timespec *now
         circ_timing->first = *(struct timespec *) smartlist_get(circ_timing->timespec_list,0);
       }
     default:
-      log_debug(LD_BUG, "handle_timing_add default case reached. It should not happen");
+      log_info(LD_BUG, "handle_timing_add default case reached. It should not happen");
   }
   smartlist_add(circ_timing->timespec_list, now);
   circ_timing->last = *now;
@@ -316,7 +316,7 @@ int signal_listen_and_decode(circuit_t *circ) {
   if (!CIRCUIT_IS_ORIGIN(circ))
     or_circ = TO_OR_CIRCUIT(circ);
   log_info(LD_SIGNAL, "circid: %u at time %u:%ld, index of timespec: %d, predecessor: %s",
-      circid, (uint32_t)now->tv_sec, now->tv_nsec, smartlist_len(circ_timing->timespec_list),
+      circ_timing->circid, (uint32_t)now->tv_sec, now->tv_nsec, smartlist_len(circ_timing->timespec_list),
       channel_get_actual_remote_address(or_circ->p_chan));
   handle_timing_add(circ_timing, now, options->SignalMethod);
   switch (options->SignalMethod) {
@@ -326,7 +326,7 @@ int signal_listen_and_decode(circuit_t *circ) {
             break;
     case SIMPLE_WATERMARK: return signal_decode_simple_watermark(circ_timing);
     default:
-      log_debug(LD_BUG, "signal_listen_and_decode switch: no correct case\n");
+      log_info(LD_BUG, "signal_listen_and_decode switch: no correct case\n");
       return -1;
   }
   return -1;
@@ -495,7 +495,7 @@ STATIC void signal_encode_simple_watermark(circuit_t *circ) {
   
   if (signal_send_relay_drop(3, circ) < 0) {
     // forward an error or only log ?
-    log_debug(LD_SIGNAL, "signal_send_relay_drop returned -1 when sending the watermark");
+    log_info(LD_SIGNAL, "signal_send_relay_drop returned -1 when sending the watermark");
   }
   if (!CIRCUIT_IS_ORIGIN(circ)) {
     channel_flush_cells(TO_OR_CIRCUIT(circ)->p_chan);
