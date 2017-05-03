@@ -315,10 +315,22 @@ int signal_listen_and_decode(circuit_t *circ) {
   circ_timing->last = *now;
   if (!CIRCUIT_IS_ORIGIN(circ))
     or_circ = TO_OR_CIRCUIT(circ);
+  tor_addr_t p_tmp_addr, n_tmp_addr;
+  char p_addr[TOR_ADDR_BUF_LEN], n_addr[TOR_ADDR_BUF_LEN];
+  if (channel_get_addr_if_possible(or_circ->p_chan, &p_tmp_addr)) {
+    tor_addr_to_str(p_addr, &p_tmp_addr, TOR_ADDR_BUF_LEN, 0);
+  }
+  else
+    p_addr[0] = '\0';
+  if (channel_get_addr_if_possible(circ->n_chan, &n_tmp_addr)) {
+    tor_addr_to_str(n_addr, &n_tmp_addr, TOR_ADDR_BUF_LEN, 0);
+  }
+  else
+    n_addr[0] = '\0';
+
   log_info(LD_SIGNAL, "circid: %u at time %u:%ld, index of timespec: %d, predecessor: %s, successor: %s",
       circ_timing->circid, (uint32_t)now->tv_sec, now->tv_nsec, smartlist_len(circ_timing->timespec_list),
-      channel_get_actual_remote_address(or_circ->p_chan),
-      channel_get_actual_remote_address(circ->n_chan));
+      p_addr, n_addr);
   handle_timing_add(circ_timing, now, options->SignalMethod);
   switch (options->SignalMethod) {
     case BANDWIDTH_EFFICIENT: return signal_bandwidth_efficient_decode(circ_timing);
