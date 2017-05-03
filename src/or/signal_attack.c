@@ -82,7 +82,7 @@ STATIC void handle_timing_add(signal_decode_t *circ_timing, struct timespec *now
       }
       break;
     case SIMPLE_WATERMARK:
-      if (smartlist_len(circ_timing->timespec_list) > 6) {
+      if (smartlist_len(circ_timing->timespec_list) > 10) {
         tor_free(circ_timing->timespec_list->list[0]);
         smartlist_del_keeporder(circ_timing->timespec_list, 0);
         circ_timing->first = *(struct timespec *) smartlist_get(circ_timing->timespec_list,0);
@@ -195,10 +195,12 @@ static int signal_decode_simple_watermark(signal_decode_t *circ_timing) {
     else {
       log_info(LD_SIGNAL, "No watermark r:%d, r2:%d, r3:%d", r, r2, r3);
     }
-    circ_timing->disabled = 1;
+
     return 1;
   }
   else {
+    if (smartlist_len(circ_timing->timespec_list) == 10)
+      circ_timing->disabled = 1;
     return 0;
   }
 }
