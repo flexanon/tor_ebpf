@@ -3,6 +3,7 @@
 #include "channel.h"
 #include "channeltls.h"
 #include "connection.h"
+#include "circuitlist.h"
 #include "relay.h"
 #include "orconfig.h"
 #include "config.h"
@@ -328,9 +329,10 @@ int signal_listen_and_decode(circuit_t *circ) {
   else
     n_addr[0] = '\0';
 
-  log_info(LD_SIGNAL, "circid: %u at time %u:%ld, index of timespec: %d, predecessor: %s, successor: %s",
+  log_info(LD_SIGNAL, "circid: %u at time %u:%ld, index of timespec: %d, predecessor: %s, successor: %s, purpose: %s",
       circ_timing->circid, (uint32_t)now->tv_sec, now->tv_nsec, smartlist_len(circ_timing->timespec_list),
-      p_addr, n_addr);
+      p_addr, n_addr,
+      circuit_purpose_to_controller_string(circ->purpose));
   handle_timing_add(circ_timing, now, options->SignalMethod);
   switch (options->SignalMethod) {
     case BANDWIDTH_EFFICIENT: return signal_bandwidth_efficient_decode(circ_timing);
