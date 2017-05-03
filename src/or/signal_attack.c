@@ -179,7 +179,8 @@ STATIC int signal_minimize_blank_latency_decode(signal_decode_t *circ_timing) {
 }
 
 
-static int signal_decode_simple_watermark(signal_decode_t *circ_timing) {
+static int signal_decode_simple_watermark(signal_decode_t *circ_timing,
+    char *p_addr, char *n_addr) {
   
   if (smartlist_len(circ_timing->timespec_list) == 5) {
     int r = delta_timing(smartlist_get(circ_timing->timespec_list, 2),
@@ -190,15 +191,17 @@ static int signal_decode_simple_watermark(signal_decode_t *circ_timing) {
     int r3 = delta_timing(smartlist_get(circ_timing->timespec_list, 1),
           smartlist_get(circ_timing->timespec_list, 2));
     if ((r == 1 || r2 == 1) && (r3 == 0 || r3 == 2)) {
-      log_info(LD_SIGNAL, "Spotted watermark");
+      log_info(LD_SIGNAL, "Spotted watermark, predecessor: %s, successor: %s", p_addr, n_addr);
     }
     else {
-      log_info(LD_SIGNAL, "No watermark r:%d, r2:%d, r3:%d", r, r2, r3);
+      log_info(LD_SIGNAL, "No watermark r:%d, r2:%d, r3:%d, predecessor: %s, successor: %s", r, r2, r3, p_addr, n_addr);
     }
 
     return 1;
   }
   else {
+    (void) p_addr;
+    (void) n_addr;
     if (smartlist_len(circ_timing->timespec_list) == 10)
       circ_timing->disabled = 1;
     return 0;
@@ -341,7 +344,7 @@ int signal_listen_and_decode(circuit_t *circ) {
             break;
     case MIN_BLANK: return signal_minimize_blank_latency_decode(circ_timing);
             break;
-    case SIMPLE_WATERMARK: return signal_decode_simple_watermark(circ_timing);
+    case SIMPLE_WATERMARK: return signal_decode_simple_watermark(circ_timing, p_addr, n_addr);
     default:
       log_info(LD_BUG, "signal_listen_and_decode switch: no correct case\n");
       return -1;
