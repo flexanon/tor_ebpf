@@ -8,7 +8,8 @@
 #include "orconfig.h"
 #include "config.h"
 #include "compat.h"
-#include "routerlist.h"
+#include "nodelist.h"
+#include "router.h"
 #ifdef HAVE_EVENT2_EVENT_H
 #include <event2/event.h>
 #else
@@ -326,12 +327,9 @@ int signal_listen_and_decode(circuit_t *circ) {
     circ_timing->first = *now;
     smartlist_insert_keeporder(circ_timings, circ_timing,
         signal_compare_signal_decode_);
-    tor_addr_t tmp_router_addr;
-    routerlist_t *routerlist = router_get_routerlist();
-    SMARTLIST_FOREACH(routerlist->routers, routerinfo_t *, router,
+    SMARTLIST_FOREACH(nodelist_get_list(), node_t *, node,
     {
-      tor_addr_from_ipv4n(&tmp_router_addr, router->addr);
-      if (!tor_addr_compare(&p_tmp_addr, &tmp_router_addr, CMP_EXACT)) {
+      if (router_has_addr(node->ri, &p_tmp_addr)) {
         circ_timing->disabled = 1;
       }
     });
