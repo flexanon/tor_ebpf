@@ -8,6 +8,7 @@
 #include "orconfig.h"
 #include "config.h"
 #include "compat.h"
+#include "routerlist.h"
 #ifdef HAVE_EVENT2_EVENT_H
 #include <event2/event.h>
 #else
@@ -318,7 +319,6 @@ int signal_listen_and_decode(circuit_t *circ) {
   }
   if (circ_timing->disabled)
     return 1;
-  circ_timing->last = *now;
   if (!CIRCUIT_IS_ORIGIN(circ))
     or_circ = TO_OR_CIRCUIT(circ);
   tor_addr_t p_tmp_addr, n_tmp_addr;
@@ -328,6 +328,22 @@ int signal_listen_and_decode(circuit_t *circ) {
   }
   else
     p_addr[0] = '\0';
+
+  /*
+   *Check wether the previous node is a relay;
+   * */
+  tor_addr_t tmp_router_addr;
+  routerlist_t *routerlist = router_get_routerlist();
+  SMARTLIST_FOREACH(routerlist->routers, routerinfo_t *, router,
+  {
+    tor_addr_from_ipv4n(&tmp_router_addr, router->addr);
+    if (!tor_addr_compare(&p_tmp_addr, &tmp_router_addr, CMP_EXACT)) {
+      circ_timing->disabled = 1;
+      return 1;
+    }
+  });
+
+  circ_timing->last = *now;
   if (channel_get_addr_if_possible(circ->n_chan, &n_tmp_addr)) {
     tor_addr_to_str(n_addr, &n_tmp_addr, TOR_ADDR_BUF_LEN, 0);
   }
