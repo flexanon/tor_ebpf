@@ -329,8 +329,10 @@ int signal_listen_and_decode(circuit_t *circ) {
         signal_compare_signal_decode_);
     SMARTLIST_FOREACH(nodelist_get_list(), node_t *, node,
     {
-      if (router_has_addr(node->ri, &p_tmp_addr)) {
-        circ_timing->disabled = 1;
+      if (node->ri) {
+        if (router_has_addr(node->ri, &p_tmp_addr)) {
+          circ_timing->disabled = 1;
+        }
       }
     });
   }
