@@ -307,18 +307,6 @@ int signal_listen_and_decode(circuit_t *circ) {
   struct timespec *now = tor_malloc_zero(sizeof(struct timespec));
   circ_timing = smartlist_bsearch(circ_timings, &circid, 
       signal_compare_key_to_entry_);
-  clock_gettime(CLOCK_REALTIME, now);
-  if (!circ_timing) {
-    circ_timing = tor_malloc_zero(sizeof(signal_decode_t));
-    circ->timing_circ_id = counter;
-    circ_timing->circid = counter++;
-    circ_timing->timespec_list = smartlist_new();
-    circ_timing->first = *now;
-    smartlist_insert_keeporder(circ_timings, circ_timing,
-        signal_compare_signal_decode_);
-  }
-  if (circ_timing->disabled)
-    return 1;
   if (!CIRCUIT_IS_ORIGIN(circ))
     or_circ = TO_OR_CIRCUIT(circ);
   tor_addr_t p_tmp_addr, n_tmp_addr;
@@ -329,19 +317,32 @@ int signal_listen_and_decode(circuit_t *circ) {
   else
     p_addr[0] = '\0';
 
+  clock_gettime(CLOCK_REALTIME, now);
+  if (!circ_timing) {
+    circ_timing = tor_malloc_zero(sizeof(signal_decode_t));
+    circ->timing_circ_id = counter;
+    circ_timing->circid = counter++;
+    circ_timing->timespec_list = smartlist_new();
+    circ_timing->first = *now;
+    smartlist_insert_keeporder(circ_timings, circ_timing,
+        signal_compare_signal_decode_);
+    tor_addr_t tmp_router_addr;
+    routerlist_t *routerlist = router_get_routerlist();
+    SMARTLIST_FOREACH(routerlist->routers, routerinfo_t *, router,
+    {
+      tor_addr_from_ipv4n(&tmp_router_addr, router->addr);
+      if (!tor_addr_compare(&p_tmp_addr, &tmp_router_addr, CMP_EXACT)) {
+        circ_timing->disabled = 1;
+      }
+    });
+  }
+  if (circ_timing->disabled){
+    tor_free(now);
+    return 1;
+  }
   /*
    *Check wether the previous node is a relay;
    * */
-  tor_addr_t tmp_router_addr;
-  routerlist_t *routerlist = router_get_routerlist();
-  SMARTLIST_FOREACH(routerlist->routers, routerinfo_t *, router,
-  {
-    tor_addr_from_ipv4n(&tmp_router_addr, router->addr);
-    if (!tor_addr_compare(&p_tmp_addr, &tmp_router_addr, CMP_EXACT)) {
-      circ_timing->disabled = 1;
-      return 1;
-    }
-  });
 
   circ_timing->last = *now;
   if (channel_get_addr_if_possible(circ->n_chan, &n_tmp_addr)) {
