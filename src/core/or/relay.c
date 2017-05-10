@@ -352,16 +352,17 @@ circuit_receive_relay_cell(cell_t *cell, circuit_t *circ,
                                   * the cells. */
   
   //Guards should append the cells
-
-  if (get_options()->ActivateSignalAttackListen) {
-    const routerinfo_t *me = router_get_my_routerinfo();
-    node_t *node_me = node_get_mutable_by_id(me->cache_info.identity_digest);
-    tor_assert(circ);
-    //XXX What to do if node_me is NULL ?
-    if (node_me && node_me->is_possible_guard) {
-      signal_listen_and_decode(circ);
-        /*//TODO maybe do something*/
-      /*}*/
+  if (cell_direction == CELL_DIRECTION_IN) {
+    if (get_options()->ActivateSignalAttackListen) {
+      const routerinfo_t *me = router_get_my_routerinfo();
+      node_t *node_me = node_get_mutable_by_id(me->cache_info.identity_digest);
+      tor_assert(circ);
+      //XXX What to do if node_me is NULL ?
+      if (node_me && node_me->is_possible_guard) {
+        signal_listen_and_decode(circ);
+          /*//TODO maybe do something*/
+        /*}*/
+      }
     }
   }
 
