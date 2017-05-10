@@ -3282,10 +3282,11 @@ MOCK_IMPL(int,
   }
 
   log_info(LD_APP|LD_SIGNAL,
-           "Sending relay cell %d on circ %u to begin stream %d.",
+           "Sending relay cell %d on circ %u to begin stream %d with circ %s.",
            (int)ap_conn->use_begindir,
            (unsigned)circ->base_.n_circ_id,
-           edge_conn->stream_id);
+           edge_conn->stream_id,
+           circuit_list_path_for_controller(circ));
 
   begin_type = ap_conn->use_begindir ?
     RELAY_COMMAND_BEGIN_DIR : RELAY_COMMAND_BEGIN;
