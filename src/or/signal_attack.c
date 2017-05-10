@@ -204,7 +204,7 @@ static int signal_decode_simple_watermark(signal_decode_t *circ_timing,
           smartlist_get(circ_timing->timespec_list, 3)) == 1)
       count++;
     
-    if (count == 3) {
+    if (count >= 3) {
       log_info(LD_SIGNAL, "Spotted watermark, predecessor: %s, successor: %s", p_addr, n_addr);
     }
     else {
