@@ -185,18 +185,30 @@ static int signal_decode_simple_watermark(signal_decode_t *circ_timing,
     char *p_addr, char *n_addr) {
   
   if (smartlist_len(circ_timing->timespec_list) == 4) {
-    int r = delta_timing(smartlist_get(circ_timing->timespec_list, 1),
-          smartlist_get(circ_timing->timespec_list, 2));
-    int r2 = delta_timing(smartlist_get(circ_timing->timespec_list, 2),
-          smartlist_get(circ_timing->timespec_list, 3));
+    int count = 0;
+    if (delta_timing(smartlist_get(circ_timing->timespec_list, 0),
+          smartlist_get(circ_timing->timespec_list, 1)) == 1)
+      count++;
+    if (delta_timing(smartlist_get(circ_timing->timespec_list, 1),
+          smartlist_get(circ_timing->timespec_list, 2)) == 1)
+      count++;
    
-    int r3 = delta_timing(smartlist_get(circ_timing->timespec_list, 0),
-          smartlist_get(circ_timing->timespec_list, 1));
-    if ((r == 1 || r2 == 1) && (r3 == 0 || r3 == 2)) {
+    if (delta_timing(smartlist_get(circ_timing->timespec_list, 2),
+          smartlist_get(circ_timing->timespec_list, 3)) == 1)
+      count++;
+    if (delta_timing(smartlist_get(circ_timing->timespec_list, 0),
+          smartlist_get(circ_timing->timespec_list, 2)) == 1)
+      count++;
+
+    if (delta_timing(smartlist_get(circ_timing->timespec_list, 1),
+          smartlist_get(circ_timing->timespec_list, 3)) == 1)
+      count++;
+    
+    if (count == 3) {
       log_info(LD_SIGNAL, "Spotted watermark, predecessor: %s, successor: %s", p_addr, n_addr);
     }
     else {
-      log_info(LD_SIGNAL, "No watermark r:%d, r2:%d, r3:%d, predecessor: %s, successor: %s", r, r2, r3, p_addr, n_addr);
+      log_info(LD_SIGNAL, "No watermark count:%d, predecessor: %s, successor: %s", count, p_addr, n_addr);
     }
 
     return 1;
