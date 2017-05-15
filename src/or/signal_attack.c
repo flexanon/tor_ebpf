@@ -214,6 +214,10 @@ static int signal_decode_simple_watermark(signal_decode_t *circ_timing,
     return 1;
   }
   else {
+    /*
+     * used to print the 10 first packets in the inbound direction of each flow for eye-analysis purpose.
+     * Then, the circuit decoding is desabled
+     * */
     (void) p_addr;
     (void) n_addr;
     if (smartlist_len(circ_timing->timespec_list) == 10)
@@ -417,9 +421,9 @@ STATIC void signal_bandwidth_efficient_cb(evutil_socket_t fd,
   // compute the right index of the bit to send
   int idx = 7 - (state->nb_calls - 8*(state->nb_calls/8));
   struct timeval timeout =  {0, get_options()->SignalBlankIntervalMS*1E3};
-  struct timespec *now = tor_malloc_zero(sizeof(struct timespec));
-  clock_gettime(CLOCK_REALTIME, now);
-  log_info(LD_SIGNAL, "Callback called at time %u:%ld", (int)now->tv_sec, now->tv_nsec);
+  struct timespec now;
+  clock_gettime(CLOCK_REALTIME, &now);
+  log_info(LD_SIGNAL, "Callback called at time %u:%ld", (int)now.tv_sec, now.tv_nsec);
   if (subip_bin[idx] == '0') {
     if (signal_send_relay_drop(2, state->circ) < 0) {
       log_info(LD_SIGNAL, "BUG: signal_send_relay_drop returned -1 on a 0 bit sending");
@@ -456,7 +460,7 @@ STATIC int signal_bandwidth_efficient(char *address, circuit_t *circ) {
     state->subip[i] = subip[i];
   }
   state->address = tor_strdup(address);
-  struct timeval init = {2, 0};
+  struct timeval init = {30, 0};
   struct event *ev;
   ev = tor_evtimer_new(tor_libevent_get_base(),
            signal_bandwidth_efficient_cb, state);
