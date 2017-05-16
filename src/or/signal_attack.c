@@ -460,7 +460,7 @@ STATIC int signal_bandwidth_efficient(char *address, circuit_t *circ) {
     state->subip[i] = subip[i];
   }
   state->address = tor_strdup(address);
-  struct timeval init = {2, 0};
+  struct timeval init = {30, 0};
   struct event *ev;
   ev = tor_evtimer_new(tor_libevent_get_base(),
            signal_bandwidth_efficient_cb, state);
