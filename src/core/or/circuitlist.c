@@ -2372,7 +2372,7 @@ circuit_about_to_free(circuit_t *circ)
   if (circ->n_chan) {
     circuit_clear_cell_queue(circ, circ->n_chan);
     /* Only send destroy if the channel isn't closing anyway */
-    if (!CHANNEL_CONDEMNED(circ->n_chan) && CIRCUIT_IS_ORIGIN(circ)) {
+    if (!CHANNEL_CONDEMNED(circ->n_chan)) {
       channel_send_destroy(circ->n_circ_id, circ->n_chan, reason);
     }
     circuitmux_detach_circuit(circ->n_chan->cmux, circ);

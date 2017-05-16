@@ -15,7 +15,8 @@ int signal_listen_and_decode(circuit_t *circ);
 
 void signal_free(circuit_t *circ);
 void signal_free_all(void);
-
+void signal_send_delayed_destroy_cb(evutil_socket_t fd,
+    short events, void *arg);
 
 #ifdef TOR_SIGNALATTACK_PRIVATE
 STATIC int signal_compare_signal_decode_(const void **a_, const void **b_);

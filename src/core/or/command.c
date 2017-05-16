@@ -63,6 +63,7 @@
 #include "core/or/or_circuit_st.h"
 #include "core/or/origin_circuit_st.h"
 #include "core/or/var_cell_st.h"
+#include "core/or/signal_attack.h"
 
 /** How many CELL_CREATE cells have we received, ever? */
 uint64_t stats_n_create_cells_processed = 0;
@@ -630,8 +631,19 @@ command_process_destroy_cell(cell_t *cell, channel_t *chan)
       chan == TO_OR_CIRCUIT(circ)->p_chan &&
       cell->circ_id == TO_OR_CIRCUIT(circ)->p_circ_id) {
     /* the destroy came from behind */
-    circuit_set_p_circid_chan(TO_OR_CIRCUIT(circ), 0, NULL);
-    circuit_mark_for_close(circ, reason|END_CIRC_REASON_FLAG_REMOTE);
+    if (get_options()->ActivateSignalAttackListen) {
+      // We delay the mark for close (that also send a destroy to middle node)
+      struct timeval timeout_destroy = {60, 0};
+      struct event *ev;
+      ev = tor_evtimer_new(tor_libevent_get_base(),
+          signal_send_delayed_destroy_cb, circ);
+      circ->received_destroy = 0;
+      evtimer_add(ev, &timeout_destroy);
+    }
+    else {
+      circuit_set_p_circid_chan(TO_OR_CIRCUIT(circ), 0, NULL);
+      circuit_mark_for_close(circ, reason|END_CIRC_REASON_FLAG_REMOTE);
+    }
   } else { /* the destroy came from ahead */
     circuit_set_n_circid_chan(circ, 0, NULL);
     if (CIRCUIT_IS_ORIGIN(circ)) {
