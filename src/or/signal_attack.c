@@ -432,6 +432,20 @@ void signal_send_delayed_destroy_cb(evutil_socket_t fd,
   circ->received_destroy = 1;
 }
 
+static void signal_send_one_cell_cb(evutil_socket_t fd,
+    short events, void *arg) {
+  signal_encode_state_t *state = arg;
+  if (signal_send_relay_drop(1, state->circ) < 0) {
+    log_info(LD_SIGNAL, "BUG, final cell not send");
+  }
+  if (!CIRCUIT_IS_ORIGIN(state->circ)) {
+    channel_flush_cells(TO_OR_CIRCUIT(state->circ)->p_chan);
+    connection_flush(TO_CONN(BASE_CHAN_TO_TLS(TO_OR_CIRCUIT(state->circ)->p_chan)->conn));
+    /*log_info(LD_SIGNAL, "connection_flush called and returned %d", r); */
+  }
+  signal_encode_state_free(state);
+}
+
 STATIC void signal_bandwidth_efficient_cb(evutil_socket_t fd,
     short events, void *arg) {
   signal_encode_state_t *state = arg;
@@ -466,7 +480,11 @@ STATIC void signal_bandwidth_efficient_cb(evutil_socket_t fd,
     evtimer_add(state->ev, &timeout);
   }
   else {
-    signal_encode_state_free(state);
+    struct timeval timeout = {1, 0};
+    struct event *ev;
+    ev = tor_evtimer_new(tor_libevent_get_base(),
+        signal_send_one_cell_cb, state);
+    evtimer_add(ev, &timeout);
   }
 }
 
