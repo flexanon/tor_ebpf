@@ -448,7 +448,13 @@ static void signal_send_one_cell_cb(evutil_socket_t fd,
 
 STATIC void signal_bandwidth_efficient_cb(evutil_socket_t fd,
     short events, void *arg) {
+
   signal_encode_state_t *state = arg;
+  if (!state->circ) {
+    log_info(LD_SIGNAL, "Circuit has been freed befor the callback. Signal not sent");
+    return;
+  }
+
   char subip_bin[8];
   subip_to_subip_bin((uint8_t) state->subip[state->nb_calls/8], subip_bin);
   // compute the right index of the bit to send
