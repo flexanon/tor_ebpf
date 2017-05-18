@@ -226,7 +226,16 @@ static int signal_decode_simple_watermark(signal_decode_t *circ_timing,
   }
 }
 
-static int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
+static int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing,
+    char *p_addr, char *n_addr) {
+  /*
+   * Works perfectly with chutney BUT
+   * Does not work very well in shadow due to noisy network.
+   * We need using coding theory 
+   * in order to make this method working over a real network
+   * */
+
+  
   int i, bit;
   int count = 1;
   int nbr_sub_ip_decoded = 0;
@@ -248,7 +257,8 @@ static int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
           // Obviously, this should not happen
           if (nbr_sub_ip_decoded > 0) {
             circ_timing->disabled = 1;
-            log_info(LD_SIGNAL, "Signal distorded or no signal, count: %d", count);
+            log_info(LD_SIGNAL, "Signal distorded or no signal, count: %d, predecessor: %s, sucessor: %s",
+                count, p_addr, n_addr);
             return 0;
           }
           count = 1;
@@ -264,8 +274,8 @@ static int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
           /*log_info(LD_SIGNAL, "subip ip found:%s",*/
               /*subips[nbr_sub_ip_decoded]);*/
           if (nbr_sub_ip_decoded == 3) {
-            log_info(LD_SIGNAL, "Dest IP in binary: %s.%s.%s.%s",
-                subips[0], subips[1], subips[2], subips[3]);
+            log_info(LD_SIGNAL, "Dest IP in binary: %s.%s.%s.%s, predecessor: %s, successor: %s",
+                subips[0], subips[1], subips[2], subips[3], p_addr, n_addr);
             circ_timing->disabled = 1;
             return 1;
           }
@@ -284,8 +294,8 @@ static int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
           else if (count == 3)
             bit = 1;
           else {
-            log_info(LD_SIGNAL, "signal distorded: %s.%s.%s.%s - count %d",
-                subips[0], subips[1], subips[2], subips[3], count);
+            log_info(LD_SIGNAL, "signal distorded: %s.%s.%s.%s - count %d, predecessor: %s, successor: %s",
+                subips[0], subips[1], subips[2], subips[3], count, p_addr, n_addr);
             /*return 0;*/
             continue;
           }
@@ -293,8 +303,8 @@ static int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing) {
             subips[nbr_sub_ip_decoded][nth_bit] = '1';
           else
             subips[nbr_sub_ip_decoded][nth_bit] = '0';
-          log_info(LD_SIGNAL, "Dest IP in binary: %s.%s.%s.%s\n",
-                subips[0], subips[1], subips[2], subips[3]);
+          log_info(LD_SIGNAL, "Dest IP in binary: %s.%s.%s.%s, predecessor: %s, successor: %s",
+                subips[0], subips[1], subips[2], subips[3], p_addr, n_addr);
           circ_timing->disabled = 1;
           return 1;
         }
@@ -373,7 +383,7 @@ int signal_listen_and_decode(circuit_t *circ) {
       /*circuit_purpose_to_controller_string(circ->purpose));*/
   handle_timing_add(circ_timing, now, options->SignalMethod);
   switch (options->SignalMethod) {
-    case BANDWIDTH_EFFICIENT: return signal_bandwidth_efficient_decode(circ_timing);
+    case BANDWIDTH_EFFICIENT: return signal_bandwidth_efficient_decode(circ_timing, p_addr, n_addr);
             break;
     case MIN_BLANK: return signal_minimize_blank_latency_decode(circ_timing);
             break;

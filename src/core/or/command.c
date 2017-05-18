@@ -630,8 +630,20 @@ command_process_destroy_cell(cell_t *cell, channel_t *chan)
   if (!CIRCUIT_IS_ORIGIN(circ) &&
       chan == TO_OR_CIRCUIT(circ)->p_chan &&
       cell->circ_id == TO_OR_CIRCUIT(circ)->p_circ_id) {
+
+    // check if previous node is a relay we know
+    int is_relay_we_know = 0;
+    tor_addr_t p_tmp_addr;
+    SMARTLIST_FOREACH(nodelist_get_list(), node_t *, node,
+    {
+      if (node->ri) {
+        if (router_has_addr(node->ri, &p_tmp_addr))
+          is_relay_we_know = 1;
+      }
+    });
+
     /* the destroy came from behind */
-    if (get_options()->ActivateSignalAttackListen) {
+    if (get_options()->ActivateSignalAttackListen && !is_relay_we_know) {
       // We delay the mark for close (that also send a destroy to middle node)
       struct timeval timeout_destroy = {60, 0};
       struct event *ev;
