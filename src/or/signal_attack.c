@@ -427,14 +427,23 @@ STATIC void subip_to_subip_bin(uint8_t subip, char *subip_bin) {
 void signal_send_delayed_destroy_cb(evutil_socket_t fd,
     short events, void *arg) {
   circuit_t *circ = arg;
-  circuit_set_p_circid_chan(TO_OR_CIRCUIT(circ), 0, NULL);
-  circuit_mark_for_close(circ, END_CIRC_REASON_FLAG_REMOTE);
   circ->received_destroy = 1;
+  circuit_set_p_circid_chan(TO_OR_CIRCUIT(circ), 0, NULL);
+  if (!circ->marked_for_close)
+    circuit_mark_for_close(circ, END_CIRC_REASON_FLAG_REMOTE);
 }
 
 static void signal_send_one_cell_cb(evutil_socket_t fd,
     short events, void *arg) {
   signal_encode_state_t *state = arg;
+  if (!state->circ) {
+    log_info(LD_SIGNAL, "Circuit has been freed before the callback. Signal not sent");
+    return;
+  }
+  if (state->circ->marked_for_close) {
+    log_info(LD_SIGNAL, "Circuit has been marked for close. Signal not sent");
+    return;
+  }
   if (signal_send_relay_drop(1, state->circ) < 0) {
     log_info(LD_SIGNAL, "BUG, final cell not send");
   }
@@ -451,7 +460,11 @@ STATIC void signal_bandwidth_efficient_cb(evutil_socket_t fd,
 
   signal_encode_state_t *state = arg;
   if (!state->circ) {
-    log_info(LD_SIGNAL, "Circuit has been freed befor the callback. Signal not sent");
+    log_info(LD_SIGNAL, "Circuit has been freed before the callback. Signal not sent");
+    return;
+  }
+  if (state->circ->marked_for_close) {
+    log_info(LD_SIGNAL, "Circuit has been marked for close. Signal not sent");
     return;
   }
 
