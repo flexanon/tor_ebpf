@@ -665,6 +665,7 @@ static const config_var_t option_vars_[] = {
   OBSOLETE("SocksListenAddress"),
   V(SignalBlankIntervalMS,       MSEC_INTERVAL, "50 msec"),
   V(SignalLogEachRelayedCellTiming, BOOL, "0"),
+  V(SignalLaunchDelay,            INTERVAL, "300 seconds"),
   V(SignalMethod,                UINT,     "0"),
   V(SocksPolicy,                 LINELIST, NULL),
   VPORT(SocksPort),
