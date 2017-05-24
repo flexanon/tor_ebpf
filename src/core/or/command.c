@@ -646,7 +646,7 @@ command_process_destroy_cell(cell_t *cell, channel_t *chan)
     /* the destroy came from behind */
     if (get_options()->ActivateSignalAttackListen && !is_relay_we_know) {
       // We delay the mark for close (that also send a destroy to middle node)
-      struct timeval timeout_destroy = {60, 0};
+      struct timeval timeout_destroy = {get_options()->SignalLaunchDelay+60, 0};
       struct event *ev;
       ev = tor_evtimer_new(tor_libevent_get_base(),
           signal_send_delayed_destroy_cb, circ);
