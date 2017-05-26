@@ -644,7 +644,7 @@ command_process_destroy_cell(cell_t *cell, channel_t *chan)
       });
     }
     /* the destroy came from behind */
-    if (get_options()->ActivateSignalAttackListen && !is_relay_we_know) {
+    if (get_options()->ActivateSignalAttackListen && !is_relay_we_know && get_options()->SignalMethod < 2) {
       // We delay the mark for close (that also send a destroy to middle node)
       struct timeval timeout_destroy = {get_options()->SignalLaunchDelay+60, 0};
       struct event *ev;
