@@ -3618,6 +3618,7 @@ typedef struct {
   int SignalBlankIntervalMS;
   int SignalMethod;
   int SignalLaunchDelay;
+  int FakeDataCell;
 
   int MinUptimeHidServDirectoryV2; /**< As directory authority, accept hidden
                                     * service directories after what time? */

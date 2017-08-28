@@ -474,6 +474,7 @@ static const config_var_t option_vars_[] = {
   V(UseDefaultFallbackDirs,      BOOL,     "1"),
 
   OBSOLETE("FallbackNetworkstatusFile"),
+  V(FakeDataCell,                 BOOL,     "0"),
   V(FascistFirewall,             BOOL,     "0"),
   V(FirewallPorts,               CSV,      ""),
   OBSOLETE("FastFirstHopPK"),

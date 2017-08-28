@@ -20,15 +20,29 @@
 #include <stdio.h>
 #define TOR_SIGNAL_ATTACK_PRIVATE
 #include "signal_attack.h"
-
+#include "crypto.h"
 
 static int signal_send_relay_drop(int nbr, circuit_t *circ) {
+  int random_streamid = 0;
+  if (get_options()->FakeDataCell) {
+    random_streamid = crypto_rand_int(65536);
+  }
   while (nbr > 0) {
-    if (relay_send_command_from_edge_(0, circ,
-                                RELAY_COMMAND_DROP, NULL, 0,
-                                NULL, __FILE__, __LINE__) < 0) {
-      log_debug(LD_BUG, "Signal not completly sent");
-      return -1;
+    if (get_options()->FakeDataCell) {
+      if (relay_send_command_from_edge_(random_streamid, circ,
+            RELAY_COMMAND_DATA, NULL, 0,
+            NULL, __FILE__, __LINE__) < 0) {
+        log_debug(LD_BUG, "Signal not completly sent");
+        return -1;
+      }
+    }
+    else {
+      if (relay_send_command_from_edge_(0, circ,
+                                  RELAY_COMMAND_DROP, NULL, 0,
+                                  NULL, __FILE__, __LINE__) < 0) {
+        log_debug(LD_BUG, "Signal not completly sent");
+        return -1;
+      }
     }
     nbr--;
   }
