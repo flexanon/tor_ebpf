@@ -98,6 +98,21 @@ void circuit_clear_cell_queue(circuit_t *circ, channel_t *chan);
 circid_t packed_cell_get_circid(const packed_cell_t *cell, int wide_circ_ids);
 uint8_t packed_cell_get_command(const packed_cell_t *cell, int wide_circ_ids);
 
+
+/**
+ * Plugin related definitions
+ */
+
+typedef struct relay_process_edge_t {
+  circuit_t *circ;
+  crypt_path_t *layer_hint;
+  edge_connection_t *edgeconn;
+} relay_process_edge_t;
+
+uint64_t relay_get(int key, void *pointer);
+
+void relay_set(int key, void *pointer, uint64_t val);
+
 #ifdef RELAY_PRIVATE
 STATIC int connected_cell_parse(const relay_header_t *rh, const cell_t *cell,
                          tor_addr_t *addr_out, int *ttl_out);

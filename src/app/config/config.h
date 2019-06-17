@@ -77,7 +77,8 @@ const char *get_torrc_fname(int defaults_fname);
 typedef enum {
   DIRROOT_DATADIR,
   DIRROOT_CACHEDIR,
-  DIRROOT_KEYDIR
+  DIRROOT_KEYDIR,
+  DIRROOT_PLUGINSDIR
 } directory_root_t;
 
 MOCK_DECL(char *,
@@ -113,6 +114,9 @@ MOCK_DECL(char *,
 #define options_get_keydir_fname2_suffix(options, sub1, sub2, suffix) \
   options_get_dir_fname2_suffix((options), DIRROOT_KEYDIR, \
                                 (sub1), (sub2), (suffix))
+#define options_get_plugindir_fname2_suffix(options, sub1, sub2, suffix) \
+  options_get_dir_fname2_suffix((options), DIRROOT_PLUGINSDIR, \
+                                (sub1), (sub2), (suffix))
 
 #define options_get_datadir_fname(opts,sub1)                    \
   options_get_datadir_fname2_suffix((opts),(sub1), NULL, NULL)
@@ -136,6 +140,21 @@ MOCK_DECL(char *,
 #define get_keydir_fname(sub1)                  \
   options_get_keydir_fname2_suffix(get_options(), (sub1), NULL, NULL)
 
+
+#define options_get_plugindir_fname(opts, sub1) \
+  options_get_plugindir_fname2_suffix((opts), (sub1), NULL, NULL)
+#define options_get_plugindir_fname2(opts,sub1,sub2) \
+  options_get_plugindir_fname2_suffix((sub1), (sub2), NULL)
+
+#define get_plugindir_fname2_suffix(sub1, sub2, suffix)  \
+  options_get_plugindir_fname2_suffix(get_options(), (sub1), (sub2), (suffix))
+#define get_plugindir_fname(sub1)                  \
+  get_plugindir_fname2_suffix((sub1),  NULL, NULL)
+#define get_plugindir_fname2(sub1,sub2)  \
+  get_plugindir_fname2_suffix((sub1), (sub2), NULL)
+#define get_plugindir_fname_suffix(sub1, suffix)   \
+  get_plugindir_fname2_suffix((sub1), NULL, (suffix))
+
 #define get_cachedir_fname(sub1) \
   options_get_cachedir_fname2_suffix(get_options(), (sub1), NULL, NULL)
 #define get_cachedir_fname_suffix(sub1, suffix) \
@@ -156,9 +175,13 @@ int using_default_dir_authorities(const or_options_t *options);
 int create_keys_directory(const or_options_t *options);
 
 int check_or_create_data_subdir(const char *subdir);
+int check_or_create_plugin_subdir(const char* subdir);
+
 int write_to_data_subdir(const char* subdir, const char* fname,
                          const char* str, const char* descr);
 
+int write_to_plugin_subdir(const char* subdir, const char* fname,
+                         const char* str, const char* descr);
 int get_num_cpus(const or_options_t *options);
 
 MOCK_DECL(const smartlist_t *,get_configured_ports,(void));

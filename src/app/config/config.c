@@ -417,6 +417,7 @@ static config_var_t option_vars_[] = {
   V(TestingEnableConnBwEvent,    BOOL,     "0"),
   V(TestingEnableCellStatsEvent, BOOL,     "0"),
   OBSOLETE("TestingEnableTbEmptyEvent"),
+  V(EnablePlugins,               BOOL,     "0"),
   V(EnforceDistinctSubnets,      BOOL,     "1"),
   V(EntryNodes,                  ROUTERSET,   NULL),
   V(EntryStatistics,             BOOL,     "0"),
@@ -570,6 +571,8 @@ static config_var_t option_vars_[] = {
   V(PerConnBWBurst,              MEMUNIT,  "0"),
   V(PerConnBWRate,               MEMUNIT,  "0"),
   V(PidFile,                     STRING,   NULL),
+  VAR("PluginsDirectory",           FILENAME, PluginsDirectory_option, NULL),
+  V(PluginsDirectoryGroupReadable, BOOL, "0"),
   V(TestingTorNetwork,           BOOL,     "0"),
   V(TestingMinExitFlagThreshold, MEMUNIT,  "0"),
   V(TestingMinFastFlagThreshold, MEMUNIT,  "0"),
@@ -1015,6 +1018,7 @@ or_options_free_(or_options_t *options)
   tor_free(options->DataDirectory);
   tor_free(options->CacheDirectory);
   tor_free(options->KeyDirectory);
+  tor_free(options->PluginsDirectory);
   tor_free(options->BridgePassword_AuthDigest_);
   tor_free(options->command_arg);
   tor_free(options->master_key_fname);
@@ -1590,6 +1594,13 @@ options_act_reversible(const or_options_t *old_options, char **msg)
     goto done;
   }
 
+  if (check_and_create_data_directory(running_tor,
+                                      options->PluginsDirectory,
+                                      options->PluginsDirectoryGroupReadable,
+                                      options->User,
+                                      msg) < 0) {
+    goto done;
+  }
   /* Bail out at this point if we're not going to be a client or server:
    * we don't run Tor itself. */
   if (!running_tor)
@@ -3214,6 +3225,7 @@ warn_about_relative_paths(or_options_t *options)
   n += warn_if_option_path_is_relative("Log",options->DebugLogFile);
   n += warn_if_option_path_is_relative("AccelDir",options->AccelDir);
   n += warn_if_option_path_is_relative("DataDirectory",options->DataDirectory);
+  n += warn_if_option_path_is_relative("PluginsDirectory",options->PluginsDirectory);
   n += warn_if_option_path_is_relative("PidFile",options->PidFile);
   n += warn_if_option_path_is_relative("ClientOnionAuthDir",
                                         options->ClientOnionAuthDir);
@@ -4730,6 +4742,7 @@ options_transition_allowed(const or_options_t *old,
   NO_CHANGE_BOOL(RunAsDaemon);
   NO_CHANGE_BOOL(Sandbox);
   NO_CHANGE_STRING(DataDirectory);
+  NO_CHANGE_STRING(PluginsDirectory);
   NO_CHANGE_STRING(KeyDirectory);
   NO_CHANGE_STRING(CacheDirectory);
   NO_CHANGE_STRING(User);
@@ -4792,6 +4805,7 @@ options_transition_affects_workers(const or_options_t *old_options,
                                    const or_options_t *new_options)
 {
   YES_IF_CHANGED_STRING(DataDirectory);
+  YES_IF_CHANGED_STRING(PluginsDirectory);
   YES_IF_CHANGED_INT(NumCPUs);
   YES_IF_CHANGED_LINELIST(ORPort_lines);
   YES_IF_CHANGED_BOOL(ServerDNSSearchDomains);
@@ -7871,7 +7885,16 @@ validate_data_directories(or_options_t *options)
     log_warn(LD_CONFIG, "DataDirectory is too long.");
     return -1;
   }
-
+  tor_free(options->PluginsDirectory);
+  if (options->PluginsDirectory_option) {
+    options->PluginsDirectory = get_data_directory(options->PluginsDirectory_option);
+    if (!options->PluginsDirectory)
+      return -1;
+  } else {
+    /* Default to the data directory's plugins subdir */
+    tor_asprintf(&options->PluginsDirectory, "%s"PATH_SEPARATOR"plugins",
+                 options->DataDirectory);
+  }
   tor_free(options->KeyDirectory);
   if (options->KeyDirectory_option) {
     options->KeyDirectory = get_data_directory(options->KeyDirectory_option);
@@ -8063,6 +8086,9 @@ options_get_dir_fname2_suffix,(const or_options_t *options,
     case DIRROOT_KEYDIR:
       rootdir = options->KeyDirectory;
       break;
+    case DIRROOT_PLUGINSDIR:
+      rootdir = options->PluginsDirectory;
+      break;
     default:
       tor_assert_unreached();
       break;
@@ -8104,6 +8130,20 @@ check_or_create_data_subdir(const char *subdir)
   return return_val;
 }
 
+int
+check_or_create_plugin_subdir(const char *subdir)
+{
+  char *plugindir = get_plugindir_fname(subdir);
+  int return_val = 0;
+
+  if (check_private_dir(plugindir, CPD_CREATE, get_options()->User) < 0) {
+    log_warn(LD_HIST, "Unable to create %s/ directory!", subdir);
+    return_val = -1;
+  }
+  tor_free(plugindir);
+  return return_val;
+}
+
 /** Create a file named <b>fname</b> with contents <b>str</b> in the
  * subdirectory <b>subdir</b> of the data directory. <b>descr</b>
  * should be a short description of the file's content and will be
@@ -8124,6 +8164,20 @@ write_to_data_subdir(const char* subdir, const char* fname,
   return return_val;
 }
 
+int
+write_to_plugin_subdir(const char* subdir, const char* fname,
+                       const char* str, const char* descr)
+{
+  char *filename = get_plugindir_fname2(subdir, fname);
+  int return_val = 0;
+
+  if (write_str_to_file(filename, str, 0) < 0) {
+    log_warn(LD_HIST, "Unable to write %s to disk!", descr ? descr : fname);
+    return_val = -1;
+  }
+  tor_free(filename);
+  return return_val;
+}
 /** Return a smartlist of ports that must be forwarded by
  *  tor-fw-helper. The smartlist contains the ports in a string format
  *  that is understandable by tor-fw-helper. */

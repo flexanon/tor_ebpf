@@ -327,6 +327,9 @@ main(int c, const char **v)
                options->DataDirectory);
   options->CacheDirectory = tor_strdup(temp_dir);
   options->EntryStatistics = 1;
+  tor_asprintf(&options->PluginsDirectory , "%s"PATH_SEPARATOR"plugins",
+      options->DataDirectory);
+  options->EnablePlugins = 1;
   if (set_options(options, &errmsg) < 0) {
     printf("Failed to set initial options: %s\n", errmsg);
     tor_free(errmsg);

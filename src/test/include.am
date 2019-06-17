@@ -167,6 +167,7 @@ src_test_test_SOURCES += \
 	src/test/test_options.c \
 	src/test/test_pem.c \
 	src/test/test_periodic_event.c \
+  src/test/test_plugins.c \
 	src/test/test_policy.c \
 	src/test/test_process.c \
 	src/test/test_prob_distr.c \

@@ -1100,4 +1100,33 @@ typedef struct dir_server_t dir_server_t;
 
 typedef struct tor_version_t tor_version_t;
 
+/******************************** plugins.c **************************/
+typedef uint64_t (*ubpf_jit_fn)(void *mem, size_t mem_len);
+
+#define PLUGIN_MEMORY (16 * 1024 * 1024) /* In bytes, at least needed by tests */
+
+typedef struct memory_pool {
+  uint64_t num_of_blocks;
+  uint64_t size_of_each_block;
+  uint64_t num_free_blocks;
+  uint64_t num_initialized;
+  uint8_t *mem_start;
+  uint8_t *next;
+} memory_pool_t;
+
+typedef struct plugin {
+  void *vm;
+  memory_pool_t *memory_pool;
+  char memory[PLUGIN_MEMORY];
+  ubpf_jit_fn fn;
+} plugin_t;
+
+typedef struct tor_cnx{
+  plugin_t *current_plugin; /* for navigating between plugins */
+
+    /** Some information the plugin might be interested in 
+     * TODO */
+
+} tor_cnx_t;
+
 #endif /* !defined(TOR_OR_H) */

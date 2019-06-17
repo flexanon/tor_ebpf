@@ -94,6 +94,7 @@
 #include "feature/nodelist/routerinfo_st.h"
 #include "core/or/socks_request_st.h"
 #include "core/or/sendme.h"
+#include "core/or/plugin.h"
 
 static edge_connection_t *relay_lookup_conn(circuit_t *circ, cell_t *cell,
                                             cell_direction_t cell_direction,
@@ -1708,7 +1709,21 @@ connection_edge_process_relay_cell(cell_t *cell, circuit_t *circ,
       }
 
       /* Consider sending a circuit-level SENDME cell. */
-      sendme_circuit_consider_sending(circ, layer_hint);
+      /** Set the key map; the caller id and args defining the context to
+       *  the plugin */
+      plugin_map_t pmap;
+      pmap.ptype = PLUGIN_DEV;
+      pmap.putype = PLUGIN_CODE_HIGHJACK;
+      pmap.pfamily = PLUGIN_PROTOCOL_RELAY;
+      pmap.subname = (char*)"circuit_consider_sending_sendme";
+      caller_id_t caller = RELAY_REPLACE_PROCESS_EDGE_SENDME;
+      relay_process_edge_t args;
+      args.circ = circ;
+      args.layer_hint = layer_hint;
+      args.edgeconn = conn;
+      
+      if (invoke_plugin_operation_or_default(&pmap, caller, (void*)&args))
+        sendme_circuit_consider_sending(circ, layer_hint);
 
       if (rh.stream_id == 0) {
         log_fn(LOG_PROTOCOL_WARN, LD_PROTOCOL, "Relay data cell with zero "
@@ -2011,11 +2026,31 @@ connection_edge_process_relay_cell(cell_t *cell, circuit_t *circ,
                               cell->payload+RELAY_HEADER_SIZE);
       return 0;
   }
-  log_fn(LOG_PROTOCOL_WARN, LD_PROTOCOL,
-         "Received unknown relay command %d. Perhaps the other side is using "
-         "a newer version of Tor? Dropping.",
-         rh.command);
-  return 0; /* for forward compatibility, don't kill the circuit */
+
+  /**
+   * Handling extension of the relay protocol only for developer plugins
+   * (for now .. :)
+   */
+
+  plugin_map_t pmap;
+  pmap.ptype = PLUGIN_DEV;
+  pmap.putype = PLUGIN_CODE_ADD;
+  pmap.pfamily = PLUGIN_PROTOCOL_RELAY;
+  pmap.subname = (char*)"";
+  caller_id_t caller = RELAY_PROCESS_EDGE_UNKNOWN;
+  relay_process_edge_t args;
+  args.circ = circ;
+  args.layer_hint = layer_hint;
+  args.edgeconn = conn;
+
+  if (invoke_plugin_operation_or_default(&pmap, caller, (void*)&args)) {
+    log_fn(LOG_PROTOCOL_WARN, LD_PROTOCOL,
+        "Received unknown relay command %d. But we do not have a developer plugin"
+        " able to handle it, destroy the circuit",
+        rh.command);
+    return -1;
+  }
+  return 0;
 }
 
 /** How many relay_data cells have we built, ever? */
@@ -3240,5 +3275,43 @@ circuit_queue_streams_are_blocked(circuit_t *circ)
     return circ->streams_blocked_on_n_chan;
   } else {
     return circ->streams_blocked_on_p_chan;
+  }
+}
+/***
+ * Plugin related functions 
+ *
+ * 
+ *  TODO: replace the pointer received from the plugin
+ *  to a cookie, which allow the host application to retrieve
+ *  the right element and dereference safely 
+ *
+ */
+
+uint64_t relay_get(int key, void *pointer) {
+  switch(key) {
+    case RELAY_CIRCUIT_T:;break;
+    case RELAY_LAYER_HINT_DELIVER_WINDOW:
+                         { 
+                           crypt_path_t *layer_hint = (crypt_path_t*) pointer;
+                           return layer_hint->deliver_window;
+                         }
+    case RELAY_CIRC_DELIVER_WINDOW:
+                         {
+                           circuit_t *circ = (circuit_t*) pointer;
+                           return circ->deliver_window;
+                         }
+  }
+  return 0;
+}
+
+void relay_set(int key, void *pointer, uint64_t val) {
+  switch(key) {
+    case RELAY_CIRCUIT_T:;break;
+    case RELAY_CIRC_DELIVER_WINDOW:
+                         {
+                           circuit_t *circ = (circuit_t*) pointer;
+                           circ->deliver_window = (int) val;
+                           break;
+                         }
   }
 }

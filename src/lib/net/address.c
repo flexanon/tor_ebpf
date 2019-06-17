@@ -2069,3 +2069,14 @@ string_is_valid_nonrfc_hostname(const char *string)
 
   return result;
 }
+//#ifdef PLUGIN_CLANG
+uint32_t my_ntohl(uint32_t const net) {
+    uint8_t data[4] = {};
+    memcpy(&data, &net, sizeof(data));
+
+    return ((uint32_t) data[3] << 0)
+         | ((uint32_t) data[2] << 8)
+         | ((uint32_t) data[1] << 16)
+         | ((uint32_t) data[0] << 24);
+}
+//#endif

@@ -50,6 +50,8 @@ LIBTOR_APP_A_SOURCES = 				\
 	src/core/or/or_periodic.c		\
 	src/core/or/or_sys.c			\
 	src/core/or/orconn_event.c		\
+  src/core/or/plugin.c      \
+  src/core/or/plugin_helper.c    \
 	src/core/or/policies.c			\
 	src/core/or/protover.c			\
 	src/core/or/protover_rust.c		\
@@ -205,7 +207,9 @@ endif
 
 AM_CPPFLAGS += -DSHARE_DATADIR="\"$(datadir)\""		\
 		-DLOCALSTATEDIR="\"$(localstatedir)\""	\
-		-DBINDIR="\"$(bindir)\""
+		-DBINDIR="\"$(bindir)\""   \
+    -I"$(top_srcdir)/src/ubpf/vm" \
+    -I"$(top_srcdir)/src/ubpf/vm/inc"
 
 src_core_libtor_app_testing_a_CPPFLAGS = $(AM_CPPFLAGS) $(TEST_CPPFLAGS)
 src_core_libtor_app_testing_a_CFLAGS = $(AM_CFLAGS) $(TEST_CFLAGS)
@@ -279,6 +283,8 @@ noinst_HEADERS +=					\
 	src/core/or/ocirc_event.h			\
 	src/core/or/ocirc_event_sys.h			\
 	src/core/or/origin_circuit_st.h			\
+  src/core/or/plugin.h        \
+  src/core/or/plugin_helper.h       \
 	src/core/or/policies.h				\
 	src/core/or/port_cfg_st.h			\
 	src/core/or/protover.h				\

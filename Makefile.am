@@ -126,7 +126,8 @@ TOR_INTERNAL_LIBS = \
 	$(TOR_CRYPTO_LIBS) \
 	$(TOR_UTIL_LIBS) \
 	src/trunnel/libor-trunnel.a \
-	src/lib/libtor-trace.a
+	src/lib/libtor-trace.a \
+	src/ubpf/vm/libubpf.a
 
 # Variants of the above for linking the testing variant of tor (for coverage
 # and tests)
@@ -138,7 +139,8 @@ TOR_INTERNAL_TESTING_LIBS = \
 	$(TOR_CRYPTO_TESTING_LIBS) \
 	$(TOR_UTIL_TESTING_LIBS) \
 	src/trunnel/libor-trunnel-testing.a \
-	src/lib/libtor-trace.a
+	src/lib/libtor-trace.a \
+  src/ubpf/vm/libubpf.a 
 endif
 
 TOR_LDFLAGS_CRYPTLIB=@TOR_LDFLAGS_openssl@
@@ -197,6 +199,11 @@ TEST_NETWORK_ALL_DRIVER_FLAGS=--color-tests yes
 
 #install-data-local:
 #	$(INSTALL) -m 755 -d $(LOCALSTATEDIR)/lib/tor
+
+install-data-local:
+  mkdir -p $(prefix)/plugins
+	cp -r src/plugins/* $(prefix)/plugins
+
 
 # Allows to override rpmbuild with rpmbuild-md5 from fedora-packager so that
 # building for EL5 won't fail on https://bugzilla.redhat.com/show_bug.cgi?id=490613

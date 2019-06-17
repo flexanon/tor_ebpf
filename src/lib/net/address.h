@@ -355,6 +355,8 @@ int string_is_valid_nonrfc_hostname(const char *string);
 int string_is_valid_ipv4_address(const char *string);
 int string_is_valid_ipv6_address(const char *string);
 
+uint32_t my_ntohl(uint32_t const net);
+
 #ifdef ADDRESS_PRIVATE
 MOCK_DECL(struct smartlist_t *,get_interface_addresses_raw,(int severity,
                                                      sa_family_t family));
