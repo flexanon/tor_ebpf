@@ -1,7 +1,6 @@
 SRC=$(wildcard *.c)
 OBJ=$(SRC:.c=.o)
-CFLAGS=-I../../or -I../../../. -I../../common \
-			 -I../../ext -I../../ubpf/vm/inc
+CFLAGS=-I../.. -I ../../.. -I../../core/or -I../../ext -I../../ubpf/vm -I../../ubpf/vm/inc
 
 
 all: $(SRC) $(OBJ)

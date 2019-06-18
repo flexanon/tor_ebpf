@@ -1,7 +1,7 @@
-#include "or.h"
-#include "relay.h"
-#include "plugin.h"
-#include "plugin_helper.h"
+#include "core/or/or.h"
+#include "core/or/relay.h"
+#include "core/or/plugin.h"
+#include "core/or/plugin_helper.h"
 
 uint64_t consider_sending_sendme(relay_process_edge_t *pedge) {
   int layer_hint_del_window = 0;
