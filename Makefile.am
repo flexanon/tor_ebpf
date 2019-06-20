@@ -201,7 +201,7 @@ TEST_NETWORK_ALL_DRIVER_FLAGS=--color-tests yes
 #	$(INSTALL) -m 755 -d $(LOCALSTATEDIR)/lib/tor
 
 install-data-local:
-  mkdir -p $(prefix)/plugins
+	mkdir -p $(prefix)/plugins
 	cp -r src/plugins/* $(prefix)/plugins
 
 

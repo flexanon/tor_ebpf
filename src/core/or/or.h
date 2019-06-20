@@ -1117,7 +1117,8 @@ typedef struct memory_pool {
 typedef struct plugin {
   void *vm;
   memory_pool_t *memory_pool;
-  char memory[PLUGIN_MEMORY];
+  char *memory;
+  size_t memory_size;
   ubpf_jit_fn fn;
 } plugin_t;
 
