@@ -28,6 +28,7 @@
 #include "core/or/circuitlist.h"
 #include "core/or/command.h"
 #include "core/or/connection_or.h"
+#include "core/or/plugin_helper.h"
 #include "core/or/relay.h"
 #include "core/or/status.h"
 #include "feature/api/tor_api.h"
@@ -628,6 +629,14 @@ tor_init(int argc, char *argv[])
 
   /* The options are now initialised */
   const or_options_t *options = get_options();
+
+  /**  Initialize plugins -- Should be the firt init system, because
+   * plugins could replace init code of other modules? how to solve that? */
+
+  if (get_options()->EnablePlugins) {
+    log_debug(LD_PLUGIN, "Init of plugins...");
+    plugin_helper_find_all_and_init();
+  }
 
   /* Initialize channelpadding and circpad parameters to defaults
    * until we get a consensus */
