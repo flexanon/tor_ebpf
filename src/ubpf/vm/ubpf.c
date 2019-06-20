@@ -39,17 +39,19 @@ register_dev_functions(struct ubpf_vm *vm)
   /* We only have 64 values ... (so far) */
 
   /* specific API related */
-  ubpf_register(vm, 0x00, "invoke_plugin_operation_or_default", invoke_plugin_operation_or_default);
-  ubpf_register(vm, 0x01, "get", get);
-  ubpf_register(vm, 0x02, "set", set);
+  tor_assert(ubpf_register(vm, 0, "invoke_plugin_operation_or_default", invoke_plugin_operation_or_default) != -1);
+  tor_assert(ubpf_register(vm, 1, "get", get) != -1);
+  tor_assert(ubpf_register(vm, 2, "set", set) != -1);
 
-  ubpf_register(vm, 0x03, "call_host_func", call_host_func);
-  ubpf_register(vm, 0x04, "my_ntohl", my_ntohl);
+  tor_assert(ubpf_register(vm, 3, "call_host_func", call_host_func) != -1);
+  tor_assert(ubpf_register(vm, 4, "my_ntohl", my_ntohl) != -1);
   /** memory */
-  ubpf_register(vm, 0x15, "my_plugin_malloc", my_plugin_malloc);
-  ubpf_register(vm, 0x16, "my_plugin_free", my_plugin_free);
+  /*ubpf_register(vm, 0x05, "my_plugin_malloc", my_plugin_malloc);*/
+  /*ubpf_register(vm, 0x06, "my_plugin_free", my_plugin_free);*/
   /** logging stuff */
-  ubpf_register(vm, 0x20, "log_fn_", log_fn_);
+  tor_assert(ubpf_register(vm, 5, "log_fn_", log_fn_) != -1);
+
+  /** hint! remember how to count in hexa! */
 }
 
   static void
@@ -67,8 +69,8 @@ static void *readfile(const char *path, size_t maxlen, size_t *len)
     file = fopen(path, "r");
   }
 
-  if (file == NULL) {
-    fprintf(stderr, "Failed to open %s: %s\n", path, strerror(errno));
+  if (!file) {
+    log_debug(LD_PLUGIN, "Failed to open %s: %s\n", path, strerror(errno));
     return NULL;
   }
 
@@ -80,17 +82,17 @@ static void *readfile(const char *path, size_t maxlen, size_t *len)
   }
 
   if (ferror(file)) {
-    fprintf(stderr, "Failed to read %s: %s\n", path, strerror(errno));
+    log_debug(LD_PLUGIN, "Failed to read %s: %s\n", path, strerror(errno));
     fclose(file);
-    free(data);
+    tor_free(data);
     return NULL;
   }
 
   if (!feof(file)) {
-    fprintf(stderr, "Failed to read %s because it is too large (max %u bytes)\n",
-        path, (unsigned)maxlen);
+    log_debug(LD_PLUGIN, "Failed to read %s because it is too large (max %u bytes) and current offset: %lu",
+        path, (unsigned)maxlen, offset);
     fclose(file);
-    free(data);
+    tor_free(data);
     return NULL;
   }
 
@@ -111,7 +113,7 @@ plugin_t *load_elf(void *code, size_t code_len, size_t memory_size) {
   plugin->vm = ubpf_create();
   if (!plugin->vm) {
     log_debug(LD_PLUGIN, "Failed to create VM\n");
-    free(plugin);
+    tor_free(plugin);
     return NULL;
   }
   /**
@@ -126,28 +128,28 @@ plugin_t *load_elf(void *code, size_t code_len, size_t memory_size) {
   char *errmsg;
   int rv;
   if (elf) {
-    rv = ubpf_load_elf(plugin->vm, code, code_len, &errmsg, plugin->memory, plugin->memory_size);
+    rv = ubpf_load_elf(plugin->vm, code, code_len, &errmsg, (uint64_t) plugin->memory, plugin->memory_size);
   } else {
-    rv = ubpf_load(plugin->vm, code, code_len, &errmsg, plugin->memory, plugin->memory_size);
+    rv = ubpf_load(plugin->vm, code, code_len, &errmsg, (uint64_t) plugin->memory, plugin->memory_size);
   }
 
   if (rv < 0) {
-    log_debug(LD_PLUGIN, "Failed to load code: %s\n", errmsg);
-    free(errmsg);
+    log_debug(LD_PLUGIN, "Failed to load code: %s", errmsg);
+    tor_free(errmsg);
     ubpf_destroy(plugin->vm);
-    free(plugin);
+    tor_free(plugin);
     return NULL;
   }
   plugin->fn = ubpf_compile(plugin->vm, &errmsg);
   if (plugin->fn == NULL) {
-    log_debug(LD_PLUGIN, "Failed to compile: %s\n", errmsg);
-    free(errmsg);
+    log_debug(LD_PLUGIN, "Failed to compile: %s", errmsg);
+    tor_free(errmsg);
     ubpf_destroy(plugin->vm);
-    free(plugin);
+    tor_free(plugin);
     return NULL;
   }
 
-  free(errmsg);
+  tor_free(errmsg);
 
   return plugin;
 }
@@ -160,7 +162,7 @@ plugin_t *load_elf_file(const char *code_filename, size_t memory_size) {
   }
 
   plugin_t *ret = load_elf(code, code_len, memory_size);
-  free(code);
+  tor_free(code);
   return ret;
 }
 
@@ -169,7 +171,7 @@ int release_elf(plugin_t *plugin) {
     ubpf_destroy(plugin->vm);
     plugin->vm = NULL;
     plugin->fn = 0;
-    free(plugin);
+    tor_free(plugin);
   }
   return 0;
 }

@@ -21,17 +21,18 @@ static inline int
 plugin_entries_eq_(plugin_map_t *a, plugin_map_t *b) {
   return !strcmp(a->subname, b->subname) && a->param == b->param &&
          a->ptype == b->ptype && a->putype == b->putype &&
-         a->pfamily == b->pfamily;
+         a->pfamily == b->pfamily && a->memory_size == b->memory_size;
 }
 
 static inline unsigned int
 plugin_entry_hash_(plugin_map_t *a) {
 
-  uint32_t array[3+256/4] = {0,}; /** putype+ptype+ max name authorized*/
+  uint32_t array[5+256/4] = {0,}; /** putype+ptype+ max name authorized*/
   array[0] = a->ptype;
   array[1] = a->putype;
   array[2] = a->pfamily;
-  memcpy(&array[3], a->subname, strlen(a->subname));
+  array[3] = a->memory_size; //64bits
+  memcpy(&array[5], a->subname, strlen(a->subname));
   return (unsigned) siphash24g(array, sizeof(array));
 }
 
@@ -62,7 +63,8 @@ int plugin_plug_elf(plugin_info_t *pinfo, char *elfpath) {
   else {
     plugin_t *plugin = load_elf_file(elfpath,  pinfo->memory_needed);
     if (!plugin) {
-      log_debug(LD_PLUGIN, "Failed to load plugin at elfpath %s", elfpath);
+      log_debug(LD_PLUGIN, "Failed to load plugin at elfpath %s, with heap of size %lu bytes", elfpath,
+          pinfo->memory_needed);
       return -1;
     }
     found = tor_malloc_zero(sizeof(plugin_map_t));
@@ -108,6 +110,7 @@ int invoke_plugin_operation_or_default(plugin_map_t *key,
   }
   else {
     /** default code */
+    log_debug(LD_PLUGIN, "Plugin not found");
     return -1;
   }
 }

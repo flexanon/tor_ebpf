@@ -33,7 +33,7 @@
 
 static void muldivmod(struct jit_state *state, uint16_t pc, uint8_t opcode, int src, int dst, int32_t imm);
 
-#define REGISTER_MAP_SIZE 11
+#define REGISTER_MAP_SIZE 12
 static int register_map[REGISTER_MAP_SIZE] = {
     RAX,
     RDI,
@@ -46,6 +46,7 @@ static int register_map[REGISTER_MAP_SIZE] = {
     R14,
     R15,
     RBP,
+    RCX,
 };
 
 /* Return the x86 register for the given eBPF register */
@@ -106,7 +107,7 @@ translate(struct ubpf_vm *vm, struct jit_state *state, char **errmsg)
 
         int dst = map_register(inst.dst);
         int src = map_register(inst.src);
-        int target_pc = i + inst.offset + 1;
+        uint32_t target_pc = i + inst.offset + 1;
 
         switch (inst.opcode) {
         case EBPF_OP_ADD_IMM:
@@ -459,15 +460,20 @@ muldivmod(struct jit_state *state, uint16_t pc, uint8_t opcode, int src, int dst
     bool div = (opcode & EBPF_ALU_OP_MASK) == (EBPF_OP_DIV_IMM & EBPF_ALU_OP_MASK);
     bool mod = (opcode & EBPF_ALU_OP_MASK) == (EBPF_OP_MOD_IMM & EBPF_ALU_OP_MASK);
     bool is64 = (opcode & EBPF_CLS_MASK) == EBPF_CLS_ALU64;
-
-    if (div || mod) {
+    bool reg = (opcode & EBPF_SRC_REG) == EBPF_SRC_REG;
+    
+    if ((div || mod) && (reg || imm == 0)) {
         emit_load_imm(state, RCX, pc);
 
         /* test src,src */
-        if (is64) {
+        if (reg && is64) {
             emit_alu64(state, 0x85, src, src);
-        } else {
+        } else if (reg) {
             emit_alu32(state, 0x85, src, src);
+        }
+        else { /* imm  == 0 */
+          emit_load_imm(state, src, imm);
+          emit_alu32(state, 0x85, src, src);
         }
 
         /* jz div_by_zero */
@@ -558,7 +564,7 @@ ubpf_compile(struct ubpf_vm *vm, char **errmsg)
     }
 
     state.offset = 0;
-    state.size = 65536;
+    state.size = 4*65536;
     state.buf = calloc(state.size, 1);
     state.pc_locs = calloc(MAX_INSTS+1, sizeof(state.pc_locs[0]));
     state.jumps = calloc(MAX_INSTS, sizeof(state.jumps[0]));
