@@ -10,10 +10,10 @@ uint64_t consider_sending_sendme(relay_process_edge_t *pedge) {
     layer_hint_del_window = (int) get(RELAY_LAYER_HINT_DELIVER_WINDOW, pedge->layer_hint);
   else
     circ_del_window = (int) get(RELAY_CIRC_DELIVER_WINDOW, pedge->circ);
-  /*log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__,*/
-      /*"layer_hint del is %d", layer_hint_del_window);*/
-  /*log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__,*/
-      /*"circ_del_window is %d", circ_del_window);*/
+  log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__,
+      "layer_hint del is %d", layer_hint_del_window);
+  log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__,
+      "circ_del_window is %d", circ_del_window);
   
   while ((pedge->layer_hint ? layer_hint_del_window : circ_del_window) <=
       CIRCWINDOW_START -CIRCWINDOW_INCREMENT) {
