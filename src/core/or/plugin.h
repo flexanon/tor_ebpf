@@ -48,6 +48,7 @@ typedef struct plugin_info_t {
   plugin_family_t pfamily;
   plugin_t *plugin;
   int param;
+  size_t memory_needed;
 } plugin_info_t;
 
 /** parameters given to the plugin when executed */
@@ -69,6 +70,7 @@ typedef struct plugin_map_t {
   plugin_usage_type_t putype;
   plugin_family_t pfamily;
   plugin_t *plugin;
+  size_t memory_size;
   int param;
 } plugin_map_t;
 

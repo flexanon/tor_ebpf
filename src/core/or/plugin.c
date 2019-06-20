@@ -1,4 +1,4 @@
-/**
+/*y
  * \file plugin.c
  * \brief Handle plugin main operations, implement the API definition to
  * interact with plugins
@@ -46,7 +46,7 @@ HT_GENERATE2(plugin_map_ht, plugin_map_t, node,
 /****************************************************************/
 
 int plugin_plug_elf(plugin_info_t *pinfo, char *elfpath) {
-  /** Todo verify if this plugin is not already in our map */
+  /** Todo verif* if this plugin is not already in our map */
   plugin_map_t search;
   plugin_map_t *found;
   search.subname = tor_strdup(pinfo->subname);
@@ -54,12 +54,13 @@ int plugin_plug_elf(plugin_info_t *pinfo, char *elfpath) {
   search.putype = pinfo->putype;
   search.pfamily = pinfo->pfamily;
   search.param = pinfo->param;
+  search.memory_size = pinfo->memory_needed;
   found = HT_FIND(plugin_map_ht, &plugin_map_ht, &search);
   if (found) {
     /** TODO */
   }
   else {
-    plugin_t *plugin = load_elf_file(elfpath);
+    plugin_t *plugin = load_elf_file(elfpath,  pinfo->memory_needed);
     if (!plugin) {
       log_debug(LD_PLUGIN, "Failed to load plugin at elfpath %s", elfpath);
       return -1;
@@ -71,6 +72,7 @@ int plugin_plug_elf(plugin_info_t *pinfo, char *elfpath) {
     found->putype = pinfo->putype;
     found->pfamily = pinfo->pfamily;
     found->ptype = pinfo->ptype;
+    found->memory_size = pinfo->memory_needed;
     /** Register the plugin; do it for each family*/
     found->param = pinfo->param;
     HT_INSERT(plugin_map_ht, &plugin_map_ht, found);

@@ -122,12 +122,13 @@ void *my_plugin_realloc(tor_cnx_t *cnx, void *ptr, unsigned int size) {
 	return ptr;
 }
 
-plugin_t *plugin_memory_init(void){
+plugin_t *plugin_memory_init(size_t memory_size){
   plugin_t *plugin = tor_malloc_zero(sizeof(plugin_t));
+  plugin->memory = tor_malloc_zero(sizeof(char)*memory_size);
   plugin->memory_pool = (memory_pool_t*) tor_malloc_zero(sizeof(memory_pool_t));
   plugin->memory_pool->mem_start = (uint8_t *) plugin->memory;
 	plugin->memory_pool->size_of_each_block = 2100; /* TEST */
-	plugin->memory_pool->num_of_blocks = PLUGIN_MEMORY / 2100;
+	plugin->memory_pool->num_of_blocks = memory_size / 2100;
 	plugin->memory_pool->num_initialized = 0;
 	plugin->memory_pool->num_free_blocks = plugin->memory_pool->num_of_blocks;
 	plugin->memory_pool->next = plugin->memory_pool->mem_start;

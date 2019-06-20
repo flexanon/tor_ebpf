@@ -24,9 +24,13 @@
 #include <sys/mman.h>
 #include "ubpf/vm/ubpf_int.h"
 
-#define MAX_EXT_FUNCS 64
+#define MAX_EXT_FUNCS 128
+#define OOB_CALL 0x3f
+#define MAX_LOAD_STORE 2048
+#define ADDED_LOAD_STORE_INSTS 20
 
-static bool validate(struct ubpf_vm *vm, const struct ebpf_inst *insts, uint32_t num_insts, char **errmsg);
+static bool validate(struct ubpf_vm *vm, const struct ebpf_inst *insts, uint32_t num_insts, char **errmsg, uint32_t *num_load_store, int *rewrite_pcs);
+static bool rewrite_with_memchecks(struct ubpf_vm *vm, const struct ebpf_inst *insts, uint32_t num_insts, char **errmsg, uint64_t memory_ptr, uint32_t memory_size, uint32_t num_load_store, int *rewrite_pcs);
 static bool bounds_check(struct ubpf_vm *vm, void *addr, uint64_t size, const char *type, uint16_t cur_pc, void *mem, size_t mem_len, void *stack);
 
 struct ubpf_vm *
@@ -101,9 +105,11 @@ ubpf_lookup_registered_function(struct ubpf_vm *vm, const char *name)
 }
 
 int
-ubpf_load(struct ubpf_vm *vm, const void *code, uint32_t code_len, char **errmsg)
+ubpf_load(struct ubpf_vm *vm, const void *code, uint32_t code_len, char **errmsg, uint64_t memory_ptr, size_t memory_size)
 {
     *errmsg = NULL;
+    uint32_t num_load_store = 0;
+    int rewrite_pcs[MAX_LOAD_STORE];
 
     if (vm->insts) {
         *errmsg = ubpf_error("code has already been loaded into this VM");
@@ -115,19 +121,32 @@ ubpf_load(struct ubpf_vm *vm, const void *code, uint32_t code_len, char **errmsg
         return -1;
     }
 
-    if (!validate(vm, code, code_len/8, errmsg)) {
+    if (!validate(vm, code, code_len/8, errmsg, &num_load_store, rewrite_pcs)) {
         return -1;
     }
-
-    vm->insts = malloc(code_len);
-    if (vm->insts == NULL) {
+    /** if this plugin needs a heap */
+    if (memory_size != 0) {
+      /* 20 instructions by memcheck */
+      vm->insts = 
+        tor_malloc(code_len + (8 * ADDED_LOAD_STORE_INSTS) * num_load_store); 
+      if (vm->insts == NULL) {
         *errmsg = ubpf_error("out of memory");
         return -1;
+      }
+
+      rewrite_with_memchecks(vm, code, code_len/8, errmsg, memory_ptr, memory_size,
+          num_load_store, rewrite_pcs);
+      vm->num_insts = code_len/sizeof(vm->insts[0]) + (ADDED_LOAD_STORE_INSTS * num_load_store);
     }
-
-    memcpy(vm->insts, code, code_len);
-    vm->num_insts = code_len/sizeof(vm->insts[0]);
-
+    else {
+      vm->insts = tor_malloc(code_len);
+      if (vm->insts == NULL) {
+        *errmsg = ubpf_error("out of memory");
+         return -1;
+      }
+      memcpy(vm->insts, code, code_len);
+      vm->num_insts = code_len/sizeof(vm->insts[0]);
+    }
     return 0;
 }
 
@@ -580,7 +599,7 @@ ubpf_exec_with_arg(struct ubpf_vm *vm, void *arg, void *mem, size_t mem_len)
 }
 
 static bool
-validate(struct ubpf_vm *vm, const struct ebpf_inst *insts, uint32_t num_insts, char **errmsg)
+validate(struct ubpf_vm *vm, const struct ebpf_inst *insts, uint32_t num_insts, char **errmsg, uint32_t *num_load_store, int *rewrite_pcs)
 {
     if (num_insts >= MAX_INSTS) {
         *errmsg = ubpf_error("too many instructions (max %u)", MAX_INSTS);
@@ -675,6 +694,19 @@ validate(struct ubpf_vm *vm, const struct ebpf_inst *insts, uint32_t num_insts, 
         case EBPF_OP_LDXH:
         case EBPF_OP_LDXB:
         case EBPF_OP_LDXDW:
+            if (inst.src != 10) {
+                if (*num_load_store >= MAX_LOAD_STORE) {
+                    *errmsg = ubpf_error("Too many load and store, currently limited to %d", MAX_LOAD_STORE);
+                    return false;
+                }
+                rewrite_pcs[*num_load_store] = i;
+                *num_load_store += 1;
+            } else {
+                if (inst.offset > 0 || inst.offset < - STACK_SIZE) {
+                    *errmsg = ubpf_error("Load crushes stack with offset %d at PC %d",  inst.offset, i);
+                    return false;
+                }
+            }
             break;
 
         case EBPF_OP_STW:
@@ -685,6 +717,19 @@ validate(struct ubpf_vm *vm, const struct ebpf_inst *insts, uint32_t num_insts, 
         case EBPF_OP_STXH:
         case EBPF_OP_STXB:
         case EBPF_OP_STXDW:
+            if (inst.dst != 10) {
+                if (*num_load_store >= MAX_LOAD_STORE) {
+                    *errmsg = ubpf_error("Too many load and store, currently limited to %d", MAX_LOAD_STORE);
+                    return false;
+                }
+                rewrite_pcs[*num_load_store] = i;
+                *num_load_store += 1;
+            } else {
+                if (inst.offset > 0 || inst.offset < - STACK_SIZE) {
+                    *errmsg = ubpf_error("Store crushes stack with offset %d at PC %d",  inst.offset, i);
+                    return false;
+                }
+            }
             store = true;
             break;
 
@@ -773,6 +818,155 @@ validate(struct ubpf_vm *vm, const struct ebpf_inst *insts, uint32_t num_insts, 
         }
     }
 
+    return true;
+}
+
+
+static bool
+rewrite_with_memchecks(struct ubpf_vm *vm, const struct ebpf_inst *insts, uint32_t num_insts, char **errmsg, uint64_t memory_ptr, uint32_t memory_size, uint32_t num_load_store, int *rewrite_pcs)
+{
+    int pc = 0;
+    uint64_t memory_ptr_top = memory_ptr + (uint64_t) memory_size;
+
+    int i;
+    int16_t new_offset;
+    for (i = 0; i < num_insts; i++) {
+        struct ebpf_inst inst = insts[i];
+
+        switch (inst.opcode) {
+        case EBPF_OP_LDXW:
+        case EBPF_OP_LDXH:
+        case EBPF_OP_LDXB:
+        case EBPF_OP_LDXDW:
+            if (inst.src != 10) {
+                /* Adding 20 instructions checking bounds */
+                /* Step 1: check that the accessed pointer is >= memory_ptr */
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_LDDW, .dst = 11, .src = 0, .offset = 0, .imm = memory_ptr_top & UINT32_MAX};
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = 0, .dst = 0, .src = 0, .offset = 0, .imm = memory_ptr_top >> 32};
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_SUB64_REG, .dst = 11, .src = inst.src, .offset = 0, .imm = 0};
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_SUB64_IMM, .dst = 11, .src = 0, .offset = 0, .imm = (int32_t) inst.offset};
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_JSGE_IMM, .dst = 11, .src = 0, .offset = 1, .imm = 0};
+                /* We failed the test, jump to the error */
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_JA, .dst = 0, .src = 0, .offset = 1, .imm = 0};
+                /* Step 2: check that the accessed pointer - memory_size <= memory_ptr */
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_JLE_IMM, .dst = 11, .src = 0, .offset = 13, .imm = memory_size};
+                /* We failed one of the tests for the store, but maybe we try to access the stack from another register than R10? */
+                /* Step 3: check that the accessed pointer is <= stack_ptr */
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_MOV64_REG, .dst = 11, .src = inst.src, .offset = 0, .imm = 0};
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_ADD64_IMM, .dst = 11, .src = 0, .offset = 0, .imm = (int32_t) inst.offset};
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_JLE_REG, .dst = 11, .src = 10, .offset = 1, .imm = 0};
+                /* We failed the test, jump to the error */
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_JA, .dst = 0, .src = 0, .offset = 2, .imm = 0};
+                /* Step 4: check that the accessed pointer + stack_size >= stack_ptr */
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_ADD64_IMM, .dst = 11, .src = 0, .offset = 0, .imm = STACK_SIZE};
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_JGE_REG, .dst = 11, .src = 10, .offset = 7, .imm = 0};
+                /* We failed one of the tests, log the error and exits */
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_MOV64_REG, .dst = 1, .src = inst.src, .offset = 0, .imm = 0};
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_ADD64_IMM, .dst = 1, .src = 0, .offset = 0, .imm = (int32_t) inst.offset};
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_LDDW, .dst = 2, .src = 0, .offset = 0, .imm = memory_ptr & UINT32_MAX};
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = 0, .dst = 0, .src = 0, .offset = 0, .imm = memory_ptr >> 32};
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_MOV64_REG, .dst = 3, .src = 10, .offset = 0, .imm = 0};
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_CALL, .dst = 0, .src = 0, .offset = 0, .imm = OOB_CALL};
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_EXIT, .dst = 0, .src = 0, .offset = 0, .imm = 0};
+            }
+            /* And eventually add the load */
+            vm->insts[pc++] = inst;
+            break;
+
+        case EBPF_OP_STW:
+        case EBPF_OP_STH:
+        case EBPF_OP_STB:
+        case EBPF_OP_STDW:
+        case EBPF_OP_STXW:
+        case EBPF_OP_STXH:
+        case EBPF_OP_STXB:
+        case EBPF_OP_STXDW:
+            if (inst.dst != 10) {
+                /* Adding 20 instructions checking bounds */
+                /* Step 1: check that the accessed pointer is >= memory_ptr */
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_LDDW, .dst = 11, .src = 0, .offset = 0, .imm = memory_ptr_top & UINT32_MAX};
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = 0, .dst = 0, .src = 0, .offset = 0, .imm = memory_ptr_top >> 32};
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_SUB64_REG, .dst = 11, .src = inst.dst, .offset = 0, .imm = 0};
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_SUB64_IMM, .dst = 11, .src = 0, .offset = 0, .imm = (int32_t) inst.offset};
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_JSGE_IMM, .dst = 11, .src = 0, .offset = 1, .imm = 0};
+                /* We failed the test, jump to the error */
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_JA, .dst = 0, .src = 0, .offset = 1, .imm = 0};
+                /* Step 2: check that the accessed pointer - memory_size <= memory_ptr */
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_JLE_IMM, .dst = 11, .src = 0, .offset = 13, .imm = memory_size};
+                /* We failed one of the tests for the store, but maybe we try to access the stack from another register than R10? */
+                /* Step 3: check that the accessed pointer is <= stack_ptr */
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_MOV64_REG, .dst = 11, .src = inst.dst, .offset = 0, .imm = 0};
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_ADD64_IMM, .dst = 11, .src = 0, .offset = 0, .imm = (int32_t) inst.offset};
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_JLE_REG, .dst = 11, .src = 10, .offset = 1, .imm = 0};
+                /* We failed the test, jump to the error */
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_JA, .dst = 0, .src = 0, .offset = 2, .imm = 0};
+                /* Step 4: check that the accessed pointer + stack_size >= stack_ptr */
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_ADD64_IMM, .dst = 11, .src = 0, .offset = 0, .imm = STACK_SIZE};
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_JGE_REG, .dst = 11, .src = 10, .offset = 7, .imm = 0};
+                /* We failed one of the tests, log the error and exits */
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_MOV64_REG, .dst = 1, .src = inst.dst, .offset = 0, .imm = 0};
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_ADD64_IMM, .dst = 1, .src = 0, .offset = 0, .imm = (int32_t) inst.offset};
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_LDDW, .dst = 2, .src = 0, .offset = 0, .imm = memory_ptr & UINT32_MAX};
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = 0, .dst = 0, .src = 0, .offset = 0, .imm = memory_ptr >> 32};
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_MOV64_REG, .dst = 3, .src = 10, .offset = 0, .imm = 0};
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_CALL, .dst = 0, .src = 0, .offset = 0, .imm = OOB_CALL};
+                vm->insts[pc++] = (struct ebpf_inst) {.opcode = EBPF_OP_EXIT, .dst = 0, .src = 0, .offset = 0, .imm = 0};
+            }
+            /* And eventually add it */
+            vm->insts[pc++] = inst;
+            break;
+
+        /* We also need to handle jumps; what happen if a store or a load should have been jumped? */
+        case EBPF_OP_JA:
+        case EBPF_OP_JEQ_REG:
+        case EBPF_OP_JEQ_IMM:
+        case EBPF_OP_JGT_REG:
+        case EBPF_OP_JGT_IMM:
+        case EBPF_OP_JGE_REG:
+        case EBPF_OP_JGE_IMM:
+        case EBPF_OP_JLT_REG:
+        case EBPF_OP_JLT_IMM:
+        case EBPF_OP_JLE_REG:
+        case EBPF_OP_JLE_IMM:
+        case EBPF_OP_JSET_REG:
+        case EBPF_OP_JSET_IMM:
+        case EBPF_OP_JNE_REG:
+        case EBPF_OP_JNE_IMM:
+        case EBPF_OP_JSGT_IMM:
+        case EBPF_OP_JSGT_REG:
+        case EBPF_OP_JSGE_IMM:
+        case EBPF_OP_JSGE_REG:
+        case EBPF_OP_JSLT_IMM:
+        case EBPF_OP_JSLT_REG:
+        case EBPF_OP_JSLE_IMM:
+        case EBPF_OP_JSLE_REG:
+            new_offset = inst.offset;
+            if (inst.offset > 0) {
+                for (int j = 0; j < num_load_store && rewrite_pcs[j] < i + 1 + inst.offset; j++) {
+                    /* We should jump all loads/stores in range [ next_pc ; next_pc + offset [ */
+                    if (rewrite_pcs[j] >= i + 1 && rewrite_pcs[j] < i + 1 + inst.offset) {
+                        new_offset += ADDED_LOAD_STORE_INSTS;
+                    }
+                }
+            }
+            else if (inst.offset < 0) {
+                for (int j = 0; j < num_load_store && rewrite_pcs[j] < i + 1; j++) {
+                    /* We should jump all loads/stores in range [ next_pc + offset ; next_pc [ */
+                    /* Notice that here, offset is negative */
+                    if (rewrite_pcs[j] >= i + 1 + inst.offset && rewrite_pcs[j] < i + 1) {
+                        new_offset -= ADDED_LOAD_STORE_INSTS;
+                    }
+                }
+            }
+            /* And put the jump with the new offset */
+            vm->insts[pc++] = (struct ebpf_inst) {.opcode = inst.opcode, .dst = inst.dst, .src = inst.src, .offset = new_offset, .imm = inst.imm};
+            break;
+
+        default:
+            /* Simply copy the instruction */
+            vm->insts[pc++] = inst;
+        }
+    }
     return true;
 }
 

@@ -101,11 +101,12 @@ static void *readfile(const char *path, size_t maxlen, size_t *len)
   return data;
 }
 
-plugin_t *load_elf(void *code, size_t code_len) {
-  plugin_t *plugin = plugin_memory_init();
+plugin_t *load_elf(void *code, size_t code_len, size_t memory_size) {
+  plugin_t *plugin = plugin_memory_init(memory_size);
   if (!plugin) {
     return NULL;
   }
+  plugin->memory_size = memory_size;
 
   plugin->vm = ubpf_create();
   if (!plugin->vm) {
@@ -125,9 +126,9 @@ plugin_t *load_elf(void *code, size_t code_len) {
   char *errmsg;
   int rv;
   if (elf) {
-    rv = ubpf_load_elf(plugin->vm, code, code_len, &errmsg);
+    rv = ubpf_load_elf(plugin->vm, code, code_len, &errmsg, plugin->memory, plugin->memory_size);
   } else {
-    rv = ubpf_load(plugin->vm, code, code_len, &errmsg);
+    rv = ubpf_load(plugin->vm, code, code_len, &errmsg, plugin->memory, plugin->memory_size);
   }
 
   if (rv < 0) {
@@ -151,14 +152,14 @@ plugin_t *load_elf(void *code, size_t code_len) {
   return plugin;
 }
 
-plugin_t *load_elf_file(const char *code_filename) {
+plugin_t *load_elf_file(const char *code_filename, size_t memory_size) {
   size_t code_len;
   void *code = readfile(code_filename, 1024*1024, &code_len);
   if (code == NULL) {
     return NULL;
   }
 
-  plugin_t *ret = load_elf(code, code_len);
+  plugin_t *ret = load_elf(code, code_len, memory_size);
   free(code);
   return ret;
 }
