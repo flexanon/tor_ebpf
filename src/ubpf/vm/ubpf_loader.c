@@ -47,14 +47,14 @@ bounds_check(struct bounds *bounds, uint64_t offset, uint64_t size)
     if (offset + size > bounds->size || offset + size < offset) {
         return NULL;
     }
-    return (uint64_t*)bounds->base + offset;
+    return bounds->base + offset;
 }
 
 int
 ubpf_load_elf(struct ubpf_vm *vm, const void *elf, size_t elf_size, char **errmsg, uint64_t memory_ptr, size_t memory_size)
 {
     struct bounds b = { .base=elf, .size=elf_size };
-    uint32_t *text_copy = NULL;
+    void *text_copy = NULL;
     int i;
 
     const Elf64_Ehdr *ehdr = bounds_check(&b, 0, sizeof(*ehdr));
@@ -107,7 +107,8 @@ ubpf_load_elf(struct ubpf_vm *vm, const void *elf, size_t elf_size, char **errms
     /* Parse section headers into an array */
     struct section sections[MAX_SECTIONS];
     for (i = 0; i < ehdr->e_shnum; i++) {
-        const Elf64_Shdr *shdr = bounds_check(&b, ehdr->e_shoff + i*ehdr->e_shentsize, sizeof(*shdr));
+        const Elf64_Shdr *shdr = bounds_check(&b, ehdr->e_shoff + i*ehdr->e_shentsize,
+            sizeof(*shdr));
         if (!shdr) {
             *errmsg = ubpf_error("bad section header offset or size");
             goto error;
@@ -125,7 +126,7 @@ ubpf_load_elf(struct ubpf_vm *vm, const void *elf, size_t elf_size, char **errms
     }
 
     /* Find first text section */
-    uint32_t text_shndx = 0;
+    int text_shndx = 0;
     for (i = 0; i < ehdr->e_shnum; i++) {
         const Elf64_Shdr *shdr = sections[i].shdr;
         if (shdr->sh_type == SHT_PROGBITS &&
@@ -178,7 +179,7 @@ ubpf_load_elf(struct ubpf_vm *vm, const void *elf, size_t elf_size, char **errms
         struct section *strtab = &sections[symtab->shdr->sh_link];
         const char *strings = strtab->data;
 
-        uint64_t j;
+        int j;
         for (j = 0; j < rel->size/sizeof(Elf64_Rel); j++) {
             const Elf64_Rel *r = &rs[j];
 
@@ -202,7 +203,7 @@ ubpf_load_elf(struct ubpf_vm *vm, const void *elf, size_t elf_size, char **errms
                 }
                 const Elf64_Section ndx = sym->st_shndx;
                 const struct section *str_section = &sections[ndx];
-                const char *str_data = str_section->data;
+                const void *str_data = str_section->data;
                 const char *str_to_give = (char *) (str_data + sym->st_value);
 
                 size_t size = strlen(str_to_give);
@@ -252,7 +253,7 @@ ubpf_load_elf(struct ubpf_vm *vm, const void *elf, size_t elf_size, char **errms
                 goto error;
             }
 
-            int imm = ubpf_lookup_registered_function(vm, sym_name);
+            unsigned int imm = ubpf_lookup_registered_function(vm, sym_name);
             if (imm == -1) {
                 *errmsg = ubpf_error("function '%s' not found", sym_name);
                 goto error;

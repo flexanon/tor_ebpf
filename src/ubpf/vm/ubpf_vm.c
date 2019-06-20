@@ -23,6 +23,7 @@
 #include <inttypes.h>
 #include <sys/mman.h>
 #include "ubpf/vm/ubpf_int.h"
+#include "lib/log/log.h"
 
 #define MAX_EXT_FUNCS 128
 #define OOB_CALL 0x3f
@@ -31,7 +32,7 @@
 
 static bool validate(struct ubpf_vm *vm, const struct ebpf_inst *insts, uint32_t num_insts, char **errmsg, uint32_t *num_load_store, int *rewrite_pcs);
 static bool rewrite_with_memchecks(struct ubpf_vm *vm, const struct ebpf_inst *insts, uint32_t num_insts, char **errmsg, uint64_t memory_ptr, uint32_t memory_size, uint32_t num_load_store, int *rewrite_pcs);
-static bool bounds_check(struct ubpf_vm *vm, void *addr, uint64_t size, const char *type, uint16_t cur_pc, void *mem, size_t mem_len, void *stack);
+static bool bounds_check(struct ubpf_vm *vm, void *addr, int size, const char *type, uint16_t cur_pc, void *mem, size_t mem_len, void *stack);
 
 struct ubpf_vm *
 ubpf_create(void)
@@ -125,7 +126,8 @@ ubpf_load(struct ubpf_vm *vm, const void *code, uint32_t code_len, char **errmsg
         return -1;
     }
     /** if this plugin needs a heap */
-    if (memory_size != 0) {
+    if (memory_ptr != 0 && memory_size != 0) {
+      log_debug(LD_PLUGIN, "Adding 20 instructions");
       /* 20 instructions by memcheck */
       vm->insts = 
         tor_malloc(code_len + (8 * ADDED_LOAD_STORE_INSTS) * num_load_store); 
@@ -139,6 +141,7 @@ ubpf_load(struct ubpf_vm *vm, const void *code, uint32_t code_len, char **errmsg
       vm->num_insts = code_len/sizeof(vm->insts[0]) + (ADDED_LOAD_STORE_INSTS * num_load_store);
     }
     else {
+      log_debug(LD_PLUGIN, "no heap");
       vm->insts = tor_malloc(code_len);
       if (vm->insts == NULL) {
         *errmsg = ubpf_error("out of memory");
@@ -410,13 +413,13 @@ ubpf_exec_with_arg(struct ubpf_vm *vm, void *arg, void *mem, size_t mem_len)
          */
 #define BOUNDS_CHECK_LOAD(size) \
     do { \
-        if (!bounds_check(vm, (uint64_t *)reg[inst.src] + inst.offset, size, "load", cur_pc, mem, mem_len, stack)) { \
+        if (!bounds_check(vm, (void *)reg[inst.src] + inst.offset, size, "load", cur_pc, mem, mem_len, stack)) { \
             return UINT64_MAX; \
         } \
     } while (0)
 #define BOUNDS_CHECK_STORE(size) \
     do { \
-        if (!bounds_check(vm, (uint64_t *)reg[inst.dst] + inst.offset, size, "store", cur_pc, mem, mem_len, stack)) { \
+        if (!bounds_check(vm, (void *)reg[inst.dst] + inst.offset, size, "store", cur_pc, mem, mem_len, stack)) { \
             return UINT64_MAX; \
         } \
     } while (0)
@@ -780,7 +783,7 @@ validate(struct ubpf_vm *vm, const struct ebpf_inst *insts, uint32_t num_insts, 
 
         case EBPF_OP_CALL:
             if (inst.imm < 0 || inst.imm >= MAX_EXT_FUNCS) {
-                *errmsg = ubpf_error("invalid call immediate at PC %d", i);
+                *errmsg = ubpf_error("invalid call immediate at PC %d, inst.imm=%d", i, inst.imm);
                 return false;
             }
             if (!vm->ext_funcs[inst.imm]) {
@@ -971,12 +974,12 @@ rewrite_with_memchecks(struct ubpf_vm *vm, const struct ebpf_inst *insts, uint32
 }
 
 static bool
-bounds_check(struct ubpf_vm *vm, void *addr, uint64_t size, const char *type, uint16_t cur_pc, void *mem, size_t mem_len, void *stack)
+bounds_check(struct ubpf_vm *vm, void *addr, int size, const char *type, uint16_t cur_pc, void *mem, size_t mem_len, void *stack)
 {
-    if (mem && (addr >= mem && ((uint64_t*)addr + size) <= (mem + mem_len))) {
+    if (mem && (addr >= mem && (addr + size) <= (mem + mem_len))) {
         /* Context access */
         return true;
-    } else if (addr >= stack && ((uint64_t*)addr + size) <= (stack + STACK_SIZE)) {
+    } else if (addr >= stack && (addr + size) <= (stack + STACK_SIZE)) {
         /* Stack access */
         return true;
     } else {

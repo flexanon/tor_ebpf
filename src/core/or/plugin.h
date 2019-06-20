@@ -69,8 +69,8 @@ typedef struct plugin_map_t {
   plugin_type_t ptype;
   plugin_usage_type_t putype;
   plugin_family_t pfamily;
-  plugin_t *plugin;
   size_t memory_size;
+  plugin_t *plugin;
   int param;
 } plugin_map_t;
 

@@ -50,8 +50,8 @@ enum operand_size {
 };
 
 struct jump {
-    int offset_loc;
-    int target_pc;
+    uint32_t offset_loc;
+    uint32_t target_pc;
 };
 
 struct jit_state {
