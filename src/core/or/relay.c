@@ -1722,8 +1722,10 @@ connection_edge_process_relay_cell(cell_t *cell, circuit_t *circ,
       args.layer_hint = layer_hint;
       args.edgeconn = conn;
       
-      if (invoke_plugin_operation_or_default(&pmap, caller, (void*)&args))
+      if (invoke_plugin_operation_or_default(&pmap, caller, (void*)&args)){
+        log_debug(LD_PLUGIN, "invoke_plugin returned -1");
         sendme_circuit_consider_sending(circ, layer_hint);
+      }
 
       if (rh.stream_id == 0) {
         log_fn(LOG_PROTOCOL_WARN, LD_PROTOCOL, "Relay data cell with zero "
