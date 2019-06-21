@@ -110,7 +110,8 @@ int invoke_plugin_operation_or_default(plugin_map_t *key,
   }
   else {
     /** default code */
-    log_debug(LD_PLUGIN, "Plugin not found");
+    log_debug(LD_PLUGIN, "Plugin not found: ptype:%d, putype:%d, pfamily:%d, memory_size:%d, subname:%s, param: %d", key->ptype, key->putype,
+        key->pfamily, key->memory_size, key->subname, key->param);
     return -1;
   }
 }

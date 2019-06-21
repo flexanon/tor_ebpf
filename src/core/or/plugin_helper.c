@@ -89,7 +89,8 @@ int insert_plugin_from_transaction_line(char *line, char *plugin_dirname,
     log_debug(LD_PLUGIN, "No token for ebpf filename extracted!");
     return -1;
   }
-
+  /** TODO handle memory later */
+  pinfo->memory_needed = 0;
   /* Handle end of line */
   token[strcspn(token, "\r\n")] = 0;
 
