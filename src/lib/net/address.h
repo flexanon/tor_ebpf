@@ -57,6 +57,9 @@
 // TODO win32 specific includes
 #endif /* defined(ADDRESS_PRIVATE) */
 
+
+uint32_t my_ntohl(uint32_t const net);
+
 /** The number of bits from an address to consider while doing a masked
  * comparison. */
 typedef uint8_t maskbits_t;
@@ -159,7 +162,11 @@ tor_addr_to_ipv4n(const tor_addr_t *a)
 static inline uint32_t
 tor_addr_to_ipv4h(const tor_addr_t *a)
 {
+  #ifdef PLUGIN_CLANG
+  return my_ntohl(tor_addr_to_ipv4n(a));
+  #else 
   return ntohl(tor_addr_to_ipv4n(a));
+  #endif
 }
 
 /** Given an IPv6 address, return its mapped IPv4 address in host order, or
@@ -175,7 +182,11 @@ tor_addr_to_mapped_ipv4h(const tor_addr_t *a)
     // "clang --analyze" due to limited analysis depth
     addr32 = tor_addr_to_in6_addr32(a);
     tor_assert(addr32);
+    #ifdef PLUGIN_CLANG
+    return my_ntohl(addr32[3]);
+    #else
     return ntohl(addr32[3]);
+    #endif
   } else {
     return 0;
   }
@@ -401,7 +412,6 @@ int string_is_valid_nonrfc_hostname(const char *string);
 int string_is_valid_ipv4_address(const char *string);
 int string_is_valid_ipv6_address(const char *string);
 
-uint32_t my_ntohl(uint32_t const net);
 
 #ifdef ADDRESS_PRIVATE
 MOCK_DECL(struct smartlist_t *,get_interface_addresses_raw,(int severity,
