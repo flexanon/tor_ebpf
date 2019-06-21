@@ -6,8 +6,8 @@
 #ifndef  PLUGIN_H
 #define PLUGIN_H
 
-#include "or.h"
-#include "ubpf.h"
+#include "core/or/or.h"
+#include "ubpf/vm/inc/ubpf.h"
 
 /**
  * Define the type of usage the plugin is intended to.
