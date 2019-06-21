@@ -6,8 +6,8 @@
 #ifndef  PLUGIN_H
 #define PLUGIN_H
 
-#include "or.h"
-#include "ubpf.h"
+#include "core/or/or.h"
+#include "ubpf/vm/inc/ubpf.h"
 
 /**
  * Define the type of usage the plugin is intended to.
@@ -70,8 +70,8 @@ typedef struct plugin_map_t {
   plugin_usage_type_t putype;
   plugin_family_t pfamily;
   size_t memory_size;
-  plugin_t *plugin;
   int param;
+  plugin_t *plugin;
 } plugin_map_t;
 
   /**

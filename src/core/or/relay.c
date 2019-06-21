@@ -1661,6 +1661,7 @@ handle_relay_cell_command(cell_t *cell, circuit_t *circ,
       pmap.pfamily = PLUGIN_PROTOCOL_RELAY;
       pmap.subname = (char*)"circuit_consider_sending_sendme";
       pmap.memory_size = 0;
+      pmap.param = 0;
       caller_id_t caller = RELAY_REPLACE_PROCESS_EDGE_SENDME;
       relay_process_edge_t args;
       args.circ = circ;
