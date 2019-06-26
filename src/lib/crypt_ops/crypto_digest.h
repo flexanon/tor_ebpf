@@ -52,9 +52,9 @@ typedef enum {
 /** Structure used to temporarily save the a digest object. Only implemented
  * for SHA1 digest for now. */
 typedef struct crypto_digest_checkpoint_t {
-#ifdef ENABLE_NSS
+//#ifdef ENABLE_NSS
   unsigned int bytes_used;
-#endif
+//#endif
   uint8_t mem[DIGEST_CHECKPOINT_BYTES];
 } crypto_digest_checkpoint_t;
 
