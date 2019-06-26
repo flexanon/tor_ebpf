@@ -17,7 +17,7 @@
 #ifndef UBPF_INT_H
 #define UBPF_INT_H
 
-#include <ubpf.h>
+#include "ubpf/vm/inc/ubpf.h"
 #include "ubpf/vm/ebpf.h"
 
 #define MAX_INSTS 65536

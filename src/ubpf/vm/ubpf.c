@@ -1,4 +1,4 @@
-#include <ubpf.h>
+#include "ubpf/vm/inc/ubpf.h"
 #include <inttypes.h>
 #include <stdlib.h>
 #include <stdbool.h>
