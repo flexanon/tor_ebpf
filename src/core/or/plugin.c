@@ -37,12 +37,13 @@ plugin_entry_hash_(plugin_map_t *a) {
 }
 
 static HT_HEAD(plugin_map_ht, plugin_map_t)
-      plugin_map_ht = HT_INITIALIZER();
+    plugin_map_ht = HT_INITIALIZER();
+
 HT_PROTOTYPE(plugin_map_ht, plugin_map_t, node,
-             plugin_entry_hash_, plugin_entries_eq_)
+             plugin_entry_hash_, plugin_entries_eq_);
 HT_GENERATE2(plugin_map_ht, plugin_map_t, node,
              plugin_entry_hash_, plugin_entries_eq_, 0.6,
-             tor_reallocarray_, tor_free_)
+             tor_reallocarray_, tor_free_);
 
 /****************************************************************/
 
@@ -106,11 +107,15 @@ int invoke_plugin_operation_or_default(plugin_map_t *key,
           struct relay_process_edge_t *ctx = (relay_process_edge_t*) args;
           return plugin_run(found->plugin, ctx, sizeof(relay_process_edge_t));
         }
+      case RELAY_PROCESS_EDGE_UNKNOWN:
+        return -1;
+        break;
+      default: return -1; break;
     }
   }
   else {
     /** default code */
-    log_debug(LD_PLUGIN, "Plugin not found: ptype:%d, putype:%d, pfamily:%d, memory_size:%d, subname:%s, param: %d", key->ptype, key->putype,
+    log_debug(LD_PLUGIN, "Plugin not found: ptype:%d, putype:%d, pfamily:%d, memory_size:%lu, subname:%s, param: %d", key->ptype, key->putype,
         key->pfamily, key->memory_size, key->subname, key->param);
     return -1;
   }
@@ -122,11 +127,10 @@ int invoke_plugin_operation_or_default(plugin_map_t *key,
  */
 
 uint64_t get(int key, void *pointer) {
-  
   if (key < RELAY_MAX) {
     return relay_get(key, pointer);
   }
-  return NULL;
+  return 0;
 }
 
 void set(int key, void *pointer, uint64_t val) {
@@ -152,7 +156,7 @@ uint64_t plugin_run(plugin_t *plugin, void *args, size_t args_size) {
   uint64_t ret = exec_loaded_code(plugin, args, args_size);
   if (ret) {
     log_debug(LD_PLUGIN, "Plugin execution returned %ld", ret);
-    char *errormsg = ubpf_get_error_msg(plugin->vm);
+    const char *errormsg = ubpf_get_error_msg(plugin->vm);
     log_debug(LD_PLUGIN, "vm error message: %s", errormsg);
   }
   return ret;

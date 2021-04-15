@@ -2001,7 +2001,7 @@ handle_relay_cell_command(cell_t *cell, circuit_t *circ,
     log_fn(LOG_PROTOCOL_WARN, LD_PROTOCOL,
         "Received unknown relay command %d. But we do not have a developer plugin"
         " able to handle it, destroy the circuit",
-        rh.command);
+        rh->command);
     return -1;
   }
   return 0;

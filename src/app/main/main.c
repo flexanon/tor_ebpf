@@ -629,9 +629,6 @@ tor_init(int argc, char *argv[])
     return 1;
   }
 
-  /* The options are now initialised */
-  const or_options_t *options = get_options();
-
   /**  Initialize plugins -- Should be the firt init system, because
    * plugins could replace init code of other modules? how to solve that? */
 
