@@ -445,6 +445,7 @@ static const config_var_t option_vars_[] = {
   V(TestingEnableConnBwEvent,    BOOL,     "0"),
   V(TestingEnableCellStatsEvent, BOOL,     "0"),
   OBSOLETE("TestingEnableTbEmptyEvent"),
+  V(EnablePlugins,               BOOL,     "0"),
   V(EnforceDistinctSubnets,      BOOL,     "1"),
   V_D(EntryNodes,                ROUTERSET,   NULL),
   V(EntryStatistics,             BOOL,     "0"),
@@ -606,6 +607,10 @@ static const config_var_t option_vars_[] = {
   V(PerConnBWRate,               MEMUNIT,  "0"),
   V_IMMUTABLE(PidFile,           FILENAME,   NULL),
   V_IMMUTABLE(TestingTorNetwork, BOOL,     "0"),
+  VAR("PluginsDirectory",           FILENAME, PluginsDirectory_option, NULL),
+  V(PluginsDirectoryGroupReadable, BOOL, "0"),
+  V(TestingMinExitFlagThreshold, MEMUNIT,  "0"),
+  V(TestingMinFastFlagThreshold, MEMUNIT,  "0"),
 
   V(TestingLinkCertLifetime,          INTERVAL, "2 days"),
   V(TestingAuthKeyLifetime,          INTERVAL, "2 days"),
@@ -1032,6 +1037,7 @@ options_clear_cb(const config_mgr_t *mgr, void *opts)
   tor_free(options->DataDirectory);
   tor_free(options->CacheDirectory);
   tor_free(options->KeyDirectory);
+  tor_free(options->PluginsDirectory);
   tor_free(options->BridgePassword_AuthDigest_);
   tor_free(options->command_arg);
   tor_free(options->master_key_fname);
@@ -1575,8 +1581,22 @@ options_create_directories(char **msg_out)
     return -1;
   }
 
+<<<<<<< HEAD
   return 0;
 }
+=======
+  if (check_and_create_data_directory(running_tor,
+                                      options->PluginsDirectory,
+                                      options->PluginsDirectoryGroupReadable,
+                                      options->User,
+                                      msg) < 0) {
+    goto done;
+  }
+  /* Bail out at this point if we're not going to be a client or server:
+   * we don't run Tor itself. */
+  if (!running_tor)
+    goto commit;
+>>>>>>> add Tor plugins in tor-0.4.1.2-alpha
 
 /** Structure to represent an incomplete configuration of a set of
  * listeners.
@@ -3108,6 +3128,7 @@ warn_about_relative_paths(const or_options_t *options)
   int n = 0;
   const config_mgr_t *mgr = get_options_mgr();
 
+<<<<<<< HEAD
   smartlist_t *vars = config_mgr_list_vars(mgr);
   SMARTLIST_FOREACH_BEGIN(vars, const config_var_t *, cv) {
     config_line_t *line;
@@ -3120,6 +3141,27 @@ warn_about_relative_paths(const or_options_t *options)
     config_free_lines(line);
   } SMARTLIST_FOREACH_END(cv);
   smartlist_free(vars);
+=======
+  n += warn_if_option_path_is_relative("CookieAuthFile",
+                                       options->CookieAuthFile);
+  n += warn_if_option_path_is_relative("ExtORPortCookieAuthFile",
+                                       options->ExtORPortCookieAuthFile);
+  n += warn_if_option_path_is_relative("DirPortFrontPage",
+                                       options->DirPortFrontPage);
+  n += warn_if_option_path_is_relative("V3BandwidthsFile",
+                                       options->V3BandwidthsFile);
+  n += warn_if_option_path_is_relative("ControlPortWriteToFile",
+                                       options->ControlPortWriteToFile);
+  n += warn_if_option_path_is_relative("GeoIPFile",options->GeoIPFile);
+  n += warn_if_option_path_is_relative("GeoIPv6File",options->GeoIPv6File);
+  n += warn_if_option_path_is_relative("Log",options->DebugLogFile);
+  n += warn_if_option_path_is_relative("AccelDir",options->AccelDir);
+  n += warn_if_option_path_is_relative("DataDirectory",options->DataDirectory);
+  n += warn_if_option_path_is_relative("PluginsDirectory",options->PluginsDirectory);
+  n += warn_if_option_path_is_relative("PidFile",options->PidFile);
+  n += warn_if_option_path_is_relative("ClientOnionAuthDir",
+                                        options->ClientOnionAuthDir);
+>>>>>>> add Tor plugins in tor-0.4.1.2-alpha
 
   for (config_line_t *hs_line = options->RendConfigLines; hs_line;
        hs_line = hs_line->next) {
@@ -4177,6 +4219,40 @@ options_check_transition_cb(const void *old_,
     return -1;                                                          \
   } while (0)
 
+<<<<<<< HEAD
+=======
+#define NO_CHANGE_BOOL(opt) \
+  if (! CFG_EQ_BOOL(old, new_val, opt)) BAD_CHANGE_TO(opt,"")
+#define NO_CHANGE_INT(opt) \
+  if (! CFG_EQ_INT(old, new_val, opt)) BAD_CHANGE_TO(opt,"")
+#define NO_CHANGE_STRING(opt) \
+  if (! CFG_EQ_STRING(old, new_val, opt)) BAD_CHANGE_TO(opt,"")
+
+  NO_CHANGE_STRING(PidFile);
+  NO_CHANGE_BOOL(RunAsDaemon);
+  NO_CHANGE_BOOL(Sandbox);
+  NO_CHANGE_STRING(DataDirectory);
+  NO_CHANGE_STRING(PluginsDirectory);
+  NO_CHANGE_STRING(KeyDirectory);
+  NO_CHANGE_STRING(CacheDirectory);
+  NO_CHANGE_STRING(User);
+  NO_CHANGE_BOOL(KeepBindCapabilities);
+  NO_CHANGE_STRING(SyslogIdentityTag);
+  NO_CHANGE_STRING(AndroidIdentityTag);
+  NO_CHANGE_BOOL(HardwareAccel);
+  NO_CHANGE_STRING(AccelName);
+  NO_CHANGE_STRING(AccelDir);
+  NO_CHANGE_BOOL(TestingTorNetwork);
+  NO_CHANGE_BOOL(DisableAllSwap);
+  NO_CHANGE_INT(TokenBucketRefillInterval);
+  NO_CHANGE_BOOL(HiddenServiceSingleHopMode);
+  NO_CHANGE_BOOL(HiddenServiceNonAnonymousMode);
+  NO_CHANGE_BOOL(DisableDebuggerAttachment);
+  NO_CHANGE_BOOL(NoExec);
+  NO_CHANGE_INT(OwningControllerFD);
+  NO_CHANGE_BOOL(DisableSignalHandlers);
+
+>>>>>>> add Tor plugins in tor-0.4.1.2-alpha
   if (sandbox_is_active()) {
 #define SB_NOCHANGE_STR(opt)                      \
     if (! CFG_EQ_STRING(old, new_val, opt))       \
@@ -4213,6 +4289,75 @@ options_check_transition_cb(const void *old_,
   return 0;
 }
 
+<<<<<<< HEAD
+=======
+/** Return 1 if any change from <b>old_options</b> to <b>new_options</b>
+ * will require us to rotate the CPU and DNS workers; else return 0. */
+static int
+options_transition_affects_workers(const or_options_t *old_options,
+                                   const or_options_t *new_options)
+{
+  YES_IF_CHANGED_STRING(DataDirectory);
+  YES_IF_CHANGED_STRING(PluginsDirectory);
+  YES_IF_CHANGED_INT(NumCPUs);
+  YES_IF_CHANGED_LINELIST(ORPort_lines);
+  YES_IF_CHANGED_BOOL(ServerDNSSearchDomains);
+  YES_IF_CHANGED_BOOL(SafeLogging_);
+  YES_IF_CHANGED_BOOL(ClientOnly);
+  YES_IF_CHANGED_BOOL(LogMessageDomains);
+  YES_IF_CHANGED_LINELIST(Logs);
+
+  if (server_mode(old_options) != server_mode(new_options) ||
+      public_server_mode(old_options) != public_server_mode(new_options) ||
+      dir_server_mode(old_options) != dir_server_mode(new_options))
+    return 1;
+
+  /* Nothing that changed matters. */
+  return 0;
+}
+
+/** Return 1 if any change from <b>old_options</b> to <b>new_options</b>
+ * will require us to generate a new descriptor; else return 0. */
+static int
+options_transition_affects_descriptor(const or_options_t *old_options,
+                                      const or_options_t *new_options)
+{
+  /* XXX We can be smarter here. If your DirPort isn't being
+   * published and you just turned it off, no need to republish. Etc. */
+
+  YES_IF_CHANGED_STRING(DataDirectory);
+  YES_IF_CHANGED_STRING(Nickname);
+  YES_IF_CHANGED_STRING(Address);
+  YES_IF_CHANGED_LINELIST(ExitPolicy);
+  YES_IF_CHANGED_BOOL(ExitRelay);
+  YES_IF_CHANGED_BOOL(ExitPolicyRejectPrivate);
+  YES_IF_CHANGED_BOOL(ExitPolicyRejectLocalInterfaces);
+  YES_IF_CHANGED_BOOL(IPv6Exit);
+  YES_IF_CHANGED_LINELIST(ORPort_lines);
+  YES_IF_CHANGED_LINELIST(DirPort_lines);
+  YES_IF_CHANGED_LINELIST(DirPort_lines);
+  YES_IF_CHANGED_BOOL(ClientOnly);
+  YES_IF_CHANGED_BOOL(DisableNetwork);
+  YES_IF_CHANGED_BOOL(PublishServerDescriptor_);
+  YES_IF_CHANGED_STRING(ContactInfo);
+  YES_IF_CHANGED_STRING(BridgeDistribution);
+  YES_IF_CHANGED_LINELIST(MyFamily);
+  YES_IF_CHANGED_STRING(AccountingStart);
+  YES_IF_CHANGED_INT(AccountingMax);
+  YES_IF_CHANGED_INT(AccountingRule);
+  YES_IF_CHANGED_BOOL(DirCache);
+  YES_IF_CHANGED_BOOL(AssumeReachable);
+
+  if (get_effective_bwrate(old_options) != get_effective_bwrate(new_options) ||
+      get_effective_bwburst(old_options) !=
+        get_effective_bwburst(new_options) ||
+      public_server_mode(old_options) != public_server_mode(new_options))
+    return 1;
+
+  return 0;
+}
+
+>>>>>>> add Tor plugins in tor-0.4.1.2-alpha
 #ifdef _WIN32
 /** Return the directory on windows where we expect to find our application
  * data. */
@@ -6794,7 +6939,16 @@ validate_data_directories(or_options_t *options)
     log_warn(LD_CONFIG, "DataDirectory is too long.");
     return -1;
   }
-
+  tor_free(options->PluginsDirectory);
+  if (options->PluginsDirectory_option) {
+    options->PluginsDirectory = get_data_directory(options->PluginsDirectory_option);
+    if (!options->PluginsDirectory)
+      return -1;
+  } else {
+    /* Default to the data directory's plugins subdir */
+    tor_asprintf(&options->PluginsDirectory, "%s"PATH_SEPARATOR"plugins",
+                 options->DataDirectory);
+  }
   tor_free(options->KeyDirectory);
   if (options->KeyDirectory_option) {
     options->KeyDirectory = get_data_directory(options->KeyDirectory_option);
@@ -6986,6 +7140,9 @@ options_get_dir_fname2_suffix,(const or_options_t *options,
     case DIRROOT_KEYDIR:
       rootdir = options->KeyDirectory;
       break;
+    case DIRROOT_PLUGINSDIR:
+      rootdir = options->PluginsDirectory;
+      break;
     default:
       tor_assert_unreached();
       break;
@@ -7027,6 +7184,20 @@ check_or_create_data_subdir(const char *subdir)
   return return_val;
 }
 
+int
+check_or_create_plugin_subdir(const char *subdir)
+{
+  char *plugindir = get_plugindir_fname(subdir);
+  int return_val = 0;
+
+  if (check_private_dir(plugindir, CPD_CREATE, get_options()->User) < 0) {
+    log_warn(LD_HIST, "Unable to create %s/ directory!", subdir);
+    return_val = -1;
+  }
+  tor_free(plugindir);
+  return return_val;
+}
+
 /** Create a file named <b>fname</b> with contents <b>str</b> in the
  * subdirectory <b>subdir</b> of the data directory. <b>descr</b>
  * should be a short description of the file's content and will be
@@ -7047,6 +7218,60 @@ write_to_data_subdir(const char* subdir, const char* fname,
   return return_val;
 }
 
+<<<<<<< HEAD
+=======
+int
+write_to_plugin_subdir(const char* subdir, const char* fname,
+                       const char* str, const char* descr)
+{
+  char *filename = get_plugindir_fname2(subdir, fname);
+  int return_val = 0;
+
+  if (write_str_to_file(filename, str, 0) < 0) {
+    log_warn(LD_HIST, "Unable to write %s to disk!", descr ? descr : fname);
+    return_val = -1;
+  }
+  tor_free(filename);
+  return return_val;
+}
+/** Return a smartlist of ports that must be forwarded by
+ *  tor-fw-helper. The smartlist contains the ports in a string format
+ *  that is understandable by tor-fw-helper. */
+smartlist_t *
+get_list_of_ports_to_forward(void)
+{
+  smartlist_t *ports_to_forward = smartlist_new();
+  int port = 0;
+
+  /** XXX TODO tor-fw-helper does not support forwarding ports to
+      other hosts than the local one. If the user is binding to a
+      different IP address, tor-fw-helper won't work.  */
+  port = router_get_advertised_or_port(get_options());  /* Get ORPort */
+  if (port)
+    smartlist_add_asprintf(ports_to_forward, "%d:%d", port, port);
+
+  port = router_get_advertised_dir_port(get_options(), 0); /* Get DirPort */
+  if (port)
+    smartlist_add_asprintf(ports_to_forward, "%d:%d", port, port);
+
+  /* Get ports of transport proxies */
+  {
+    smartlist_t *transport_ports = get_transport_proxy_ports();
+    if (transport_ports) {
+      smartlist_add_all(ports_to_forward, transport_ports);
+      smartlist_free(transport_ports);
+    }
+  }
+
+  if (!smartlist_len(ports_to_forward)) {
+    smartlist_free(ports_to_forward);
+    ports_to_forward = NULL;
+  }
+
+  return ports_to_forward;
+}
+
+>>>>>>> add Tor plugins in tor-0.4.1.2-alpha
 /** Helper to implement GETINFO functions about configuration variables (not
  * their values).  Given a "config/names" question, set *<b>answer</b> to a
  * new string describing the supported configuration variables and their

@@ -25,6 +25,8 @@ LIBTOR_APP_A_SOURCES += 				\
 	src/core/or/or_sys.c			\
 	src/core/or/orconn_event.c		\
 	src/core/or/policies.c			\
+	src/core/or/plugin.c			\
+	src/core/or/plugin_helper.c			\
 	src/core/or/protover.c			\
 	src/core/or/protover_rust.c		\
 	src/core/or/reasons.c			\
@@ -85,6 +87,8 @@ noinst_HEADERS +=					\
 	src/core/or/origin_circuit_st.h			\
 	src/core/or/policies.h				\
 	src/core/or/port_cfg_st.h			\
+	src/core/or/plugin.h			\
+	src/core/or/plugin_helper.h			\
 	src/core/or/protover.h				\
 	src/core/or/reasons.h				\
 	src/core/or/relay.h				\

@@ -10,6 +10,9 @@ noinst_HEADERS += \
 
 src_app_tor_SOURCES = src/app/main/tor_main.c
 
+AM_CPPFLAGS += -I$(srcdir)/src/core/or -Isrc/core/or -I$(srcdir)/src/ubpf/vm/inc \
+               -I$(srcdir)/src/ubpf/vm
+
 # -L flags need to go in LDFLAGS. -l flags need to go in LDADD.
 # This seems to matter nowhere but on windows, but I assure you that it
 # matters a lot there, and is quite hard to debug if you forget to do it.

@@ -83,6 +83,8 @@ struct or_options_t {
                                * configured by the user. */
   char *DataDirectory; /**< Where to store long-term data, as modified. */
   int DataDirectoryGroupReadable; /**< Boolean: Is the DataDirectory g+r? */
+  
+  int PluginsDirectoryGroupReadable; /** <Boolean: Is the PluginsDirectory g+r. */
 
   char *KeyDirectory_option; /**< Where to store keys, as
                                * configured by the user. */
@@ -104,6 +106,8 @@ struct or_options_t {
   int AddressDisableIPv6;
 
   char *PidFile; /**< Where to store PID of Tor process. */
+
+  int EnablePlugins; /** activate the use of plugins */
 
   struct routerset_t *ExitNodes; /**< Structure containing nicknames, digests,
                            * country codes and IP address patterns of ORs to
@@ -1059,6 +1063,10 @@ struct or_options_t {
 
   /** Autobool: Do we refuse single hop client rendezvous? */
   int DoSRefuseSingleHopClientRendezvous;
+  
+  char *PluginsDirectory_option; /** Where are stored plugins as 
+                                   configured by the user*/
+  char *PluginsDirectory; /**Where are stored plugins, as modified */
 
   /** Interval: how long without activity does it take for a client
    * to become dormant?

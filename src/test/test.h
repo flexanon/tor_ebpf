@@ -163,6 +163,7 @@ extern struct testcase_t options_act_tests[];
 extern struct testcase_t parsecommon_tests[];
 extern struct testcase_t pem_tests[];
 extern struct testcase_t periodic_event_tests[];
+extern struct testcase_t plugin_tests[];
 extern struct testcase_t policy_tests[];
 extern struct testcase_t prob_distr_tests[];
 extern struct testcase_t slow_stochastic_prob_distr_tests[];
