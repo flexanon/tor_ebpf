@@ -66,7 +66,7 @@ test_plugin_helper_find_all_and_init(void *args) {
   tt_int_op(strcmp(((plugin_info_t*)smartlist_get(plist1->subplugins, 0))->subname, "test_1"), OP_EQ, 0);
   tt_int_op(strcmp(((plugin_info_t*)smartlist_get(plist2->subplugins, 0))->subname, "test_2"), OP_EQ, 0);
   tt_int_op(((plugin_info_t*)smartlist_get(plist1->subplugins, 0))->pfamily, OP_EQ,  PLUGIN_PROTOCOL_RELAY);
-  tt_int_op(((plugin_info_t*)smartlist_get(plist1->subplugins, 0))->putype, OP_EQ,  PLUGIN_CODE_HIGHJACK);
+  tt_int_op(((plugin_info_t*)smartlist_get(plist1->subplugins, 0))->putype, OP_EQ,  PLUGIN_CODE_HIJACK);
   tt_int_op(((plugin_info_t*)smartlist_get(plist2->subplugins, 0))->putype, OP_EQ,  PLUGIN_CODE_ADD);
 done:
   if(list_plugins)

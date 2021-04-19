@@ -16,7 +16,7 @@
  * We may want to add a new functionality to existing code
  */
 typedef enum {
-  PLUGIN_CODE_HIGHJACK,
+  PLUGIN_CODE_HIJACK,
   PLUGIN_CODE_ADD,
   PLUGIN_CODE_DEL
 } plugin_usage_type_t;

@@ -1657,7 +1657,7 @@ handle_relay_cell_command(cell_t *cell, circuit_t *circ,
        *  the plugin */
       plugin_map_t pmap;
       pmap.ptype = PLUGIN_DEV;
-      pmap.putype = PLUGIN_CODE_HIGHJACK;
+      pmap.putype = PLUGIN_CODE_HIJACK;
       pmap.pfamily = PLUGIN_PROTOCOL_RELAY;
       pmap.subname = (char*)"circuit_consider_sending_sendme";
       pmap.memory_size = 0;

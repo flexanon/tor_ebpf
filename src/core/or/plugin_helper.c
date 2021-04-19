@@ -73,7 +73,7 @@ int insert_plugin_from_transaction_line(char *line, char *plugin_dirname,
   
   /* Part two: extract plugin type */
   if (strncmp(token, "replace", 7) == 0) {
-    pinfo->putype = PLUGIN_CODE_HIGHJACK;
+    pinfo->putype = PLUGIN_CODE_HIJACK;
   } else if (strncmp(token, "del", 3) == 0) {
     pinfo->putype = PLUGIN_CODE_DEL;
   } else if (strncmp(token, "add", 3) == 0) {
