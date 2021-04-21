@@ -3324,15 +3324,17 @@ uint64_t relay_get(int key, void *pointer) {
   switch(key) {
     case RELAY_CIRCUIT_T:;break;
     case RELAY_LAYER_HINT_DELIVER_WINDOW:
-                         { 
-                           crypt_path_t *layer_hint = (crypt_path_t*) pointer;
-                           return layer_hint->deliver_window;
-                         }
+      {
+        crypt_path_t *layer_hint = (crypt_path_t*) pointer;
+        return layer_hint->deliver_window;
+      }
     case RELAY_CIRC_DELIVER_WINDOW:
-                         {
-                           circuit_t *circ = (circuit_t*) pointer;
-                           return circ->deliver_window;
-                         }
+      {
+        circuit_t *circ = (circuit_t*) pointer;
+        return circ->deliver_window;
+      }
+    default:
+      return 0;
   }
   return 0;
 }

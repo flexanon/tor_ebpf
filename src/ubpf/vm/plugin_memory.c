@@ -1,7 +1,20 @@
+/**
+ * \file plugin_memory.c
+ *
+ * \brief Support for memory management within each plugin -- Plugins receive a
+ * contiguous memory space from the host, in which they allocate and deallocate
+ * content
+ *
+ * TODO add the possibility for a shared memory between plugins -- and to the
+ * plugin to reference this shared memory at loading
+ *
+ */
 #include "core/or/or.h"
 #include "ubpf/vm/plugin_memory.h"
 
 #include <unistd.h>
+
+
 
 #define MAGIC_NUMBER 0xa110ca7ab1e
 
@@ -20,8 +33,7 @@ static uint64_t index_from_addr(memory_pool_t *mp, uint8_t *p) {
 * Return the pointer to this slot.
 * If no adequately large free slot is available, extend the heap and return the pointer.
 */
-void *my_plugin_malloc(tor_cnx_t *cnx, unsigned int size) {
-	plugin_t *plugin = cnx->current_plugin;
+void *my_plugin_malloc(plugin_t *plugin, unsigned int size) {
   tor_assert(plugin);
 	memory_pool_t *mp = plugin->memory_pool;
 	if (size > mp->size_of_each_block - 8) {
@@ -55,8 +67,8 @@ void *my_plugin_malloc(tor_cnx_t *cnx, unsigned int size) {
 	return (uint64_t*) ret + 8;
 }
 
-void *my_plugin_malloc_dbg(tor_cnx_t *cnx, unsigned int size, char *file, int line) {
-    void *p = my_plugin_malloc(cnx, size);
+void *my_plugin_malloc_dbg(plugin_t *plugin, unsigned int size, char *file, int line) {
+    void *p = my_plugin_malloc(plugin, size);
     log_debug(LD_PLUGIN, "MY MALLOC %s:%d = %p\n", file, line, p);
     return p;
 }
@@ -91,14 +103,13 @@ void my_plugin_free_in_core(plugin_t *p, void *ptr) {
  * to be deleted is actually allocated. this is done by using the
  * magic number. Due to lack of time i haven't worked on fragmentation.
  */ 
-void my_plugin_free(tor_cnx_t *cnx, void *ptr) {
-	plugin_t *p = cnx->current_plugin;
-  tor_assert(p);
-	my_plugin_free_in_core(p, ptr);
+void my_plugin_free(plugin_t *plugin, void *ptr) {
+  tor_assert(plugin);
+	my_plugin_free_in_core(plugin, ptr);
 }
-void my_plugin_free_dbg(tor_cnx_t *cnx, void *ptr, char *file, int line) {
+void my_plugin_free_dbg(plugin_t *plugin, void *ptr, char *file, int line) {
   log_debug(LD_PLUGIN, "MY FREE %s:%d = %p\n", file, line, ptr);
-  my_plugin_free(cnx, ptr);
+  my_plugin_free(plugin, ptr);
 }
 /**
  * Reallocate the allocated memory to change its size. Three cases are possible.
@@ -110,13 +121,12 @@ void my_plugin_free_dbg(tor_cnx_t *cnx, void *ptr, char *file, int line) {
  *    Free the pointer and return NULL.
  * If an invalid pointer is provided, it returns NULL without changing anything.
  */
-void *my_plugin_realloc(tor_cnx_t *cnx, void *ptr, unsigned int size) {
-	plugin_t *p = cnx->current_plugin;
-  tor_assert(p);
+void *my_plugin_realloc(plugin_t *plugin, void *ptr, unsigned int size) {
+  tor_assert(plugin);
 	// we cannot change the size of the block: if the new size is above the maximum, print an error,
 	// otherwise, return the same pointer
-	if (size > p->memory_pool->size_of_each_block - 8) {
-		log_debug(LD_PLUGIN, "Asking for %u bytes by slots up to %lu!\n", size, p->memory_pool->size_of_each_block - 8);
+	if (size > plugin->memory_pool->size_of_each_block - 8) {
+		log_debug(LD_PLUGIN, "Asking for %u bytes by slots up to %lu!\n", size, plugin->memory_pool->size_of_each_block - 8);
 		return NULL;
 	}
 	return ptr;

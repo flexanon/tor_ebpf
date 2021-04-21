@@ -77,6 +77,7 @@
 #include "core/or/extend_info_st.h"
 #include "core/crypto/relay_crypto.h"
 #include "feature/nodelist/nodelist.h"
+#include "core/or/plugin.h"
 
 #include "app/config/config.h"
 
@@ -2785,6 +2786,20 @@ circpad_machines_init(void)
   /* Register machines for hiding client-side rendezvous circuits */
   circpad_machine_client_hide_rend_circuits(origin_padding_machines);
   circpad_machine_relay_hide_rend_circuits(relay_padding_machines);
+  
+  plugin_map_t pmap;
+  pmap.ptype = PLUGIN_DEV;
+  pmap.putype = PLUGIN_CODE_ADD;
+  pmap.pfamily = PLUGIN_PROTOCOL_CIRCPAD;
+  pmap.subname = (char *)"";
+  caller_id_t caller = CIRCPAD_PROTOCOL_INIT;
+  circpad_plugin_args_t args;
+  args.origin_padding_machines = origin_padding_machines;
+  args.relay_padding_machines = relay_padding_machines;
+  /** Load any global machine we have in our .o bytecode objects */
+  if (invoke_plugin_operation_or_default(&pmap, caller, (void *)&args)) {
+    log_info(LD_PLUGIN, "We do not have any circpad init plugin");
+  }
 
   // TODO: Parse machines from consensus and torrc
 #ifdef TOR_UNIT_TESTS

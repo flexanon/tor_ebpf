@@ -26,8 +26,21 @@ typedef enum {
   PLUGIN_USER
 } plugin_type_t;
 
+/**
+ * Various type of Protocols that can be hijacked, where functions can be added
+ * or removed.
+ *
+ * Note, this is still very early prototyping, we do not support much things yet
+ *
+ * PLUGIN_PROTOCOL_CORE is expected to refer to the core framework that can only
+ * be hijacked be the main developers. Hijacking PROTOCOL_CORE would allow the
+ * devs to re-write basically anything.
+ */
+
 typedef enum {
-  PLUGIN_PROTOCOL_RELAY
+  PLUGIN_PROTOCOL_CORE,
+  PLUGIN_PROTOCOL_RELAY,
+  PLUGIN_PROTOCOL_CIRCPAD
 } plugin_family_t;
 
 /* Contains the information for all code accessible
@@ -56,11 +69,16 @@ typedef struct plugin_args_t {
   int param; /** empty for now */
 } plugin_args_t;
 
+/**
+ * Who's calling us? Will be used to prepare plugin_run()
+ */
 typedef enum {
   /** Replace circuit_sendme logic */
   RELAY_REPLACE_PROCESS_EDGE_SENDME,
   /** We received a cell that is not part of the current relay protocol version*/
-  RELAY_PROCESS_EDGE_UNKNOWN
+  RELAY_PROCESS_EDGE_UNKNOWN,
+  /** We have one or several circpad machines to globally add to all circuits */
+  CIRCPAD_PROTOCOL_INIT
 } caller_id_t;
 
 typedef struct plugin_map_t {
@@ -92,9 +110,14 @@ typedef struct plugin_map_t {
 
 #define RELAY_MAX 1000
 
+/** Circpad related field elements */
+
+#define CIRCPAD_MAX 2000
+
 /*** KEYFUNC */
 
 #define RELAY_SEND_COMMAND_FROM_EDGE 1
+#define CIRCPAD_MACHINE_REGISTER 2
 
 #define RELAY_KEYFUNC_MAX 100
 

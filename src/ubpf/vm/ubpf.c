@@ -37,17 +37,17 @@ static void
 register_dev_functions(struct ubpf_vm *vm)
 {
   /* We only have 64 values ... (so far) */
-
+  unsigned int idx = 0;
   /* specific API related */
-  tor_assert(ubpf_register(vm, 0, "invoke_plugin_operation_or_default", invoke_plugin_operation_or_default) != -1);
-  tor_assert(ubpf_register(vm, 1, "get", get) != -1);
-  tor_assert(ubpf_register(vm, 2, "set", set) != -1);
+  tor_assert(ubpf_register(vm, idx++, "invoke_plugin_operation_or_default", invoke_plugin_operation_or_default) != -1);
+  tor_assert(ubpf_register(vm, idx++, "get", get) != -1);
+  tor_assert(ubpf_register(vm, idx++, "set", set) != -1);
+  tor_assert(ubpf_register(vm, idx++, "call_host_func", call_host_func) != -1);
 
-  tor_assert(ubpf_register(vm, 3, "call_host_func", call_host_func) != -1);
-  tor_assert(ubpf_register(vm, 4, "my_ntohl", my_ntohl) != -1);
+  tor_assert(ubpf_register(vm, idx++, "my_ntohl", my_ntohl) != -1);
   /** memory */
-  /*ubpf_register(vm, 0x05, "my_plugin_malloc", my_plugin_malloc);*/
-  /*ubpf_register(vm, 0x06, "my_plugin_free", my_plugin_free);*/
+  ubpf_register(vm, idx++, "my_plugin_malloc", my_plugin_malloc);
+  ubpf_register(vm, idx++, "my_plugin_free", my_plugin_free);
   /** logging stuff */
   tor_assert(ubpf_register(vm, 5, "log_fn_", log_fn_) != -1);
 

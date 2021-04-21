@@ -1138,12 +1138,4 @@ typedef struct plugin {
   ubpf_jit_fn fn;
 } plugin_t;
 
-typedef struct tor_cnx{
-  plugin_t *current_plugin; /* for navigating between plugins */
-
-    /** Some information the plugin might be interested in 
-     * TODO */
-
-} tor_cnx_t;
-
 #endif /* !defined(TOR_OR_H) */

@@ -6,6 +6,7 @@
 
 #include "core/or/or.h"
 #include "app/config/config.h"
+#include "core/or/circuitpadding.h"
 #include "core/or/plugin.h"
 #include "core/or/plugin_helper.h"
 #include "core/or/relay.h"
@@ -105,12 +106,23 @@ int invoke_plugin_operation_or_default(plugin_map_t *key,
           log_debug(LD_PLUGIN, "Plugin found for caller %s",
               plugin_caller_id_to_string(caller));
           struct relay_process_edge_t *ctx = (relay_process_edge_t*) args;
+          ctx->plugin = found->plugin;
           return plugin_run(found->plugin, ctx, sizeof(relay_process_edge_t));
         }
       case RELAY_PROCESS_EDGE_UNKNOWN:
         return -1;
-        break;
-      default: return -1; break;
+      case CIRCPAD_PROTOCOL_INIT:
+        {
+          log_debug(LD_PLUGIN, "Plugin found for caller %s", 
+              plugin_caller_id_to_string(caller));
+          circpad_plugin_args_t *ctx = (circpad_plugin_args_t *) args;
+          ctx->plugin = found->plugin;
+          return plugin_run(found->plugin, ctx, sizeof(circpad_plugin_args_t));
+        }
+      default:
+        log_debug(LD_PLUGIN, "Caller not found! %d:%s", caller,
+            plugin_caller_id_to_string(caller));
+        return -1; break;
     }
   }
   else {
@@ -147,6 +159,10 @@ int call_host_func(int keyfunc, void *args) {
         return relay_send_command_from_edge(0, pedge->circ, RELAY_COMMAND_SENDME, 
             NULL, 0, pedge->layer_hint);
 
+      }
+    case CIRCPAD_MACHINE_REGISTER:
+      {
+        return 0;
       }
   }
   return -1;

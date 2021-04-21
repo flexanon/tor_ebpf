@@ -678,6 +678,17 @@ typedef struct circpad_machine_spec_t {
   circpad_statenum_t num_states;
 } circpad_machine_spec_t;
 
+/**
+ * Plugin related
+ */
+
+typedef struct circpad_plugin_args_t {
+  plugin_t *plugin;
+  smartlist_t *origin_padding_machines;
+  smartlist_t *relay_padding_machines;
+} circpad_plugin_args_t;
+
+
 void circpad_new_consensus_params(const networkstatus_t *ns);
 
 int circpad_marked_circuit_for_padding(circuit_t *circ, int reason);
@@ -820,6 +831,7 @@ histogram_get_bin_upper_bound(const circpad_machine_runtime_t *mi,
 STATIC void
 circpad_add_matching_machines(origin_circuit_t *on_circ,
                               smartlist_t *machines_sl);
+
 
 #ifdef TOR_UNIT_TESTS
 extern smartlist_t *origin_padding_machines;

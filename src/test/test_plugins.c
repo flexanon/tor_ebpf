@@ -37,37 +37,55 @@ test_plugin_helper_find_all_and_init(void *args) {
   get_options_mutable()->PluginsDirectory = tor_strdup(get_fname("plugins"));
   ret = check_private_dir(get_options()->PluginsDirectory, CPD_CREATE, NULL);
   tt_int_op(ret, OP_EQ, 0);
+
   const char *plugin_dir_1 = "test_1";
   char *subpath_1 = get_plugindir_fname(plugin_dir_1);
   const char *plugin_dir_2 = "test_2";
   char *subpath_2 = get_plugindir_fname(plugin_dir_2);
+  const char *plugin_dir_3 = "test_3";
+  char *subpath_3 = get_plugindir_fname(plugin_dir_3);
+
   tt_assert(!check_or_create_plugin_subdir(plugin_dir_1));
   tt_assert(is_private_dir(subpath_1));
   tt_assert(!check_or_create_plugin_subdir(plugin_dir_2));
   tt_assert(is_private_dir(subpath_2));
+  tt_assert(!check_or_create_plugin_subdir(plugin_dir_3));
+  tt_assert(is_private_dir(subpath_3));
   const char* plugin_fname_1 = "test_1.plugin";
   const char* plugin_fname_2 = "test_2.plugin";
+  const char* plugin_fname_3 = "test_3.plugin";
+
   const char* str_test_1 = "test_1 protocol_relay replace test_1.o";
   const char* str_test_2 = "test_2 protocol_relay param 42 add test_2.o";
+  const char* str_test_3 = "test_3 protocol_circpad memory 256 replace test_3.o";
+
   ret = write_to_plugin_subdir(plugin_dir_1, plugin_fname_1, str_test_1, NULL);
   tt_int_op(ret, OP_EQ, 0);
   ret = write_to_plugin_subdir(plugin_dir_2, plugin_fname_2, str_test_2, NULL);
   tt_int_op(ret, OP_EQ, 0);
+  ret = write_to_plugin_subdir(plugin_dir_3, plugin_fname_3, str_test_3, NULL);
+
   /** Try to initialize and load plugins */
   list_plugins = smartlist_new();
   list_plugins = plugin_helper_find_all_and_init();
   tt_assert(list_plugins);
-  tt_int_op(smartlist_len(list_plugins), OP_EQ, 2);
-  plugin_info_list_t *plist1 = (plugin_info_list_t*)smartlist_get(list_plugins, 0);
+  tt_int_op(smartlist_len(list_plugins), OP_EQ, 3);
+  plugin_info_list_t *plist3 = (plugin_info_list_t*)smartlist_get(list_plugins, 0);
   plugin_info_list_t *plist2 = (plugin_info_list_t*)smartlist_get(list_plugins, 1);
-  printf("%s", plist1->pname); 
-  tt_int_op(strcmp(plist1->pname, "test_1.plugin"), OP_EQ, 0); 
-  tt_int_op(strcmp(plist2->pname, "test_2.plugin"), OP_EQ, 0); 
+  plugin_info_list_t *plist1 = (plugin_info_list_t*)smartlist_get(list_plugins, 2);
+  tt_int_op(strcmp(plist1->pname, "test_1.plugin"), OP_EQ, 0);
+  tt_int_op(strcmp(plist2->pname, "test_2.plugin"), OP_EQ, 0);
+  tt_int_op(strcmp(plist3->pname, "test_3.plugin"), OP_EQ, 0);
+
   tt_int_op(strcmp(((plugin_info_t*)smartlist_get(plist1->subplugins, 0))->subname, "test_1"), OP_EQ, 0);
   tt_int_op(strcmp(((plugin_info_t*)smartlist_get(plist2->subplugins, 0))->subname, "test_2"), OP_EQ, 0);
+  tt_int_op(strcmp(((plugin_info_t*)smartlist_get(plist3->subplugins, 0))->subname, "test_3"), OP_EQ, 0);
   tt_int_op(((plugin_info_t*)smartlist_get(plist1->subplugins, 0))->pfamily, OP_EQ,  PLUGIN_PROTOCOL_RELAY);
   tt_int_op(((plugin_info_t*)smartlist_get(plist1->subplugins, 0))->putype, OP_EQ,  PLUGIN_CODE_HIJACK);
+  tt_int_op(((plugin_info_t*)smartlist_get(plist1->subplugins, 0))->memory_needed, OP_EQ,  0);
   tt_int_op(((plugin_info_t*)smartlist_get(plist2->subplugins, 0))->putype, OP_EQ,  PLUGIN_CODE_ADD);
+  tt_int_op(((plugin_info_t*)smartlist_get(plist3->subplugins, 0))->pfamily, OP_EQ,  PLUGIN_PROTOCOL_CIRCPAD);
+  tt_int_op(((plugin_info_t*)smartlist_get(plist3->subplugins, 0))->memory_needed, OP_EQ,  256);
 done:
   if(list_plugins)
     tor_free(list_plugins);

@@ -104,6 +104,12 @@ uint8_t packed_cell_get_command(const packed_cell_t *cell, int wide_circ_ids);
  */
 
 typedef struct relay_process_edge_t {
+  /**
+   * When we use a plugin linked to edge processing, we give
+   * the following values. The plugin cannot dereference them, but 
+   * can call host functions with these values
+   */
+  plugin_t *plugin;
   circuit_t *circ;
   crypt_path_t *layer_hint;
   edge_connection_t *edgeconn;

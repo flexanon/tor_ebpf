@@ -78,6 +78,8 @@ test_options_act_create_dirs(void *arg)
   tt_int_op(FN_DIR, OP_EQ, file_status(opts->DataDirectory));
   tt_int_op(FN_DIR, OP_EQ, file_status(opts->CacheDirectory));
   tt_int_op(FN_DIR, OP_EQ, file_status(opts->KeyDirectory));
+  tt_int_op(FN_DIR, OP_EQ, file_status(opts->PluginsDirectory));
+  // TODO add more tests
   assert_mode(opts->DataDirectory, 0777, 0750);
   assert_mode(opts->KeyDirectory, 0777, 0700);
   tor_free(fn);

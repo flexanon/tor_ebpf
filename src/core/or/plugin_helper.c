@@ -47,8 +47,12 @@ int insert_plugin_from_transaction_line(char *line, char *plugin_dirname,
     return -1;
   }
   /** plugin type */
-  if (strncmp(token, "protocol_relay", 8) == 0) {
+  if (strncmp(token, "protocol_relay", 14) == 0) {
     pinfo->pfamily = PLUGIN_PROTOCOL_RELAY;
+    pinfo->ptype = PLUGIN_DEV;
+  }
+  else if (strncmp(token, "protocol_circpad", 16) == 0) {
+    pinfo->pfamily = PLUGIN_PROTOCOL_CIRCPAD;
     pinfo->ptype = PLUGIN_DEV;
   }
   else {
@@ -70,6 +74,20 @@ int insert_plugin_from_transaction_line(char *line, char *plugin_dirname,
     }
     token = strsep(&line, " ");
   }
+  /* Part four: what memory this plugin receives? */
+  if (strncmp(token, "memory", 6) == 0) {
+    token = strsep(&line, " ");
+    char *errmsg = NULL;
+    /* can read hexa or base 10 */
+    pinfo->memory_needed = (int) strtoul(token, &errmsg, 0);
+    if (errmsg != NULL && strncmp(errmsg, "", 1) != 0) {
+      log_debug(LD_PLUGIN, "Invalid parameter %s, val is %lu", token, pinfo->memory_needed);
+      return -1;
+    }
+    token = strsep(&line, " ");
+  }
+  else
+    pinfo->memory_needed = 0;
   
   /* Part two: extract plugin type */
   if (strncmp(token, "replace", 7) == 0) {
@@ -89,8 +107,6 @@ int insert_plugin_from_transaction_line(char *line, char *plugin_dirname,
     log_debug(LD_PLUGIN, "No token for ebpf filename extracted!");
     return -1;
   }
-  /** TODO handle memory later */
-  pinfo->memory_needed = 0;
   /* Handle end of line */
   token[strcspn(token, "\r\n")] = 0;
 
@@ -216,6 +232,7 @@ const char *plugin_caller_id_to_string(caller_id_t caller) {
   switch (caller) {
     case RELAY_REPLACE_PROCESS_EDGE_SENDME: return "circuit sending sendme cells";
     case RELAY_PROCESS_EDGE_UNKNOWN: return "host-code unknown new protocol feature";
+    case CIRCPAD_PROTOCOL_INIT: return "initializing global circpad machines";
     default:
       return "unsupported";
   }
