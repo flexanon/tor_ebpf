@@ -1,1 +1,1 @@
-circpad_global_machine_init protocol_circpad memory 1024 add circpad_global_machine_init.o
+circpad_global_machine_init protocol_circpad memory 16613376 add circpad_global_machine_init.o

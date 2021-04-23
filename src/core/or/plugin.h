@@ -99,7 +99,7 @@ typedef struct plugin_map_t {
 /** get circuit_t* */
 #define RELAY_CIRCUIT_T 1
 /*  get crypt_path_t*  */
-#define RELAY_LAYER_HINT_T 2
+#define RELAY_CRYPT_PATH_T 2
 /*  get cell_t* */
 #define RELAY_CELL_T 3
 
@@ -110,10 +110,15 @@ typedef struct plugin_map_t {
 #define RELAY_LAYER_HINT_DELIVER_WINDOW 4
 #define RELAY_CIRC_DELIVER_WINDOW 5
 
+
 #define RELAY_MAX 1000
 
 /** Circpad related field elements */
 #define CIRCPAD_MACHINE_LIST_SIZE 1001
+#define CIRCPAD_CLIENT_MACHINES_SL 1002
+#define CIRCPAD_RELAY_MACHINES_SL 1003
+#define CIRCPAD_PLUGIN_T 1004
+
 #define CIRCPAD_MAX 2000
 
 /*** KEYFUNC */

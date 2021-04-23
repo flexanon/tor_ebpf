@@ -111,7 +111,8 @@ ubpf_load(struct ubpf_vm *vm, const void *code, uint32_t code_len, char **errmsg
     *errmsg = NULL;
     uint32_t num_load_store = 0;
     int rewrite_pcs[MAX_LOAD_STORE];
-
+    log_debug(LD_PLUGIN, "Loading an ubpf machine with an initial code_len of\
+        %u, and a heap of %lu bytes", code_len, memory_size);
     if (vm->insts) {
         *errmsg = ubpf_error("code has already been loaded into this VM");
         return -1;
@@ -127,9 +128,10 @@ ubpf_load(struct ubpf_vm *vm, const void *code, uint32_t code_len, char **errmsg
     }
     /** if this plugin needs a heap */
     if (memory_ptr != 0 && memory_size != 0) {
-      log_debug(LD_PLUGIN, "Adding 20 instructions");
+      log_debug(LD_PLUGIN, "Rewrite memchecks adding %d instructions",
+          (8*ADDED_LOAD_STORE_INSTS) * num_load_store);
       /* 20 instructions by memcheck */
-      vm->insts = 
+      vm->insts =
         tor_malloc(code_len + (8 * ADDED_LOAD_STORE_INSTS) * num_load_store); 
       if (vm->insts == NULL) {
         *errmsg = ubpf_error("out of memory");
@@ -141,7 +143,7 @@ ubpf_load(struct ubpf_vm *vm, const void *code, uint32_t code_len, char **errmsg
       vm->num_insts = code_len/sizeof(vm->insts[0]) + (ADDED_LOAD_STORE_INSTS * num_load_store);
     }
     else {
-      log_debug(LD_PLUGIN, "no heap");
+      log_debug(LD_PLUGIN, "This plugin has no heap; for test only!");
       vm->insts = tor_malloc(code_len);
       if (vm->insts == NULL) {
         *errmsg = ubpf_error("out of memory");

@@ -2788,6 +2788,7 @@ circpad_machines_init(void)
   circpad_machine_relay_hide_rend_circuits(relay_padding_machines);
   
   plugin_map_t pmap;
+  memset(&pmap, 0, sizeof(pmap));
   pmap.ptype = PLUGIN_DEV;
   pmap.putype = PLUGIN_CODE_ADD;
   pmap.pfamily = PLUGIN_PROTOCOL_CIRCPAD;
@@ -3119,6 +3120,21 @@ circpad_handle_padding_negotiated(circuit_t *circ, cell_t *cell,
 
 uint64_t circpad_get(int key, void *pointer) {
   switch (key) {
+    case CIRCPAD_RELAY_MACHINES_SL:
+      {
+        circpad_plugin_args_t *args = (circpad_plugin_args_t*) pointer;
+        return (uint64_t) args->relay_padding_machines;
+      }
+    case CIRCPAD_CLIENT_MACHINES_SL:
+      {
+        circpad_plugin_args_t *args = (circpad_plugin_args_t*) pointer;
+        return (uint64_t) args->origin_padding_machines;
+      }
+    case CIRCPAD_PLUGIN_T:
+      {
+        circpad_plugin_args_t *args = (circpad_plugin_args_t*) pointer;
+        return (uint64_t) args->plugin;
+      }
     case CIRCPAD_MACHINE_LIST_SIZE:
       {
         smartlist_t *machines = (smartlist_t *) pointer;

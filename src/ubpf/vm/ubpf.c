@@ -36,7 +36,8 @@ register_functions(plugin_t *plugin)
 static void
 register_dev_functions(struct ubpf_vm *vm)
 {
-  /* We only have 64 values ... (so far) */
+  /* We can register 64 external functions ...*/
+  // todo check to increase
   unsigned int idx = 0;
   /* specific API related */
   tor_assert(ubpf_register(vm, idx++, "invoke_plugin_operation_or_default", invoke_plugin_operation_or_default) != -1);
@@ -46,11 +47,11 @@ register_dev_functions(struct ubpf_vm *vm)
 
   tor_assert(ubpf_register(vm, idx++, "my_ntohl", my_ntohl) != -1);
   /** memory */
-  ubpf_register(vm, idx++, "my_plugin_malloc", my_plugin_malloc);
-  ubpf_register(vm, idx++, "my_plugin_free", my_plugin_free);
-  ubpf_register(vm, idx++, "memset", memset);
+  tor_assert(ubpf_register(vm, idx++, "my_plugin_malloc", my_plugin_malloc) != -1);
+  tor_assert(ubpf_register(vm, idx++, "my_plugin_free", my_plugin_free) != -1);
+  tor_assert(ubpf_register(vm, idx++, "memset", memset) != -1);
   /** logging stuff */
-  tor_assert(ubpf_register(vm, 5, "log_fn_", log_fn_) != -1);
+  tor_assert(ubpf_register(vm, idx++, "log_fn_", log_fn_) != -1);
 
   /** hint! remember how to count in hexa! */
 }

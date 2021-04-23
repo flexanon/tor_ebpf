@@ -21,7 +21,7 @@ static inline int
 plugin_entries_eq_(plugin_map_t *a, plugin_map_t *b) {
   return !strcmp(a->subname, b->subname) && a->param == b->param &&
          a->ptype == b->ptype && a->putype == b->putype &&
-         a->pfamily == b->pfamily && a->memory_size == b->memory_size;
+         a->pfamily == b->pfamily;
 }
 
 static inline unsigned int
@@ -31,7 +31,6 @@ plugin_entry_hash_(plugin_map_t *a) {
   array[0] = a->ptype;
   array[1] = a->putype;
   array[2] = a->pfamily;
-  array[3] = a->memory_size; //64bits
   memcpy(&array[5], a->subname, strlen(a->subname));
   return (unsigned) siphash24g(array, sizeof(array));
 }
@@ -109,6 +108,7 @@ int invoke_plugin_operation_or_default(plugin_map_t *key,
           return plugin_run(found->plugin, ctx, sizeof(relay_process_edge_t));
         }
       case RELAY_PROCESS_EDGE_UNKNOWN:
+        /** probably need to pass a ctx of many interesting things */
         return -1;
       case CIRCPAD_PROTOCOL_INIT:
         {
@@ -162,7 +162,7 @@ int call_host_func(int keyfunc, int size, ...) {
     case RELAY_SEND_COMMAND_FROM_EDGE:
       {
         va_start(arguments, size);
-        relay_process_edge_t *pedge = va_arg(arguments, relay_process_edge_t* );
+        relay_process_edge_t *pedge = va_arg(arguments, relay_process_edge_t*);
         ret = relay_send_command_from_edge(0, pedge->circ, RELAY_COMMAND_SENDME, 
             NULL, 0, pedge->layer_hint);
         break;

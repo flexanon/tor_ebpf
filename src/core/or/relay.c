@@ -1656,6 +1656,7 @@ handle_relay_cell_command(cell_t *cell, circuit_t *circ,
       /** Set the key map; the caller id and args defining the context to
        *  the plugin */
       plugin_map_t pmap;
+      memset(&pmap, 0, sizeof(pmap));
       pmap.ptype = PLUGIN_DEV;
       pmap.putype = PLUGIN_CODE_HIJACK;
       pmap.pfamily = PLUGIN_PROTOCOL_RELAY;
@@ -1987,6 +1988,7 @@ handle_relay_cell_command(cell_t *cell, circuit_t *circ,
    */
 
   plugin_map_t pmap;
+  memset(&pmap, 0, sizeof(pmap));
   pmap.ptype = PLUGIN_DEV;
   pmap.putype = PLUGIN_CODE_ADD;
   pmap.pfamily = PLUGIN_PROTOCOL_RELAY;
@@ -3322,7 +3324,16 @@ circuit_queue_streams_are_blocked(circuit_t *circ)
 
 uint64_t relay_get(int key, void *pointer) {
   switch (key) {
-    case RELAY_CIRCUIT_T:;break;
+    case RELAY_CIRCUIT_T:
+      {
+        relay_process_edge_t *pedge = (relay_process_edge_t *) pointer;
+        return (uint64_t) pedge->circ;
+      }
+    case RELAY_CRYPT_PATH_T:
+      {
+        relay_process_edge_t *pedge = (relay_process_edge_t *) pointer;
+        return (uint64_t) pedge->layer_hint;
+      }
     case RELAY_LAYER_HINT_DELIVER_WINDOW:
       {
         crypt_path_t *layer_hint = (crypt_path_t*) pointer;
