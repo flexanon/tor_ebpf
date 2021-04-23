@@ -8,6 +8,7 @@
 
 #include "core/or/or.h"
 #include "ubpf/vm/inc/ubpf.h"
+#include <stdarg.h>
 
 /**
  * Define the type of usage the plugin is intended to.
@@ -103,6 +104,7 @@ typedef struct plugin_map_t {
 #define RELAY_CELL_T 3
 
 
+// TODO We need something that can be loaded from some state file instead!
 /** Accessible field elements */
 
 #define RELAY_LAYER_HINT_DELIVER_WINDOW 4
@@ -111,7 +113,7 @@ typedef struct plugin_map_t {
 #define RELAY_MAX 1000
 
 /** Circpad related field elements */
-
+#define CIRCPAD_MACHINE_LIST_SIZE 1001
 #define CIRCPAD_MAX 2000
 
 /*** KEYFUNC */
@@ -120,6 +122,12 @@ typedef struct plugin_map_t {
 #define CIRCPAD_MACHINE_REGISTER 2
 
 #define RELAY_KEYFUNC_MAX 100
+
+#define CIRCPAD_REGISTER_PADDING_MACHINE 101
+#define CIRCPAD_MACHINE_STATES_INIT 102
+#define CIRCPAD_CIRC_PURPOSE_TO_MASK 103
+
+#define CIRCPAD_KEYFUNC_MAX 200
 
 /**
  * Authentify and load plugins from $(data_directory)/plugins
@@ -153,6 +161,6 @@ void set(int key, void *pointer, uint64_t val);
 /** used to call function with more than 5 parameters
  * 
  * -- UBPF limitation-- */
-int call_host_func(int key, void *args);
+int call_host_func(int key, int size, ...);
 
 #endif

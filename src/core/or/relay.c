@@ -3321,7 +3321,7 @@ circuit_queue_streams_are_blocked(circuit_t *circ)
  */
 
 uint64_t relay_get(int key, void *pointer) {
-  switch(key) {
+  switch (key) {
     case RELAY_CIRCUIT_T:;break;
     case RELAY_LAYER_HINT_DELIVER_WINDOW:
       {

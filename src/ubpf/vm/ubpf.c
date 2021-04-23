@@ -48,6 +48,7 @@ register_dev_functions(struct ubpf_vm *vm)
   /** memory */
   ubpf_register(vm, idx++, "my_plugin_malloc", my_plugin_malloc);
   ubpf_register(vm, idx++, "my_plugin_free", my_plugin_free);
+  ubpf_register(vm, idx++, "memset", memset);
   /** logging stuff */
   tor_assert(ubpf_register(vm, 5, "log_fn_", log_fn_) != -1);
 

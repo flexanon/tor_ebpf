@@ -686,6 +686,8 @@ typedef struct circpad_plugin_args_t {
   plugin_t *plugin;
   smartlist_t *origin_padding_machines;
   smartlist_t *relay_padding_machines;
+  /*placeholder for a machine */
+  circpad_machine_spec_t *machine;
 } circpad_plugin_args_t;
 
 
@@ -777,6 +779,8 @@ circpad_machine_spec_transition, (circpad_machine_runtime_t *mi,
 
 circpad_decision_t circpad_send_padding_cell_for_callback(
                                  circpad_machine_runtime_t *mi);
+
+uint64_t circpad_get(int key, void *pointer);
 
 void circpad_free_all(void);
 

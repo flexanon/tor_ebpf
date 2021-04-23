@@ -2791,7 +2791,7 @@ circpad_machines_init(void)
   pmap.ptype = PLUGIN_DEV;
   pmap.putype = PLUGIN_CODE_ADD;
   pmap.pfamily = PLUGIN_PROTOCOL_CIRCPAD;
-  pmap.subname = (char *)"";
+  pmap.subname = (char *)"circpad_global_machine_init";
   caller_id_t caller = CIRCPAD_PROTOCOL_INIT;
   circpad_plugin_args_t args;
   args.origin_padding_machines = origin_padding_machines;
@@ -2800,7 +2800,6 @@ circpad_machines_init(void)
   if (invoke_plugin_operation_or_default(&pmap, caller, (void *)&args)) {
     log_info(LD_PLUGIN, "We do not have any circpad init plugin");
   }
-
   // TODO: Parse machines from consensus and torrc
 #ifdef TOR_UNIT_TESTS
   circpad_circ_client_machine_init();
@@ -3113,6 +3112,23 @@ circpad_handle_padding_negotiated(circuit_t *circ, cell_t *cell,
   circpad_negotiated_free(negotiated);
   return 0;
 }
+
+/**
+ * Plugin related functions
+ */
+
+uint64_t circpad_get(int key, void *pointer) {
+  switch (key) {
+    case CIRCPAD_MACHINE_LIST_SIZE:
+      {
+        smartlist_t *machines = (smartlist_t *) pointer;
+        return smartlist_len(machines);
+      }
+    default: return 0;
+  }
+  return 0;
+}
+
 
 /** Free memory allocated by this machine spec. */
 STATIC void

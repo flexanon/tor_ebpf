@@ -12,7 +12,6 @@
 #include "core/or/relay.h"
 #include "ubpf/vm/inc/ubpf.h"
 
-
 /**
  * Hashtable containing plugin information 
  */
@@ -142,6 +141,9 @@ uint64_t get(int key, void *pointer) {
   if (key < RELAY_MAX) {
     return relay_get(key, pointer);
   }
+  else if (key < CIRCPAD_MAX) {
+    return circpad_get(key, pointer);
+  }
   return 0;
 }
 
@@ -149,23 +151,51 @@ void set(int key, void *pointer, uint64_t val) {
   if (key < RELAY_MAX) {
     relay_set(key, pointer, val);
   }
+  else if (key < CIRCPAD_MAX) {
+  }
 }
 
-int call_host_func(int keyfunc, void *args) {
+int call_host_func(int keyfunc, int size, ...) {
+  va_list arguments;
+  int ret = 0;
   switch (keyfunc) {
     case RELAY_SEND_COMMAND_FROM_EDGE:
       {
-        relay_process_edge_t *pedge = (relay_process_edge_t*) args;
-        return relay_send_command_from_edge(0, pedge->circ, RELAY_COMMAND_SENDME, 
+        va_start(arguments, size);
+        relay_process_edge_t *pedge = va_arg(arguments, relay_process_edge_t* );
+        ret = relay_send_command_from_edge(0, pedge->circ, RELAY_COMMAND_SENDME, 
             NULL, 0, pedge->layer_hint);
+        break;
 
       }
-    case CIRCPAD_MACHINE_REGISTER:
+    case CIRCPAD_REGISTER_PADDING_MACHINE:
       {
-        return 0;
+        va_start(arguments, size);
+        circpad_machine_spec_t *machine = va_arg(arguments, circpad_machine_spec_t *);
+        smartlist_t *machine_sl = va_arg(arguments, smartlist_t *);
+        circpad_register_padding_machine(machine, machine_sl);
+        ret = 0;
+        break;
+      }
+    case CIRCPAD_MACHINE_STATES_INIT:
+      {
+        va_start(arguments, size);
+        circpad_machine_spec_t *machine = va_arg(arguments, circpad_machine_spec_t *);
+        int nbr_states = va_arg(arguments, int);
+        circpad_machine_states_init(machine, nbr_states);
+        ret = 0;
+        break;
+      }
+    case CIRCPAD_CIRC_PURPOSE_TO_MASK:
+      {
+        va_start(arguments, size);
+        uint32_t purpose = va_arg(arguments, uint32_t);
+        ret = circpad_circ_purpose_to_mask((uint8_t) purpose);
+        break;
       }
   }
-  return -1;
+  va_end(arguments);
+  return ret;
 }
 
 uint64_t plugin_run(plugin_t *plugin, void *args, size_t args_size) {
