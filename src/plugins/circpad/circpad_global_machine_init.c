@@ -52,8 +52,8 @@ static __attribute__((always_inline)) void register_client_machine(plugin_t *plu
    * circpad_machine_states_init.
    * There are two solutions. Either we rewrite a function that does the
    * initialization here,  or we call circpad_machine_states_init but we have to
-   * use a set() and get() to manage the machine states, but we must not free
-   * the states in the sandbox!
+   * use a set() and get() to manage the machine states. We must not free
+   * the states in the sandbox in that case!
    *
    * Let's do the first solution for simplicity :)
    **/

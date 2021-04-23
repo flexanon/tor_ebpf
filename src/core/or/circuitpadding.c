@@ -2815,16 +2815,24 @@ void
 circpad_machines_free(void)
 {
   if (origin_padding_machines) {
-    SMARTLIST_FOREACH(origin_padding_machines,
-                      circpad_machine_spec_t *,
-                      m, tor_free(m->states); tor_free(m));
+    SMARTLIST_FOREACH_BEGIN(origin_padding_machines,
+                            circpad_machine_spec_t *, m) {
+      if (!m->is_plugin_generated) {
+        tor_free(m->states);
+        tor_free(m);
+      }
+    } SMARTLIST_FOREACH_END(m);
     smartlist_free(origin_padding_machines);
   }
 
   if (relay_padding_machines) {
-    SMARTLIST_FOREACH(relay_padding_machines,
-                      circpad_machine_spec_t *,
-                      m, tor_free(m->states); tor_free(m));
+    SMARTLIST_FOREACH_BEGIN(relay_padding_machines,
+                            circpad_machine_spec_t *, m) {
+      if (!m->is_plugin_generated) {
+        tor_free(m->states);
+        tor_free(m);
+      }
+    } SMARTLIST_FOREACH_END(m);
     smartlist_free(relay_padding_machines);
   }
 }
@@ -3151,6 +3159,8 @@ STATIC void
 machine_spec_free_(circpad_machine_spec_t *m)
 {
   if (!m) return;
+  /* the memory should be freed when the plugin is unloaded */
+  if (m->is_plugin_generated) return;
 
   tor_free(m->states);
   tor_free(m);

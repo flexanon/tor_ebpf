@@ -626,6 +626,9 @@ typedef struct circpad_machine_spec_t {
 
   /** Global machine number */
   circpad_machine_num_t machine_num;
+  /* if this machine has been added through a plugin, it has ownership of
+   * the memory */
+  unsigned is_plugin_generated : 1;
 
   /** Which machine index slot should this machine go into in
    *  the array on the circuit_t */

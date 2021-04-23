@@ -172,6 +172,7 @@ int call_host_func(int keyfunc, int size, ...) {
       {
         va_start(arguments, size);
         circpad_machine_spec_t *machine = va_arg(arguments, circpad_machine_spec_t *);
+        machine->is_plugin_generated = 1; /* the plugin may already did it, but we do it again for safety */
         smartlist_t *machine_sl = va_arg(arguments, smartlist_t *);
         circpad_register_padding_machine(machine, machine_sl);
         ret = 0;
