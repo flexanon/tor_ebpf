@@ -44,26 +44,14 @@ typedef enum {
   PLUGIN_PROTOCOL_CIRCPAD
 } plugin_family_t;
 
-/* Contains the information for all code accessible
- * inside a plugin directory.
- * e.g., plugins/relay_protocol may have many
- * .o files with each of them one entry point 
- */
-typedef struct plugin_info_list_t {
-  char *pname;
-  /** may have many plugins */
-  smartlist_t *subplugins;
-}plugin_info_list_t;
-
-typedef struct plugin_info_t {
-  char *subname;
+typedef struct entry_info_t {
+  char *entry_name;
   plugin_type_t ptype;
   plugin_usage_type_t putype;
   plugin_family_t pfamily;
   plugin_t *plugin;
   int param;
-  size_t memory_needed;
-} plugin_info_t;
+} entry_info_t;
 
 /** parameters given to the plugin when executed */
 typedef struct plugin_args_t {
@@ -82,16 +70,17 @@ typedef enum {
   CIRCPAD_PROTOCOL_INIT
 } caller_id_t;
 
-typedef struct plugin_map_t {
-  HT_ENTRY(plugin_map_t) node;
-  char *subname;
+typedef struct entry_point_map_t {
+  HT_ENTRY(entry_point_map_t) node;
+  /** should the same as entry_point->entry_name */
+  char *entry_name;
   plugin_type_t ptype;
   plugin_usage_type_t putype;
   plugin_family_t pfamily;
-  size_t memory_size;
   int param;
+  plugin_entry_point_t *entry_point;
   plugin_t *plugin;
-} plugin_map_t;
+} entry_point_map_t;
 
   /**
    * Access main objects of process_edge
@@ -142,15 +131,13 @@ void plugin_init(char *elf_name);
 
 /**
  */
-int plugin_plug_elf(plugin_info_t *pinfo, char* elfpath);
+int plugin_plug_elf(plugin_t *plugin, entry_info_t *pinfo, char* elfpath);
 
-/**
- */
-void plugin_unplug(plugin_info_list_t *list_plugins);
+int invoke_plugin_operation_or_default(entry_point_map_t *pmap, caller_id_t caller, void *args);
 
-int invoke_plugin_operation_or_default(plugin_map_t *pmap, caller_id_t caller, void *args);
+uint64_t plugin_run(plugin_entry_point_t *plugin, void *args, size_t size);
 
-uint64_t plugin_run(plugin_t *plugin, void *args, size_t size);
+entry_point_map_t *plugin_get(entry_point_map_t *key);
 
 /**********************************PLUGIN API***************************/
 

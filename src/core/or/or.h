@@ -1130,12 +1130,18 @@ typedef struct memory_pool {
   uint8_t *next;
 } memory_pool_t;
 
-typedef struct plugin {
+typedef struct plugin_entry_point {
   void *vm;
+  char *entry_name;
+  ubpf_jit_fn fn;
+} plugin_entry_point_t;
+
+typedef struct plugin {
+  char *pname;
   memory_pool_t *memory_pool;
   char *memory;
   size_t memory_size;
-  ubpf_jit_fn fn;
+  smartlist_t *entry_points;
 } plugin_t;
 
 #endif /* !defined(TOR_OR_H) */

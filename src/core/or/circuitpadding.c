@@ -2787,12 +2787,12 @@ circpad_machines_init(void)
   circpad_machine_client_hide_rend_circuits(origin_padding_machines);
   circpad_machine_relay_hide_rend_circuits(relay_padding_machines);
   
-  plugin_map_t pmap;
+  entry_point_map_t pmap;
   memset(&pmap, 0, sizeof(pmap));
   pmap.ptype = PLUGIN_DEV;
   pmap.putype = PLUGIN_CODE_ADD;
   pmap.pfamily = PLUGIN_PROTOCOL_CIRCPAD;
-  pmap.subname = (char *)"circpad_global_machine_init";
+  pmap.entry_name = (char *)"circpad_global_machine_init";
   caller_id_t caller = CIRCPAD_PROTOCOL_INIT;
   circpad_plugin_args_t args;
   args.origin_padding_machines = origin_padding_machines;

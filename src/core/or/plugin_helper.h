@@ -10,14 +10,11 @@
 #include "plugin.h"
 
 #define MAX_PATH 255
-plugin_info_list_t* plugin_insert_transaction(const char *plugin_fname, const char *filename);
-
-int insert_plugin_from_transaction_line(char *line, char *plugin_dirname,
-    plugin_info_t *pinfo);
+plugin_t* plugin_insert_transaction(const char *plugin_fname, const char *filename);
 
 smartlist_t* plugin_helper_find_all_and_init(void);
 
-void pinfo_free(plugin_info_t* pinfo);
-
 const char *plugin_caller_id_to_string(caller_id_t  caller);
+
+void plugin_unplug(plugin_t *plugin);
 #endif

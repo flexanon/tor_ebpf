@@ -5,9 +5,6 @@
  * contiguous memory space from the host, in which they allocate and deallocate
  * content
  *
- * TODO add the possibility for a shared memory between plugins -- and to the
- * plugin to reference this shared memory at loading
- *
  */
 #include "core/or/or.h"
 #include "ubpf/vm/plugin_memory.h"
@@ -142,6 +139,6 @@ plugin_t *plugin_memory_init(size_t memory_size){
 	plugin->memory_pool->num_initialized = 0;
 	plugin->memory_pool->num_free_blocks = plugin->memory_pool->num_of_blocks;
 	plugin->memory_pool->next = plugin->memory_pool->mem_start;
-  
+  /*plugin->entry_points = smartlist_new();*/
   return plugin;
 }

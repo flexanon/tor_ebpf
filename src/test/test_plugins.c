@@ -55,37 +55,53 @@ test_plugin_helper_find_all_and_init(void *args) {
   const char* plugin_fname_2 = "test_2.plugin";
   const char* plugin_fname_3 = "test_3.plugin";
 
-  const char* str_test_1 = "test_1 protocol_relay replace test_1.o";
-  const char* str_test_2 = "test_2 protocol_relay param 42 add test_2.o";
-  const char* str_test_3 = "test_3 protocol_circpad memory 256 replace test_3.o";
+  const char* str_test_1 = "memory 256 \ntest_1 protocol_relay replace test_1.o";
+  const char* str_test_2 = "memory 256 \ntest_2 protocol_relay param 42 add test_2.o";
+  const char* str_test_3 = "memory 256 \ntest_3 protocol_circpad replace test_3.o";
 
   ret = write_to_plugin_subdir(plugin_dir_1, plugin_fname_1, str_test_1, NULL);
   tt_int_op(ret, OP_EQ, 0);
+  ret = write_to_plugin_subdir(plugin_dir_1, "test_1.o", "", NULL);
+  tt_int_op(ret, OP_EQ, 0);
   ret = write_to_plugin_subdir(plugin_dir_2, plugin_fname_2, str_test_2, NULL);
   tt_int_op(ret, OP_EQ, 0);
+  ret = write_to_plugin_subdir(plugin_dir_2, "test_2.o", "", NULL);
+  tt_int_op(ret, OP_EQ, 0);
   ret = write_to_plugin_subdir(plugin_dir_3, plugin_fname_3, str_test_3, NULL);
+  tt_int_op(ret, OP_EQ, 0);
+  ret = write_to_plugin_subdir(plugin_dir_3, "test_3.o", "", NULL);
+  tt_int_op(ret, OP_EQ, 0);
 
   /** Try to initialize and load plugins */
   list_plugins = smartlist_new();
   list_plugins = plugin_helper_find_all_and_init();
   tt_assert(list_plugins);
   tt_int_op(smartlist_len(list_plugins), OP_EQ, 3);
-  plugin_info_list_t *plist3 = (plugin_info_list_t*)smartlist_get(list_plugins, 0);
-  plugin_info_list_t *plist2 = (plugin_info_list_t*)smartlist_get(list_plugins, 1);
-  plugin_info_list_t *plist1 = (plugin_info_list_t*)smartlist_get(list_plugins, 2);
-  tt_int_op(strcmp(plist1->pname, "test_1.plugin"), OP_EQ, 0);
-  tt_int_op(strcmp(plist2->pname, "test_2.plugin"), OP_EQ, 0);
-  tt_int_op(strcmp(plist3->pname, "test_3.plugin"), OP_EQ, 0);
+  plugin_t *plugin3 = (plugin_t*)smartlist_get(list_plugins, 0);
+  plugin_t *plugin2 = (plugin_t*)smartlist_get(list_plugins, 1);
+  plugin_t *plugin1 = (plugin_t*)smartlist_get(list_plugins, 2);
+  tt_int_op(strcmp(plugin1->pname, "test_1.plugin"), OP_EQ, 0);
+  tt_int_op(strcmp(plugin2->pname, "test_2.plugin"), OP_EQ, 0);
+  tt_int_op(strcmp(plugin3->pname, "test_3.plugin"), OP_EQ, 0);
 
-  tt_int_op(strcmp(((plugin_info_t*)smartlist_get(plist1->subplugins, 0))->subname, "test_1"), OP_EQ, 0);
-  tt_int_op(strcmp(((plugin_info_t*)smartlist_get(plist2->subplugins, 0))->subname, "test_2"), OP_EQ, 0);
-  tt_int_op(strcmp(((plugin_info_t*)smartlist_get(plist3->subplugins, 0))->subname, "test_3"), OP_EQ, 0);
-  tt_int_op(((plugin_info_t*)smartlist_get(plist1->subplugins, 0))->pfamily, OP_EQ,  PLUGIN_PROTOCOL_RELAY);
-  tt_int_op(((plugin_info_t*)smartlist_get(plist1->subplugins, 0))->putype, OP_EQ,  PLUGIN_CODE_HIJACK);
-  tt_int_op(((plugin_info_t*)smartlist_get(plist1->subplugins, 0))->memory_needed, OP_EQ,  0);
-  tt_int_op(((plugin_info_t*)smartlist_get(plist2->subplugins, 0))->putype, OP_EQ,  PLUGIN_CODE_ADD);
-  tt_int_op(((plugin_info_t*)smartlist_get(plist3->subplugins, 0))->pfamily, OP_EQ,  PLUGIN_PROTOCOL_CIRCPAD);
-  tt_int_op(((plugin_info_t*)smartlist_get(plist3->subplugins, 0))->memory_needed, OP_EQ,  256);
+  tt_int_op(strcmp(((plugin_entry_point_t*)smartlist_get(plugin1->entry_points, 0))->entry_name, "test_1"), OP_EQ, 0);
+  tt_int_op(plugin1->memory_size, OP_EQ, 256);
+  tt_int_op(plugin2->memory_size, OP_EQ, 256);
+  tt_int_op(plugin3->memory_size, OP_EQ, 256);
+  /** Let's find entry points in our map */
+  entry_point_map_t emap;
+  memset(&emap, 0, sizeof(emap));
+  emap.ptype = PLUGIN_DEV;
+  emap.putype = PLUGIN_CODE_HIJACK;
+  emap.pfamily = PLUGIN_PROTOCOL_RELAY;
+  emap.entry_name = (char *) "test_1";
+  entry_point_map_t *found;
+  found = plugin_get(&emap);
+  tt_assert(found->plugin == plugin1);
+  tt_int_op(smartlist_len(found->plugin->entry_points), OP_EQ, 1);
+
+  tt_int_op(strcmp(((plugin_entry_point_t*)smartlist_get(plugin2->entry_points, 0))->entry_name, "test_2"), OP_EQ, 0);
+  tt_int_op(strcmp(((plugin_entry_point_t*)smartlist_get(plugin3->entry_points, 0))->entry_name, "test_3"), OP_EQ, 0);
 done:
   if(list_plugins)
     tor_free(list_plugins);

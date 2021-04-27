@@ -12,6 +12,7 @@
 #include "core/or/plugin.h"
 #include "core/or/plugin_helper.h"
 #include "src/lib/string/printf.h"
+#include "ubpf/vm/plugin_memory.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -30,15 +31,15 @@
 #include <grp.h>
 #endif /* defined(_WIN32) */
 
-int insert_plugin_from_transaction_line(char *line, char *plugin_dirname,
-    plugin_info_t *pinfo) {
+static int insert_plugin_from_transaction_line(char *line, char *plugin_dirname,
+    entry_info_t *einfo, plugin_t *plugin) {
   /* Part one: extract name */
   char *token = strsep(&line, " ");
   if (!token) {
     log_debug(LD_PLUGIN, "No token for name extracted!");
     return -1;
   }
-  pinfo->subname = tor_strdup(token);
+  einfo->entry_name = tor_strdup(token);
   /* Part one bis: extract param, if any */
   token = strsep(&line, " ");
 
@@ -48,12 +49,12 @@ int insert_plugin_from_transaction_line(char *line, char *plugin_dirname,
   }
   /** plugin type */
   if (strncmp(token, "protocol_relay", 14) == 0) {
-    pinfo->pfamily = PLUGIN_PROTOCOL_RELAY;
-    pinfo->ptype = PLUGIN_DEV;
+    einfo->pfamily = PLUGIN_PROTOCOL_RELAY;
+    einfo->ptype = PLUGIN_DEV;
   }
   else if (strncmp(token, "protocol_circpad", 16) == 0) {
-    pinfo->pfamily = PLUGIN_PROTOCOL_CIRCPAD;
-    pinfo->ptype = PLUGIN_DEV;
+    einfo->pfamily = PLUGIN_PROTOCOL_CIRCPAD;
+    einfo->ptype = PLUGIN_DEV;
   }
   else {
     log_debug(LD_PLUGIN, "Plugin family unsupported %s", token);
@@ -67,41 +68,26 @@ int insert_plugin_from_transaction_line(char *line, char *plugin_dirname,
   if (strncmp(token, "param", 5) == 0) {
     token = strsep(&line, " ");
     char *errmsg = NULL;
-    pinfo->param = (int) strtoul(token, &errmsg, 0);
+    einfo->param = (int) strtoul(token, &errmsg, 0);
     if (errmsg != NULL && strncmp(errmsg, "", 1) != 0) {
-      log_debug(LD_PLUGIN, "Invalid parameter %s, num is %u!", token, pinfo->param);
+      log_debug(LD_PLUGIN, "Invalid parameter %s, num is %u!", token, einfo->param);
       return -1;
     }
     token = strsep(&line, " ");
   }
-  /* Part four: what memory this plugin receives? */
-  if (strncmp(token, "memory", 6) == 0) {
-    token = strsep(&line, " ");
-    char *errmsg = NULL;
-    /* can read hexa or base 10 */
-    pinfo->memory_needed = (int) strtoul(token, &errmsg, 0);
-    if (errmsg != NULL && strncmp(errmsg, "", 1) != 0) {
-      log_debug(LD_PLUGIN, "Invalid parameter %s, val is %lu", token, pinfo->memory_needed);
-      return -1;
-    }
-    token = strsep(&line, " ");
-  }
-  else
-    pinfo->memory_needed = 0;
-  
-  /* Part two: extract plugin type */
+  /* extract plugin type */
   if (strncmp(token, "replace", 7) == 0) {
-    pinfo->putype = PLUGIN_CODE_HIJACK;
+    einfo->putype = PLUGIN_CODE_HIJACK;
   } else if (strncmp(token, "del", 3) == 0) {
-    pinfo->putype = PLUGIN_CODE_DEL;
+    einfo->putype = PLUGIN_CODE_DEL;
   } else if (strncmp(token, "add", 3) == 0) {
-    pinfo->putype = PLUGIN_CODE_ADD;
+    einfo->putype = PLUGIN_CODE_ADD;
   } else {
     log_debug(LD_PLUGIN, "Cannot extract the type of the plugin: %s\n", token);
     return -1;
   }
 
-  /* Part three: insert the plugin */
+  /* insert the plugin */
   token = strsep(&line, " ");
   if (!token) {
     log_debug(LD_PLUGIN, "No token for ebpf filename extracted!");
@@ -114,10 +100,14 @@ int insert_plugin_from_transaction_line(char *line, char *plugin_dirname,
   strlcpy(elfpath, plugin_dirname, MAX_PATH);
   strcat(elfpath, "/");
   strcat(elfpath, token);
-  return plugin_plug_elf(pinfo, elfpath);
+  return plugin_plug_elf(plugin, einfo, elfpath);
 }
 
-plugin_info_list_t* plugin_insert_transaction(const char *plugin_filepath, const char *filename) {
+/**
+ * Read the .plugin file and load all .o objects 
+ */
+
+plugin_t* plugin_insert_transaction(const char *plugin_filepath, const char *filename) {
   FILE *file = fopen(plugin_filepath, "r");
 
   if (!file) {
@@ -128,29 +118,55 @@ plugin_info_list_t* plugin_insert_transaction(const char *plugin_filepath, const
 
   char *line = NULL;
   size_t len = 0;
-  ssize_t read = 0;
+  ssize_t ret = 0;
   bool ok = true;
   char *plugin_dirname = dirname(tor_strdup(plugin_filepath));
-  plugin_info_list_t *list_plugins = tor_malloc_zero(sizeof(plugin_info_list_t));
-  list_plugins->subplugins = smartlist_new();
-  list_plugins->pname = tor_strdup(filename);
-  while (ok && (read = getline(&line, &len, file)) != -1) {
+  /** Read plugin info first */
+  int memory_needed = 0;
+
+  if ((ret = getline(&line, &len, file)) != -1) {
+    char *token = strsep(&line, " ");
+    if (!token) {
+      log_debug(LD_PLUGIN, "No token for memory instracted?");
+      ok = false;
+    }
+    if (strncmp(token, "memory", 6) == 0) {
+      token = strsep(&line, " ");
+      char *errmsg = NULL;
+      /* can read hexa or base 10 */
+      memory_needed = (int) strtoul(token, &errmsg, 0);
+      if (errmsg != NULL && strncmp(errmsg, "", 1) != 0) {
+        log_debug(LD_PLUGIN, "Invalid parameter %s, val is %d", token, memory_needed);
+        ok = false;
+      }
+    }
+    else {
+      log_debug(LD_PLUGIN, "Expected 'memory' token, got %s", token);
+      ok = false;
+    }
+  }
+  else {
+    ok = false;
+  }
+  /** we have the memory size; let's create the plugin */
+  plugin_t *plugin = plugin_memory_init(memory_needed);
+  plugin->entry_points = smartlist_new();
+  plugin->pname = tor_strdup(filename);
+  entry_info_t einfo;
+  while (ok && (ret = getline(&line, &len, file)) != -1) {
     /* Skip blank lines */
     if (len <= 1) {
       continue;
     }
-    plugin_info_t *pinfo = tor_malloc_zero(sizeof(plugin_info_t));
-    ok = insert_plugin_from_transaction_line(line, plugin_dirname, pinfo);
-    if (ok)
-      smartlist_add(list_plugins->subplugins, pinfo);
+    memset(&einfo, 0, sizeof(einfo));
+    /* insert_plugin_from_transaction return -1 on issue */
+    if (insert_plugin_from_transaction_line(line, plugin_dirname, &einfo, plugin))
+      ok = false;
   }
 
   if (!ok) {
     /* Unplug previously plugged code */
-    plugin_unplug(list_plugins);
-    /** TODO: check if we need a pinfo_free() function */
-    SMARTLIST_FOREACH(list_plugins->subplugins, plugin_info_t *,
-        pinfo, tor_free(pinfo));
+    plugin_unplug(plugin);
   }
   if (line) {
     tor_free(line);
@@ -158,7 +174,7 @@ plugin_info_list_t* plugin_insert_transaction(const char *plugin_filepath, const
 
   fclose(file);
 
-  return ok ? list_plugins : NULL;
+  return ok ? plugin : NULL;
 }
 
 /**
@@ -192,7 +208,7 @@ smartlist_t* plugin_helper_find_all_and_init(void) {
         get_options()->PluginsDirectory, de->d_name);
     int ret = stat(plugin_dir, &sb);
     if (ret == 0 && S_ISDIR(sb.st_mode)) {
-      plugin_info_list_t *pinfo_list = NULL;
+      plugin_t *plugin = NULL;
       dr2 = opendir(plugin_dir);
       /* find the .plugin file */
       while ((de2 = readdir(dr2)) != NULL &&
@@ -202,10 +218,10 @@ smartlist_t* plugin_helper_find_all_and_init(void) {
         char *filepath = NULL;
         tor_asprintf(&filepath, "%s"PATH_SEPARATOR"%s",
             plugin_dir, de2->d_name);
-        /*reading .plugin files and loader .o files */
-        pinfo_list = plugin_insert_transaction(filepath, de2->d_name);
-        if (pinfo_list) {
-          smartlist_add(all_plugins, pinfo_list);
+        /* reading .plugin files and loader .o files */
+        plugin = plugin_insert_transaction(filepath, de2->d_name);
+        if (plugin) {
+          smartlist_add(all_plugins, plugin);
         }
       }
 
@@ -223,10 +239,14 @@ smartlist_t* plugin_helper_find_all_and_init(void) {
   return all_plugins;
 }
 
-void pinfo_free(plugin_info_t *pinfo) {
-  tor_free(pinfo->subname);
-  tor_free(pinfo);
+/**
+ * Unplug the plugin -- i.e., free the map, destroy the ebpf vm and free the
+ * plugin
+ */
+
+void plugin_unplug(plugin_t *plugin) {
 }
+
 
 const char *plugin_caller_id_to_string(caller_id_t caller) {
   switch (caller) {

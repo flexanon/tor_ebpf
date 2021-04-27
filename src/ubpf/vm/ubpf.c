@@ -105,94 +105,85 @@ static void *readfile(const char *path, size_t maxlen, size_t *len)
   return data;
 }
 
-plugin_t *load_elf(void *code, size_t code_len, size_t memory_size) {
-  plugin_t *plugin = plugin_memory_init(memory_size);
-  if (!plugin) {
-    return NULL;
-  }
-  plugin->memory_size = memory_size;
+int load_elf(void *code, size_t code_len, plugin_t *plugin, plugin_entry_point_t *entry_point) {
 
-  plugin->vm = ubpf_create();
-  if (!plugin->vm) {
+  entry_point->vm = ubpf_create();
+  if (!entry_point->vm) {
     log_debug(LD_PLUGIN, "Failed to create VM\n");
-    tor_free(plugin);
-    return NULL;
+    return -1;
   }
   /**
    * TODO
-   * Allow to set the register function as a 
-   * parameter
+   * Allow to set different register_function per entry_point!
    */
-  register_dev_functions(plugin->vm);
+  register_dev_functions(entry_point->vm);
 
   bool elf = code_len >= SELFMAG && !memcmp(code, ELFMAG, SELFMAG);
 
   char *errmsg;
   int rv;
   if (elf) {
-    rv = ubpf_load_elf(plugin->vm, code, code_len, &errmsg, (uint64_t) plugin->memory, plugin->memory_size);
+    rv = ubpf_load_elf(entry_point->vm, code, code_len, &errmsg, (uint64_t) plugin->memory, plugin->memory_size);
   } else {
-    rv = ubpf_load(plugin->vm, code, code_len, &errmsg, (uint64_t) plugin->memory, plugin->memory_size);
+    rv = ubpf_load(entry_point->vm, code, code_len, &errmsg, (uint64_t) plugin->memory, plugin->memory_size);
   }
 
   if (rv < 0) {
     log_debug(LD_PLUGIN, "Failed to load code: %s", errmsg);
     tor_free(errmsg);
-    ubpf_destroy(plugin->vm);
-    tor_free(plugin);
-    return NULL;
+    ubpf_destroy(entry_point->vm);
+    return -1;
   }
-  plugin->fn = ubpf_compile(plugin->vm, &errmsg);
-  if (plugin->fn == NULL) {
+  entry_point->fn = ubpf_compile(entry_point->vm, &errmsg);
+  if (entry_point->fn == NULL) {
     log_debug(LD_PLUGIN, "Failed to compile: %s", errmsg);
     tor_free(errmsg);
-    ubpf_destroy(plugin->vm);
-    tor_free(plugin);
-    return NULL;
+    ubpf_destroy(entry_point->vm);
+    return -1;
   }
 
   tor_free(errmsg);
 
-  return plugin;
+  return 0;
 }
 
-plugin_t *load_elf_file(const char *code_filename, size_t memory_size) {
+int load_elf_file(const char *code_filename, plugin_t *plugin, plugin_entry_point_t *entry_point) {
   size_t code_len;
   void *code = readfile(code_filename, 1024*1024, &code_len);
   if (code == NULL) {
-    return NULL;
+    return -1;
   }
 
-  plugin_t *ret = load_elf(code, code_len, memory_size);
+  int ret = load_elf(code, code_len, plugin, entry_point);
   tor_free(code);
   return ret;
 }
 
-int release_elf(plugin_t *plugin) {
-  if (plugin->vm != NULL) {
-    ubpf_destroy(plugin->vm);
-    plugin->vm = NULL;
-    plugin->fn = 0;
-    tor_free(plugin);
+void release_elf(plugin_entry_point_t *entry) {
+  if (!entry)
+    return;
+  if (entry->vm) {
+    ubpf_destroy(entry->vm);
+    entry->vm = NULL;
+    entry->fn = 0;
   }
-  return 0;
 }
 
-uint64_t exec_loaded_code(plugin_t *plugin, void *mem, size_t mem_len) {
+uint64_t exec_loaded_code(plugin_entry_point_t *entry_point, void *mem, size_t mem_len) {
   uint64_t ret;
-  if (plugin->vm == NULL) {
+  if (entry_point->vm == NULL) {
     return 1;
   }
-  if (plugin->fn == NULL && JIT) {
+  if (entry_point->fn == NULL && JIT) {
     return 1;
   }
   if (JIT) {
     /* JIT */
-    ret = plugin->fn(mem, mem_len);
+    ret = entry_point->fn(mem, mem_len);
   } else {
     /* Interpreted */
-    ret = ubpf_exec(plugin->vm, mem, mem_len);
-  } 
+    ret = ubpf_exec(entry_point->vm, mem, mem_len);
+  }
 
   /* printf("0x%"PRIx64"\n", ret); */
 

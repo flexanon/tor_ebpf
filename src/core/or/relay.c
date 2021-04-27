@@ -1655,13 +1655,12 @@ handle_relay_cell_command(cell_t *cell, circuit_t *circ,
       /* Consider sending a circuit-level SENDME cell. */
       /** Set the key map; the caller id and args defining the context to
        *  the plugin */
-      plugin_map_t pmap;
+      entry_point_map_t pmap;
       memset(&pmap, 0, sizeof(pmap));
       pmap.ptype = PLUGIN_DEV;
       pmap.putype = PLUGIN_CODE_HIJACK;
       pmap.pfamily = PLUGIN_PROTOCOL_RELAY;
-      pmap.subname = (char*)"circuit_consider_sending_sendme";
-      pmap.memory_size = 0;
+      pmap.entry_name = (char*)"circuit_consider_sending_sendme";
       pmap.param = 0;
       caller_id_t caller = RELAY_REPLACE_PROCESS_EDGE_SENDME;
       relay_process_edge_t args;
@@ -1987,12 +1986,12 @@ handle_relay_cell_command(cell_t *cell, circuit_t *circ,
    * (for now .. :)
    */
 
-  plugin_map_t pmap;
+  entry_point_map_t pmap;
   memset(&pmap, 0, sizeof(pmap));
   pmap.ptype = PLUGIN_DEV;
   pmap.putype = PLUGIN_CODE_ADD;
   pmap.pfamily = PLUGIN_PROTOCOL_RELAY;
-  pmap.subname = (char*)"";
+  pmap.entry_name = (char*)"";
   caller_id_t caller = RELAY_PROCESS_EDGE_UNKNOWN;
   relay_process_edge_t args;
   args.circ = circ;

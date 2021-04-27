@@ -18,65 +18,76 @@
 
 
 static inline int
-plugin_entries_eq_(plugin_map_t *a, plugin_map_t *b) {
-  return !strcmp(a->subname, b->subname) && a->param == b->param &&
+plugin_entries_eq_(entry_point_map_t *a, entry_point_map_t *b) {
+  return !strcmp(a->entry_name, b->entry_name) && a->param == b->param &&
          a->ptype == b->ptype && a->putype == b->putype &&
          a->pfamily == b->pfamily;
 }
 
 static inline unsigned int
-plugin_entry_hash_(plugin_map_t *a) {
+plugin_entry_hash_(entry_point_map_t *a) {
 
   uint32_t array[5+256/4] = {0,}; /** putype+ptype+ max name authorized*/
   array[0] = a->ptype;
   array[1] = a->putype;
   array[2] = a->pfamily;
-  memcpy(&array[5], a->subname, strlen(a->subname));
+  memcpy(&array[5], a->entry_name, strlen(a->entry_name));
   return (unsigned) siphash24g(array, sizeof(array));
 }
 
-static HT_HEAD(plugin_map_ht, plugin_map_t)
+static HT_HEAD(plugin_map_ht, entry_point_map_t)
     plugin_map_ht = HT_INITIALIZER();
 
-HT_PROTOTYPE(plugin_map_ht, plugin_map_t, node,
+HT_PROTOTYPE(plugin_map_ht, entry_point_map_t, node,
              plugin_entry_hash_, plugin_entries_eq_);
-HT_GENERATE2(plugin_map_ht, plugin_map_t, node,
+HT_GENERATE2(plugin_map_ht, entry_point_map_t, node,
              plugin_entry_hash_, plugin_entries_eq_, 0.6,
              tor_reallocarray_, tor_free_);
 
 /****************************************************************/
 
-int plugin_plug_elf(plugin_info_t *pinfo, char *elfpath) {
-  /** Todo verif* if this plugin is not already in our map */
-  plugin_map_t search;
-  plugin_map_t *found;
-  search.subname = tor_strdup(pinfo->subname);
-  search.ptype = pinfo->ptype;
-  search.putype = pinfo->putype;
-  search.pfamily = pinfo->pfamily;
-  search.param = pinfo->param;
-  search.memory_size = pinfo->memory_needed;
+int plugin_plug_elf(plugin_t *plugin, entry_info_t *einfo, char *elfpath) {
+  entry_point_map_t search;
+  entry_point_map_t *found;
+  search.entry_name = tor_strdup(einfo->entry_name);
+  search.ptype = einfo->ptype;
+  search.putype = einfo->putype;
+  search.pfamily = einfo->pfamily;
+  search.param = einfo->param;
   found = HT_FIND(plugin_map_ht, &plugin_map_ht, &search);
   if (found) {
-    /** TODO */
+    /** XXX What shoud we do?*/
+    log_debug(LD_PLUGIN, "A plugin with these characteristics:\
+        name: %s\
+        ptype: %d\
+        putype: %d\
+        pfamily: %d\
+        param: %d\
+        is already part of our map", search.entry_name, search.ptype, search.putype,
+        search.pfamily, search.param);
+    return 0;
   }
   else {
-    plugin_t *plugin = load_elf_file(elfpath,  pinfo->memory_needed);
-    if (!plugin) {
+    plugin_entry_point_t *entry_point = tor_malloc_zero(sizeof(*entry_point));
+    int ret;
+    ret = load_elf_file(elfpath,  plugin, entry_point);
+    if (ret < 0) {
       log_debug(LD_PLUGIN, "Failed to load plugin at elfpath %s, with heap of size %lu bytes", elfpath,
-          pinfo->memory_needed);
+          plugin->memory_size);
+      tor_free(entry_point);
       return -1;
     }
-    found = tor_malloc_zero(sizeof(plugin_map_t));
-    pinfo->plugin = plugin; /** careful double free */
+    smartlist_add(plugin->entry_points, entry_point);
+    found = tor_malloc_zero(sizeof(entry_point_map_t));
     found->plugin = plugin;
-    found->subname = tor_strdup(pinfo->subname);
-    found->putype = pinfo->putype;
-    found->pfamily = pinfo->pfamily;
-    found->ptype = pinfo->ptype;
-    found->memory_size = pinfo->memory_needed;
+    found->entry_point = entry_point;
+    /** take ownership of entry_name */
+    found->entry_name = einfo->entry_name;
+    found->putype = einfo->putype;
+    found->pfamily = einfo->pfamily;
+    found->ptype = einfo->ptype;
     /** Register the plugin; do it for each family*/
-    found->param = pinfo->param;
+    found->param = einfo->param;
     HT_INSERT(plugin_map_ht, &plugin_map_ht, found);
     log_debug(LD_PLUGIN, "Inserted plugin in map");
   }
@@ -88,13 +99,13 @@ int plugin_plug_elf(plugin_info_t *pinfo, char *elfpath) {
  * matches. If not, call default code. 
  */
 
-int invoke_plugin_operation_or_default(plugin_map_t *key,
+int invoke_plugin_operation_or_default(entry_point_map_t *key,
     caller_id_t caller, void *args) {
   if (!get_options()->EnablePlugins) {
     log_debug(LD_PLUGIN, "Plugins not enabled; defaulting to existing code");
     return -1;
   }
-  plugin_map_t *found;
+  entry_point_map_t *found;
   found = HT_FIND(plugin_map_ht, &plugin_map_ht, key);
   if (found) {
     log_debug(LD_PLUGIN, "Invoking plugin operation");
@@ -105,7 +116,7 @@ int invoke_plugin_operation_or_default(plugin_map_t *key,
               plugin_caller_id_to_string(caller));
           struct relay_process_edge_t *ctx = (relay_process_edge_t*) args;
           ctx->plugin = found->plugin;
-          return plugin_run(found->plugin, ctx, sizeof(relay_process_edge_t));
+          return plugin_run(found->entry_point, ctx, sizeof(relay_process_edge_t));
         }
       case RELAY_PROCESS_EDGE_UNKNOWN:
         /** probably need to pass a ctx of many interesting things */
@@ -116,7 +127,7 @@ int invoke_plugin_operation_or_default(plugin_map_t *key,
               plugin_caller_id_to_string(caller));
           circpad_plugin_args_t *ctx = (circpad_plugin_args_t *) args;
           ctx->plugin = found->plugin;
-          return plugin_run(found->plugin, ctx, sizeof(circpad_plugin_args_t));
+          return plugin_run(found->entry_point, ctx, sizeof(circpad_plugin_args_t));
         }
       default:
         log_debug(LD_PLUGIN, "Caller not found! %d:%s", caller,
@@ -126,8 +137,8 @@ int invoke_plugin_operation_or_default(plugin_map_t *key,
   }
   else {
     /** default code */
-    log_debug(LD_PLUGIN, "Plugin not found: ptype:%d, putype:%d, pfamily:%d, memory_size:%lu, subname:%s, param: %d", key->ptype, key->putype,
-        key->pfamily, key->memory_size, key->subname, key->param);
+    log_debug(LD_PLUGIN, "Plugin not found: ptype:%d, putype:%d, pfamily:%d, entry_name:%s, param: %d", key->ptype, key->putype,
+        key->pfamily, key->entry_name, key->param);
     return -1;
   }
 }
@@ -199,21 +210,19 @@ int call_host_func(int keyfunc, int size, ...) {
   return ret;
 }
 
-uint64_t plugin_run(plugin_t *plugin, void *args, size_t args_size) {
-  uint64_t ret = exec_loaded_code(plugin, args, args_size);
+entry_point_map_t *plugin_get(entry_point_map_t *key) {
+  entry_point_map_t *found;
+  found = HT_FIND(plugin_map_ht, &plugin_map_ht, key);
+  return found;
+}
+
+uint64_t plugin_run(plugin_entry_point_t *entry_point, void *args, size_t args_size) {
+  uint64_t ret = exec_loaded_code(entry_point, args, args_size);
   if (ret) {
     log_debug(LD_PLUGIN, "Plugin execution returned %ld", ret);
-    const char *errormsg = ubpf_get_error_msg(plugin->vm);
+    const char *errormsg = ubpf_get_error_msg(entry_point->vm);
     log_debug(LD_PLUGIN, "vm error message: %s", errormsg);
   }
   return ret;
-}
-
-/**
- * TODO
- */
-
-void plugin_unplug(plugin_info_list_t *list_plugins) {
-  (void)list_plugins;
 }
 
