@@ -91,7 +91,8 @@ const char *ubpf_get_error_msg(struct ubpf_vm *vm);
 /* Now functions that will be actually used in the program */
 
 int load_elf(void *code, size_t code_len, plugin_t *plugin, plugin_entry_point_t *entry_point);
-int load_elf_file(const char *code_filename, plugin_t *plugin, plugin_entry_point_t *entry_point);
+
+MOCK_DECL(int, load_elf_file, (const char *code_filename, plugin_t *plugin, plugin_entry_point_t *entry_point));
 void release_elf(plugin_entry_point_t *entry_point);
 uint64_t exec_loaded_code(plugin_entry_point_t *plugin, void *mem, size_t mem_len);
 

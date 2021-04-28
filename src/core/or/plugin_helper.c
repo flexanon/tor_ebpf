@@ -123,20 +123,21 @@ plugin_t* plugin_insert_transaction(const char *plugin_filepath, const char *fil
   char *plugin_dirname = dirname(tor_strdup(plugin_filepath));
   /** Read plugin info first */
   int memory_needed = 0;
-
+  char *line2 = NULL;
   if ((ret = getline(&line, &len, file)) != -1) {
-    char *token = strsep(&line, " ");
+    line2 = line;
+    char *token = strsep(&line2, " ");
     if (!token) {
       log_debug(LD_PLUGIN, "No token for memory instracted?");
       ok = false;
     }
     if (strncmp(token, "memory", 6) == 0) {
-      token = strsep(&line, " ");
+      token = strsep(&line2, "\n");
       char *errmsg = NULL;
       /* can read hexa or base 10 */
       memory_needed = (int) strtoul(token, &errmsg, 0);
       if (errmsg != NULL && strncmp(errmsg, "", 1) != 0) {
-        log_debug(LD_PLUGIN, "Invalid parameter %s, val is %d", token, memory_needed);
+        log_debug(LD_PLUGIN, "Invalid parameter %s, val is %d. Errmsg: %s", token, memory_needed, errmsg);
         ok = false;
       }
     }

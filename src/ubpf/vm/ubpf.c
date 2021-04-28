@@ -147,7 +147,7 @@ int load_elf(void *code, size_t code_len, plugin_t *plugin, plugin_entry_point_t
   return 0;
 }
 
-int load_elf_file(const char *code_filename, plugin_t *plugin, plugin_entry_point_t *entry_point) {
+MOCK_IMPL(int, load_elf_file, (const char *code_filename, plugin_t *plugin, plugin_entry_point_t *entry_point)) {
   size_t code_len;
   void *code = readfile(code_filename, 1024*1024, &code_len);
   if (code == NULL) {

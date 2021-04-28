@@ -77,11 +77,12 @@ int plugin_plug_elf(plugin_t *plugin, entry_info_t *einfo, char *elfpath) {
       tor_free(entry_point);
       return -1;
     }
+    entry_point->entry_name = tor_strdup(einfo->entry_name);
     smartlist_add(plugin->entry_points, entry_point);
     found = tor_malloc_zero(sizeof(entry_point_map_t));
     found->plugin = plugin;
     found->entry_point = entry_point;
-    /** take ownership of entry_name */
+    /*take ownership */
     found->entry_name = einfo->entry_name;
     found->putype = einfo->putype;
     found->pfamily = einfo->pfamily;

@@ -139,6 +139,7 @@ plugin_t *plugin_memory_init(size_t memory_size){
 	plugin->memory_pool->num_initialized = 0;
 	plugin->memory_pool->num_free_blocks = plugin->memory_pool->num_of_blocks;
 	plugin->memory_pool->next = plugin->memory_pool->mem_start;
+  plugin->memory_size = memory_size;
   /*plugin->entry_points = smartlist_new();*/
   return plugin;
 }

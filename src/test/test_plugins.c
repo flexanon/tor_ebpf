@@ -1,6 +1,7 @@
 
 #include "core/or/or.h"
 #include "core/or/plugin_helper.h"
+#include "ubpf/vm/inc/ubpf.h"
 #include "src/lib/string/printf.h"
 #include "app/config/config.h"
 #include "log_test_helpers.h"
@@ -12,6 +13,13 @@
 #include "test.h"
 
 static smartlist_t *list_plugins = NULL;
+
+static int dummy_load_elf_file(const char *code_filename, plugin_t *plugin, plugin_entry_point_t *entry_point) {
+  (void) code_filename;
+  (void) plugin;
+  (void) entry_point;
+  return 0;
+}
 
 static int
 is_private_dir(const char* path)
@@ -55,9 +63,9 @@ test_plugin_helper_find_all_and_init(void *args) {
   const char* plugin_fname_2 = "test_2.plugin";
   const char* plugin_fname_3 = "test_3.plugin";
 
-  const char* str_test_1 = "memory 256 \ntest_1 protocol_relay replace test_1.o";
-  const char* str_test_2 = "memory 256 \ntest_2 protocol_relay param 42 add test_2.o";
-  const char* str_test_3 = "memory 256 \ntest_3 protocol_circpad replace test_3.o";
+  const char* str_test_1 = "memory 256\ntest_1 protocol_relay replace test_1.o";
+  const char* str_test_2 = "memory 256\ntest_2 protocol_relay param 42 add test_2.o";
+  const char* str_test_3 = "memory 256\ntest_3 protocol_circpad replace test_3.o";
 
   ret = write_to_plugin_subdir(plugin_dir_1, plugin_fname_1, str_test_1, NULL);
   tt_int_op(ret, OP_EQ, 0);
@@ -74,7 +82,9 @@ test_plugin_helper_find_all_and_init(void *args) {
 
   /** Try to initialize and load plugins */
   list_plugins = smartlist_new();
+  MOCK(load_elf_file, dummy_load_elf_file);
   list_plugins = plugin_helper_find_all_and_init();
+  UNMOCK(load_elf_file);
   tt_assert(list_plugins);
   tt_int_op(smartlist_len(list_plugins), OP_EQ, 3);
   plugin_t *plugin3 = (plugin_t*)smartlist_get(list_plugins, 0);
@@ -83,6 +93,8 @@ test_plugin_helper_find_all_and_init(void *args) {
   tt_int_op(strcmp(plugin1->pname, "test_1.plugin"), OP_EQ, 0);
   tt_int_op(strcmp(plugin2->pname, "test_2.plugin"), OP_EQ, 0);
   tt_int_op(strcmp(plugin3->pname, "test_3.plugin"), OP_EQ, 0);
+  tt_assert(plugin1->entry_points);
+  tt_int_op(smartlist_len(plugin1->entry_points), OP_EQ, 1);
 
   tt_int_op(strcmp(((plugin_entry_point_t*)smartlist_get(plugin1->entry_points, 0))->entry_name, "test_1"), OP_EQ, 0);
   tt_int_op(plugin1->memory_size, OP_EQ, 256);
