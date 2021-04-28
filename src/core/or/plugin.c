@@ -119,6 +119,14 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
           ctx->plugin = found->plugin;
           return plugin_run(found->entry_point, ctx, sizeof(relay_process_edge_t));
         }
+      case RELAY_REPLACE_STREAM_DATA_RECEIVED:
+        {
+          log_debug(LD_PLUGIN, "Plugin gound for caller %s", 
+              plugin_caller_id_to_string(caller));
+          struct relay_process_edge_t *ctx = (relay_process_edge_t*) args;
+          ctx->plugin = found->plugin;
+          return plugin_run(found->entry_point, ctx, sizeof(relay_process_edge_t));
+        }
       case RELAY_PROCESS_EDGE_UNKNOWN:
         /** probably need to pass a ctx of many interesting things */
         return -1;
@@ -140,7 +148,7 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
     /** default code */
     log_debug(LD_PLUGIN, "Plugin not found: ptype:%d, putype:%d, pfamily:%d, entry_name:%s, param: %d", key->ptype, key->putype,
         key->pfamily, key->entry_name, key->param);
-    return -1;
+    return PLUGIN_RUN_DEFAULT;
   }
 }
 

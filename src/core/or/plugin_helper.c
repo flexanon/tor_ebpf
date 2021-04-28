@@ -252,6 +252,7 @@ void plugin_unplug(plugin_t *plugin) {
 const char *plugin_caller_id_to_string(caller_id_t caller) {
   switch (caller) {
     case RELAY_REPLACE_PROCESS_EDGE_SENDME: return "circuit sending sendme cells";
+    case RELAY_REPLACE_STREAM_DATA_RECEIVED: return "stream has received data";
     case RELAY_PROCESS_EDGE_UNKNOWN: return "host-code unknown new protocol feature";
     case CIRCPAD_PROTOCOL_INIT: return "initializing global circpad machines";
     default:

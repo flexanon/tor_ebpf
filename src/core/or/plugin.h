@@ -10,6 +10,7 @@
 #include "ubpf/vm/inc/ubpf.h"
 #include <stdarg.h>
 
+#define PLUGIN_RUN_DEFAULT -2147483648
 /**
  * Define the type of usage the plugin is intended to.
  * We may want to replace a functionality to perform a same action
@@ -64,6 +65,7 @@ typedef struct plugin_args_t {
 typedef enum {
   /** Replace circuit_sendme logic */
   RELAY_REPLACE_PROCESS_EDGE_SENDME,
+  RELAY_REPLACE_STREAM_DATA_RECEIVED,
   /** We received a cell that is not part of the current relay protocol version*/
   RELAY_PROCESS_EDGE_UNKNOWN,
   /** We have one or several circpad machines to globally add to all circuits */
@@ -98,7 +100,7 @@ typedef struct entry_point_map_t {
 
 #define RELAY_LAYER_HINT_DELIVER_WINDOW 4
 #define RELAY_CIRC_DELIVER_WINDOW 5
-
+#define RELAY_CONN_DELIVER_WINDOW 6
 
 #define RELAY_MAX 1000
 

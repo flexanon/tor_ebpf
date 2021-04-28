@@ -1668,7 +1668,7 @@ handle_relay_cell_command(cell_t *cell, circuit_t *circ,
       args.layer_hint = layer_hint;
       args.edgeconn = conn;
       
-      if (invoke_plugin_operation_or_default(&pmap, caller, (void*)&args)){
+      if (invoke_plugin_operation_or_default(&pmap, caller, (void*)&args) == PLUGIN_RUN_DEFAULT){
         log_debug(LD_PLUGIN, "invoke_plugin returned -1");
         sendme_circuit_consider_sending(circ, layer_hint);
       }
@@ -1697,10 +1697,20 @@ handle_relay_cell_command(cell_t *cell, circuit_t *circ,
       /* Update our stream-level deliver window that we just received a DATA
        * cell. Going below 0 means we have a protocol level error so the
        * stream and circuit are closed. */
-
-      if (sendme_stream_data_received(conn) < 0) {
+      pmap.entry_name = (char *)"sendme_stream_data_received";
+      caller = RELAY_REPLACE_STREAM_DATA_RECEIVED;
+      int ret = invoke_plugin_operation_or_default(&pmap, caller, (void*) &args);
+      if (ret == PLUGIN_RUN_DEFAULT) {
+        if (sendme_stream_data_received(conn) < 0) {
+          log_fn(LOG_PROTOCOL_WARN, LD_PROTOCOL,
+                 "(relay data) conn deliver_window below 0. Killing.");
+          connection_edge_end_close(conn, END_STREAM_REASON_TORPROTOCOL);
+          return -END_CIRC_REASON_TORPROTOCOL;
+        }
+      }
+      else if (ret) {
         log_fn(LOG_PROTOCOL_WARN, LD_PROTOCOL,
-               "(relay data) conn deliver_window below 0. Killing.");
+            "(relay data) conn deliver_window below 0. Killing.");
         connection_edge_end_close(conn, END_STREAM_REASON_TORPROTOCOL);
         return -END_CIRC_REASON_TORPROTOCOL;
       }
@@ -3343,6 +3353,11 @@ uint64_t relay_get(int key, void *pointer) {
         circuit_t *circ = (circuit_t*) pointer;
         return circ->deliver_window;
       }
+    case RELAY_CONN_DELIVER_WINDOW:
+      {
+        relay_process_edge_t *pedge = (relay_process_edge_t *) pointer;
+        return (uint64_t) pedge->edgeconn->deliver_window;
+      }
     default:
       return 0;
   }
@@ -3353,10 +3368,16 @@ void relay_set(int key, void *pointer, uint64_t val) {
   switch(key) {
     case RELAY_CIRCUIT_T:;break;
     case RELAY_CIRC_DELIVER_WINDOW:
-                         {
-                           circuit_t *circ = (circuit_t*) pointer;
-                           circ->deliver_window = (int) val;
-                           break;
-                         }
+      {
+        circuit_t *circ = (circuit_t*) pointer;
+        circ->deliver_window = (int) val;
+        break;
+      }
+    case RELAY_CONN_DELIVER_WINDOW:
+      {
+        relay_process_edge_t *pedge = (relay_process_edge_t *) pointer;
+        pedge->edgeconn->deliver_window = (int) val;
+        break;
+      }
   }
 }
