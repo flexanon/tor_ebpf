@@ -64,7 +64,7 @@ test_plugin_helper_find_all_and_init(void *args) {
   const char* plugin_fname_3 = "test_3.plugin";
 
   const char* str_test_1 = "memory 256\ntest_1 protocol_relay replace test_1.o";
-  const char* str_test_2 = "memory 256\ntest_2 protocol_relay param 42 add test_2.o";
+  const char* str_test_2 = "memory 256\ntest_2 protocol_relay param 42 add test_2.o\nother_test_2 protocol_relay replace other_test_2.o";
   const char* str_test_3 = "memory 256\ntest_3 protocol_circpad replace test_3.o";
 
   ret = write_to_plugin_subdir(plugin_dir_1, plugin_fname_1, str_test_1, NULL);
@@ -95,6 +95,7 @@ test_plugin_helper_find_all_and_init(void *args) {
   tt_int_op(strcmp(plugin3->pname, "test_3.plugin"), OP_EQ, 0);
   tt_assert(plugin1->entry_points);
   tt_int_op(smartlist_len(plugin1->entry_points), OP_EQ, 1);
+  tt_int_op(smartlist_len(plugin2->entry_points), OP_EQ, 2);
 
   tt_int_op(strcmp(((plugin_entry_point_t*)smartlist_get(plugin1->entry_points, 0))->entry_name, "test_1"), OP_EQ, 0);
   tt_int_op(plugin1->memory_size, OP_EQ, 256);
@@ -111,6 +112,15 @@ test_plugin_helper_find_all_and_init(void *args) {
   found = plugin_get(&emap);
   tt_assert(found->plugin == plugin1);
   tt_int_op(smartlist_len(found->plugin->entry_points), OP_EQ, 1);
+  memset(&emap, 0, sizeof(emap));
+  emap.ptype = PLUGIN_DEV;
+  emap.putype = PLUGIN_CODE_HIJACK;
+  emap.pfamily = PLUGIN_PROTOCOL_RELAY;
+  emap.entry_name = (char *) "other_test_2";
+  found = plugin_get(&emap);
+  tt_assert(found->plugin == plugin2);
+  tt_int_op(smartlist_len(found->plugin->entry_points), OP_EQ, 2);
+  tt_int_op(strcmp(found->entry_point->entry_name, "other_test_2"), OP_EQ, 0);
 
   tt_int_op(strcmp(((plugin_entry_point_t*)smartlist_get(plugin2->entry_points, 0))->entry_name, "test_2"), OP_EQ, 0);
   tt_int_op(strcmp(((plugin_entry_point_t*)smartlist_get(plugin3->entry_points, 0))->entry_name, "test_3"), OP_EQ, 0);
