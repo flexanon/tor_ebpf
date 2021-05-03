@@ -16,6 +16,7 @@
 #include "ubpf/vm/plugin_memory.h"
 #include "core/or/relay.h"
 #include "lib/log/log.h"
+#include "ext/trunnel/trunnel-impl.h"
 
 #define JIT true  /* putting to false show out of memory access */
 
@@ -49,11 +50,20 @@ register_dev_functions(struct ubpf_vm *vm)
   /** memory */
   tor_assert(ubpf_register(vm, idx++, "my_plugin_malloc", my_plugin_malloc) != -1);
   tor_assert(ubpf_register(vm, idx++, "my_plugin_free", my_plugin_free) != -1);
-  tor_assert(ubpf_register(vm, idx++, "memset", memset) != -1);
+  tor_assert(ubpf_register(vm, idx++, "my_plugin_memset", my_plugin_memset) != -1);
+  tor_assert(ubpf_register(vm, idx++, "my_plugin_memcpy", my_plugin_memcpy) != -1);
   /** logging stuff */
   tor_assert(ubpf_register(vm, idx++, "log_fn_", log_fn_) != -1);
+  /** circpad */
+  tor_assert(ubpf_register(vm, idx++, "circpad_machine_spec_transition", circpad_machine_spec_transition) != -1);
+  /** trunnel */
+  tor_assert(ubpf_register(vm, idx++, "trunnel_set_uint8", trunnel_set_uint8) != -1);
+  tor_assert(ubpf_register(vm, idx++, "trunnel_set_uint16", trunnel_set_uint16) != -1);
+  tor_assert(ubpf_register(vm, idx++, "trunnel_set_uint32", trunnel_set_uint32) != -1);
 
-  /** hint! remember how to count in hexa! */
+  tor_assert(ubpf_register(vm, idx++, "trunnel_get_uint8", trunnel_get_uint8) != -1);
+  tor_assert(ubpf_register(vm, idx++, "trunnel_get_uint16", trunnel_get_uint16) != -1);
+  tor_assert(ubpf_register(vm, idx++, "trunnel_get_uint32", trunnel_get_uint32) != -1);
 }
 
   static void

@@ -5,30 +5,35 @@
 #include "core/or/plugin_helper.h"
 #include "ubpf/vm/plugin_memory.h"
 
+/*We don't have new events in this plugin */
+#define PLUGIN_NUM_EVENTS 0
+
+static num_events = CIRCPAD_NUM_EVENTS + PLUGIN_NUM_EVENTS;
 
 static __attribute__((always_inline)) void
 plugin_circpad_machine_states_init(plugin_t *plugin, circpad_machine_spec_t *machine,
       circpad_statenum_t num_states) {
+
   if (BUG(num_states > CIRCPAD_MAX_MACHINE_STATES)) {
     num_states = CIRCPAD_MAX_MACHINE_STATES;
   }
 
   machine->num_states = num_states;
   machine->states = my_plugin_malloc(plugin, sizeof(circpad_state_t)*num_states);
-
   /* Initialize the default next state for all events to
    * "ignore" -- if events aren't specified, they are ignored. */
   for (circpad_statenum_t s = 0; s < num_states; s++) {
-    for (int e = 0; e < CIRCPAD_NUM_EVENTS; e++) {
+    machine->states[s].next_state = my_plugin_malloc(num_events*sizeof(circpad_statenum_t));
+    machine->states[s].circpad_num_events = num_events;
+    for (int e = 0; e < num_events; e++) {
       machine->states[s].next_state[e] = CIRCPAD_STATE_IGNORE;
     }
   }
 }
 
-
 static __attribute__((always_inline)) void register_client_machine(plugin_t *plugin, smartlist_t *client_machines) {
   circpad_machine_spec_t *client_machine = my_plugin_malloc(plugin, sizeof(circpad_machine_spec_t));
-  memset(client_machine, 0, sizeof(circpad_machine_spec_t));
+  my_plugin_memset(client_machine, 0, sizeof(circpad_machine_spec_t));
 
   client_machine->name = "client_wf_ape";
   client_machine->is_origin_side = 1; // client-side
@@ -73,7 +78,7 @@ static __attribute__((always_inline)) void register_client_machine(plugin_t *plu
 
 static __attribute__((always_inline)) void register_relay_machine(plugin_t *plugin, smartlist_t *relay_machines) {
   circpad_machine_spec_t *relay_machine = my_plugin_malloc(plugin, sizeof(circpad_machine_spec_t));
-  memset(relay_machine, 0, sizeof(circpad_machine_spec_t));
+  my_plugin_memset(relay_machine, 0, sizeof(circpad_machine_spec_t));
   relay_machine->name = "relay_wf_ape";
   relay_machine->is_origin_side = 0; // relay-side
 

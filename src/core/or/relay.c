@@ -1669,7 +1669,7 @@ handle_relay_cell_command(cell_t *cell, circuit_t *circ,
       args.edgeconn = conn;
       
       if (invoke_plugin_operation_or_default(&pmap, caller, (void*)&args) == PLUGIN_RUN_DEFAULT){
-        log_debug(LD_PLUGIN, "invoke_plugin returned -1");
+        log_debug(LD_PLUGIN, "Run default code");
         sendme_circuit_consider_sending(circ, layer_hint);
       }
 
@@ -2001,12 +2001,13 @@ handle_relay_cell_command(cell_t *cell, circuit_t *circ,
   pmap.ptype = PLUGIN_DEV;
   pmap.putype = PLUGIN_CODE_ADD;
   pmap.pfamily = PLUGIN_PROTOCOL_RELAY;
-  pmap.entry_name = (char*)"";
+  pmap.entry_name = (char*)"relay_process_edge_unknown";
   caller_id_t caller = RELAY_PROCESS_EDGE_UNKNOWN;
   relay_process_edge_t args;
   args.circ = circ;
   args.layer_hint = layer_hint;
   args.edgeconn = conn;
+  args.cell = cell;
 
   if (invoke_plugin_operation_or_default(&pmap, caller, (void*)&args)) {
     log_fn(LOG_PROTOCOL_WARN, LD_PROTOCOL,
@@ -3337,6 +3338,11 @@ uint64_t relay_get(int key, void *pointer) {
       {
         relay_process_edge_t *pedge = (relay_process_edge_t *) pointer;
         return (uint64_t) pedge->circ;
+      }
+    case RELAY_CELL_T:
+      {
+        relay_process_edge_t *pedge = (relay_process_edge_t *) pointer;
+        return (uint64_t) pedge->cell;
       }
     case RELAY_CRYPT_PATH_T:
       {

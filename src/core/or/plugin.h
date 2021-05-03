@@ -84,23 +84,25 @@ typedef struct entry_point_map_t {
   plugin_t *plugin;
 } entry_point_map_t;
 
+#define PLUGIN_CTX 1
   /**
    * Access main objects of process_edge
    */
 /** get circuit_t* */
-#define RELAY_CIRCUIT_T 1
+#define RELAY_CIRCUIT_T 10
 /*  get crypt_path_t*  */
-#define RELAY_CRYPT_PATH_T 2
+#define RELAY_CRYPT_PATH_T 11
 /*  get cell_t* */
-#define RELAY_CELL_T 3
+#define RELAY_CELL_T 12
 
 
 // TODO We need something that can be loaded from some state file instead!
 /** Accessible field elements */
 
-#define RELAY_LAYER_HINT_DELIVER_WINDOW 4
-#define RELAY_CIRC_DELIVER_WINDOW 5
-#define RELAY_CONN_DELIVER_WINDOW 6
+#define RELAY_LAYER_HINT_DELIVER_WINDOW 13
+#define RELAY_CIRC_DELIVER_WINDOW 14
+#define RELAY_CONN_DELIVER_WINDOW 15
+#define RELAY_PLUGIN_CTX 16
 
 #define RELAY_MAX 1000
 
@@ -109,6 +111,8 @@ typedef struct entry_point_map_t {
 #define CIRCPAD_CLIENT_MACHINES_SL 1002
 #define CIRCPAD_RELAY_MACHINES_SL 1003
 #define CIRCPAD_PLUGIN_T 1004
+#define CIRCPAD_NEW_EVENTNUM 1005
+#define CIRCPAD_PLUGIN_CTX 1006
 
 #define CIRCPAD_MAX 2000
 

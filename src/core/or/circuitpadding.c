@@ -81,6 +81,9 @@
 
 #include "app/config/config.h"
 
+
+static int EVENTNUM_IDX = CIRCPAD_NUM_EVENTS;
+
 static inline circpad_circuit_state_t circpad_circuit_state(
                                         origin_circuit_t *circ);
 static void circpad_setup_machine_on_circ(circuit_t *on_circ,
@@ -2472,6 +2475,8 @@ circpad_machine_states_init(circpad_machine_spec_t *machine,
   /* Initialize the default next state for all events to
    * "ignore" -- if events aren't specified, they are ignored. */
   for (circpad_statenum_t s = 0; s < num_states; s++) {
+    machine->states[s].next_state = tor_malloc_zero(CIRCPAD_NUM_EVENTS*sizeof(circpad_statenum_t));
+    machine->states[s].circpad_num_events = CIRCPAD_NUM_EVENTS;
     for (int e = 0; e < CIRCPAD_NUM_EVENTS; e++) {
       machine->states[s].next_state[e] = CIRCPAD_STATE_IGNORE;
     }
@@ -2818,6 +2823,11 @@ circpad_machines_free(void)
     SMARTLIST_FOREACH_BEGIN(origin_padding_machines,
                             circpad_machine_spec_t *, m) {
       if (!m->is_plugin_generated) {
+        /** the number of events are not known at compile time -- next_state is
+         * dynmically allocated*/
+        for (circpad_statenum_t s = 0; s < m->num_states; s++) {
+          tor_free(m->states[s].next_state);
+        }
         tor_free(m->states);
         tor_free(m);
       }
@@ -2829,6 +2839,9 @@ circpad_machines_free(void)
     SMARTLIST_FOREACH_BEGIN(relay_padding_machines,
                             circpad_machine_spec_t *, m) {
       if (!m->is_plugin_generated) {
+        for (circpad_statenum_t s = 0; s < m->num_states; s++) {
+          tor_free(m->states[s].next_state);
+        }
         tor_free(m->states);
         tor_free(m);
       }
@@ -3126,6 +3139,17 @@ circpad_handle_padding_negotiated(circuit_t *circ, cell_t *cell,
  * Plugin related functions
  */
 
+void circpad_set(int key, void *pointer, uint64_t val) {
+
+  switch (key) {
+    case CIRCPAD_PLUGIN_CTX:
+      {
+        circpad_plugin_args_t *args = (circpad_plugin_args_t *) pointer;
+        args->plugin->ctx = (void *) val;
+      }
+  }
+}
+
 uint64_t circpad_get(int key, void *pointer) {
   switch (key) {
     case CIRCPAD_RELAY_MACHINES_SL:
@@ -3147,6 +3171,16 @@ uint64_t circpad_get(int key, void *pointer) {
       {
         smartlist_t *machines = (smartlist_t *) pointer;
         return smartlist_len(machines);
+      }
+    case CIRCPAD_NEW_EVENTNUM:
+      {
+        /** This allocates a new event number for plugins */
+        return ++EVENTNUM_IDX;
+      }
+    case CIRCPAD_PLUGIN_CTX:
+      {
+        circpad_plugin_args_t *args = (circpad_plugin_args_t*) pointer;
+        return (uint64_t) args->plugin->ctx;
       }
     default: return 0;
   }

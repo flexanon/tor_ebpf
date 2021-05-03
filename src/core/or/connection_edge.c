@@ -3345,7 +3345,30 @@ connection_ap_handshake_send_begin,(entry_connection_t *ap_conn))
       connection_mark_for_close(base_conn);
     }
   }
+  /** plugin add here to do something with the RELAY_BEGIN sell */
 
+  //Note, in our test case we sent a SIGPLUGIN_ACTIVATE circpad message, but it
+  //could be anything else
+  entry_point_map_t pmap;
+  memset(&pmap, 0, sizeof(pmap));
+  //only official devs can inject something here
+  pmap.ptype = PLUGIN_DEV;
+  // we're looking for the plugin that is expected to add something at the  end of the function
+  pmap.putype = PLUGIN_CODE_ADD;
+  // this is a edge conn protocol plugin
+  pmap.pfamily = PLUGIN_PROTOCOL_CONN_EDGE;
+  pmap.entry_name = "plugin_add_connection_ap_handshake_send_begin";
+  // who calls a plugin -- not very useful though
+  caller_id_t caller CONNECTION_EDGE_ADD_TO_SENDING_BEGIN;
+  int ret = invoke_plugin_operation_or_default(&pmap, caller, (void*)&args);
+  if (ret == PLUGIN_RUN_DEFAULT) {
+    log_debug(LD_PLUGIN, "Run default code");
+    return 0;
+  }
+  else if (ret) {
+    log_debug(LD_PLUGIN, "The plugin returned an error -- ignore for simplicity,
+        but we should kill the connection");
+  }
   return 0;
 }
 

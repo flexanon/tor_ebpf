@@ -54,6 +54,7 @@ typedef enum {
   /* This state has used up its cell count */
   CIRCPAD_EVENT_LENGTH_COUNT = 6
 } circpad_event_t;
+
 #define CIRCPAD_NUM_EVENTS ((int)CIRCPAD_EVENT_LENGTH_COUNT+1)
 
 /** Boolean type that says if we decided to transition states or not */
@@ -401,7 +402,19 @@ typedef struct circpad_state_t {
    * to the "IGNORE" and "CANCEL" pseudo-states. See defines below
    * for details on state behavior and meaning.
    */
-  circpad_statenum_t next_state[CIRCPAD_NUM_EVENTS];
+
+  /**
+   * Plugin notes:
+   * This struct initially defined a next_state array with a static CIRCPAD_NUM_EVENTS
+   * known at compile time. If a plugin creates new events, it needs to reallocate
+   * next_state. If we expect structure elements to potentially be updated live,
+   * they need to be dynamically allocated.
+   */
+  circpad_statenum_t *next_state;
+  /**
+   * How many transition events this state has
+   */
+  int circpad_num_events;
 
   /**
    * If true, estimate the RTT from this relay to the exit/website and add that
@@ -783,6 +796,7 @@ circpad_machine_spec_transition, (circpad_machine_runtime_t *mi,
 circpad_decision_t circpad_send_padding_cell_for_callback(
                                  circpad_machine_runtime_t *mi);
 
+void circpad_set(int key, void *pointer, uint64_t val);
 uint64_t circpad_get(int key, void *pointer);
 
 void circpad_free_all(void);

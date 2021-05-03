@@ -1142,6 +1142,11 @@ typedef struct plugin {
   char *memory;
   size_t memory_size;
   smartlist_t *entry_points;
+  /**
+   * plugin ctx shared by the entry points -- should be initialized by the main
+   * entry point if needed
+   * */
+  void *ctx;
 } plugin_t;
 
 #endif /* !defined(TOR_OR_H) */
