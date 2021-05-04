@@ -42,7 +42,8 @@ typedef enum {
 typedef enum {
   PLUGIN_PROTOCOL_CORE,
   PLUGIN_PROTOCOL_RELAY,
-  PLUGIN_PROTOCOL_CIRCPAD
+  PLUGIN_PROTOCOL_CIRCPAD,
+  PLUGIN_PROTOCOL_CONN_EDGE
 } plugin_family_t;
 
 typedef struct entry_info_t {
@@ -69,7 +70,9 @@ typedef enum {
   /** We received a cell that is not part of the current relay protocol version*/
   RELAY_PROCESS_EDGE_UNKNOWN,
   /** We have one or several circpad machines to globally add to all circuits */
-  CIRCPAD_PROTOCOL_INIT
+  CIRCPAD_PROTOCOL_INIT,
+  /**Conn edge stuffs */
+  CONNECTION_EDGE_ADD_TO_SENDING_BEGIN
 } caller_id_t;
 
 typedef struct entry_point_map_t {

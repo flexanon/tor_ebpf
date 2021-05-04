@@ -6,6 +6,7 @@
 #include "plugins/dropmark_def/circpad_dropmark_def.h"
 #include "ubpf/vm/plugin_memory.h"
 #include "ext/trunnel/trunnel-impl.h"
+#include "core/or/connection_edge.h"
 #include <assert.h>
 #include <stdlib.h>
 
@@ -111,6 +112,6 @@ circpad_plugin_transition_encode(uint8_t *output, const size_t avail, const circ
   return result;
 }
 
-uint64_t circpad_dropmark_def_send_sig() {
+uint64_t circpad_dropmark_def_send_sig(conn_edge_plugin_args_t *args) {
   return 0;
 }

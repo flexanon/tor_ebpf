@@ -116,6 +116,8 @@
 #include "core/or/socks_request_st.h"
 #include "lib/evloop/compat_libevent.h"
 
+#include "core/or/plugin.h"
+
 #ifdef HAVE_LINUX_TYPES_H
 #include <linux/types.h>
 #endif
@@ -3357,22 +3359,29 @@ connection_ap_handshake_send_begin,(entry_connection_t *ap_conn))
   pmap.putype = PLUGIN_CODE_ADD;
   // this is a edge conn protocol plugin
   pmap.pfamily = PLUGIN_PROTOCOL_CONN_EDGE;
-  pmap.entry_name = "plugin_add_connection_ap_handshake_send_begin";
+  pmap.entry_name = (char *)"plugin_add_connection_ap_handshake_send_begin";
   // who calls a plugin -- not very useful though
-  caller_id_t caller CONNECTION_EDGE_ADD_TO_SENDING_BEGIN;
+  caller_id_t caller = CONNECTION_EDGE_ADD_TO_SENDING_BEGIN;
+  conn_edge_plugin_args_t args;
+  memset(&args, 0, sizeof(args));
+  args.edge_conn = edge_conn;
+  args.on_circ = circ;
+  args.entry_conn = ap_conn;
+
   int ret = invoke_plugin_operation_or_default(&pmap, caller, (void*)&args);
   if (ret == PLUGIN_RUN_DEFAULT) {
     log_debug(LD_PLUGIN, "Run default code");
     return 0;
   }
   else if (ret) {
-    log_debug(LD_PLUGIN, "The plugin returned an error -- ignore for simplicity,
+    log_debug(LD_PLUGIN, "The plugin returned an error -- ignore for simplicity,\
         but we should kill the connection");
   }
   return 0;
 }
 
-/** Write a relay resolve cell, using destaddr and destport from ap_conn's
+/**
+ * Write a relay resolve cell, using destaddr and destport from ap_conn's
  * socks_request field, and send it down circ.
  *
  * If ap_conn is broken, mark it for close and return -1. Else return 0.

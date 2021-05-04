@@ -7,6 +7,7 @@
 #include "core/or/or.h"
 #include "app/config/config.h"
 #include "core/or/circuitpadding.h"
+#include "core/or/connection_edge.h"
 #include "core/or/plugin.h"
 #include "core/or/plugin_helper.h"
 #include "core/or/relay.h"
@@ -115,20 +116,28 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
       case RELAY_REPLACE_PROCESS_EDGE_SENDME:
       case RELAY_REPLACE_STREAM_DATA_RECEIVED:
       case RELAY_PROCESS_EDGE_UNKNOWN:
-        /** probably need to pass a ctx of many interesting things */
-        struct relay_process_edg_t *ctx = (relay_process_edge_t *) args;
-        ctx->plugin = found->plugin;
-        return plugin_run(found->entry_point, ctx, sizeof(relay_process_edge_t));
+        {
+          /** probably need to pass a ctx of many interesting things */
+          struct relay_process_edge_t *ctx = (relay_process_edge_t *) args;
+          ctx->plugin = found->plugin;
+          return plugin_run(found->entry_point, ctx, sizeof(relay_process_edge_t*));
+        }
       case CIRCPAD_PROTOCOL_INIT:
-          {
-            circpad_plugin_args_t *ctx = (circpad_plugin_args_t *) args;
-            ctx->plugin = found->plugin;
-            return plugin_run(found->entry_point, ctx, sizeof(circpad_plugin_args_t));
-          }
-        default:
-          log_debug(LD_PLUGIN, "Caller not found! %d:%s", caller,
-              plugin_caller_id_to_string(caller));
-          return -1; break;
+        {
+          circpad_plugin_args_t *ctx = (circpad_plugin_args_t *) args;
+          ctx->plugin = found->plugin;
+          return plugin_run(found->entry_point, ctx, sizeof(circpad_plugin_args_t*));
+        }
+      case CONNECTION_EDGE_ADD_TO_SENDING_BEGIN:
+        {
+          conn_edge_plugin_args_t *ctx = (conn_edge_plugin_args_t *) args;
+          ctx->plugin = found->plugin;
+          return plugin_run(found->entry_point, ctx, sizeof(conn_edge_plugin_args_t *));
+        }
+      default:
+        log_debug(LD_PLUGIN, "Caller not found! %d:%s", caller,
+            plugin_caller_id_to_string(caller));
+        return -1; break;
       }
     }
     else {
