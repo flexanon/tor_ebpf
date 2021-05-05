@@ -71,8 +71,9 @@ typedef enum {
   RELAY_PROCESS_EDGE_UNKNOWN,
   /** We have one or several circpad machines to globally add to all circuits */
   CIRCPAD_PROTOCOL_INIT,
+  CIRCPAD_PROTOCOL_MACHINEINFO_SETUP,
   /**Conn edge stuffs */
-  CONNECTION_EDGE_ADD_TO_SENDING_BEGIN
+  CONNECTION_EDGE_ADD_TO_SENDING_BEGIN,
 } caller_id_t;
 
 typedef struct entry_point_map_t {
@@ -116,6 +117,8 @@ typedef struct entry_point_map_t {
 #define CIRCPAD_PLUGIN_T 1004
 #define CIRCPAD_NEW_EVENTNUM 1005
 #define CIRCPAD_PLUGIN_CTX 1006
+#define CIRCPAD_PLUGIN_MACHINE_RUNTIME 1007
+#define CIRCPAD_PLUGIN_MACHINE_SPEC 1008
 
 #define CIRCPAD_MAX 2000
 
@@ -155,9 +158,9 @@ entry_point_map_t *plugin_get(entry_point_map_t *key);
  *
  */
 
-uint64_t get(int key, void *pointer);
+uint64_t get(int key, int arglen, ...);
 
-void set(int key, void *pointer, uint64_t val);
+void set(int key, int arglen, ...);
 
 /** used to call function with more than 5 parameters
  * 

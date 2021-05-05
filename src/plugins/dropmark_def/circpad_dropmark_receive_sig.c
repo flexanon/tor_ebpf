@@ -62,12 +62,8 @@ uint64_t circpad_dropmark_def_receive_sig(relay_process_edge_t *pedge) {
 
   cell_t *cell = (cell_t *) get(RELAY_CELL_T, pedge);
   cell_t mycell;
-  char *payload = get(RELAY_CELL_PAYLOAD, cell);
-  my_plugin_memset(&mycell, 0, sizeof(mycell));
   // get accessible content of cell to be parsed
   my_plugin_memcpy(&mycell, cell, sizeof(mycell));
-  mycell.payload = my_plugin_malloc(sizeof(char)*CELL_PAYLOAD_SIZE);
-  my_plugin_memcpy(mycell.payload, payload, CELL_PAYLOAD_SIZE);
 
   circpad_plugin_transition_t signal_transition;
   /** parse the cell and fill in the structure */

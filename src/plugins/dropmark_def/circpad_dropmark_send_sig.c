@@ -112,6 +112,20 @@ circpad_plugin_transition_encode(uint8_t *output, const size_t avail, const circ
   return result;
 }
 
-uint64_t circpad_dropmark_def_send_sig(conn_edge_plugin_args_t *args) {
+uint64_t circpad_dropmark_def_send_activate_sig(conn_edge_plugin_args_t *args) {
+
+  circuit_t *circ = get(CONNEDGE_CIRCUIT_T, args);
+  /* get padding machine  -- we may have multiple padding machines per circuit,
+   * but only one is the dropmark machine :)*/
+  cell_t cell;
+  my_plugin_memset(&cell, 0, sizeof(cell));
+  cell.command = CELL_RELAY;
+  circpad_plugin_transition_t activate_sig;
+  my_plugin_memset(&activate_sig, 0, sizeof(activate_sig));
+  activate_sig.command = CIRCPAD_COMMAND_SIGPLUGIN;
+  activate_sig.signal_type = CIRCPAD_SIGPLUGIN_ACTIVATE;
+  activate_sig.machine_ctr = ?;
+  circpad_plugin_transition_encode(cell.payload, CELL_PAYLOAD_SIZE, &activate_sig);
+
   return 0;
 }

@@ -618,6 +618,12 @@ typedef struct circpad_machine_runtime_t {
    * CIRCPAD_MAX_MACHINES define). */
   unsigned machine_index : 1;
 
+  /**
+   * reserved for machines from plugin usage and for circpad framework
+   * extensions
+   * */
+  void *plugin_machine_runtime;
+
 } circpad_machine_runtime_t;
 
 /** Helper macro to get an actual state machine from a machineinfo */
@@ -692,6 +698,13 @@ typedef struct circpad_machine_spec_t {
    * Number of states this machine has (ie: length of the states array).
    * XXX: This field is not needed other than for safety. */
   circpad_statenum_t num_states;
+
+  /**
+   * reserved for machines from plugin usage and for circpad framework
+   * extensions
+   * */
+
+  void *plugin_machine_spec;
 } circpad_machine_spec_t;
 
 /**
@@ -704,6 +717,7 @@ typedef struct circpad_plugin_args_t {
   smartlist_t *relay_padding_machines;
   /*placeholder for a machine */
   circpad_machine_spec_t *machine;
+  circpad_machine_runtime_t *machine_runtime;
 } circpad_plugin_args_t;
 
 
@@ -796,8 +810,8 @@ circpad_machine_spec_transition, (circpad_machine_runtime_t *mi,
 circpad_decision_t circpad_send_padding_cell_for_callback(
                                  circpad_machine_runtime_t *mi);
 
-void circpad_set(int key, void *pointer, uint64_t val);
-uint64_t circpad_get(int key, void *pointer);
+void circpad_set(int key, va_list *argument);
+uint64_t circpad_get(int key, va_list *arguments);
 
 void circpad_free_all(void);
 

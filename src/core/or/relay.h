@@ -117,9 +117,9 @@ typedef struct relay_process_edge_t {
   cell_t *cell;
 } relay_process_edge_t;
 
-uint64_t relay_get(int key, void *pointer);
+uint64_t relay_get(int key, va_list *arguments);
 
-void relay_set(int key, void *pointer, uint64_t val);
+void relay_set(int key, va_list *arguments);
 
 #ifdef RELAY_PRIVATE
 STATIC int

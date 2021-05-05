@@ -244,6 +244,16 @@ struct circuit_t {
    * that STOP commands actually correspond to the current machine,
    * and not a previous one. */
   uint32_t padding_machine_ctr;
+
+  /**
+   * PLUGIN_XXX
+   *
+   * statics array arn't great if we assume machines can be dynamically loaded
+   * during live connections. A static CIRCPAD_MAX_MACHINES isn't great either,
+   * nor the synchronization between client and relay from a idx in the global
+   * list of machines -- those could potentially differs if global machines get
+   * added by other users dynamically.
+   */
 };
 
 #endif /* !defined(CIRCUIT_ST_H) */

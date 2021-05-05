@@ -140,92 +140,99 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
         return -1; break;
       }
     }
-    else {
-      /** default code */
-      log_debug(LD_PLUGIN, "Plugin not found: ptype:%d, putype:%d, pfamily:%d, entry_name:%s, param: %d", key->ptype, key->putype,
-          key->pfamily, key->entry_name, key->param);
-      return PLUGIN_RUN_DEFAULT;
-    }
+  else {
+    /** default code */
+    log_debug(LD_PLUGIN, "Plugin not found: ptype:%d, putype:%d, pfamily:%d, entry_name:%s, param: %d", key->ptype, key->putype,
+        key->pfamily, key->entry_name, key->param);
+    return PLUGIN_RUN_DEFAULT;
   }
+}
 
-  /**
-   * get and set API access to the plugins
-   *
-   */
+/**
+ * get and set API access to the plugins
+ *
+ */
 
-  uint64_t get(int key, void *pointer) {
-    if (key < RELAY_MAX) {
-      return relay_get(key, pointer);
-    }
-    else if (key < CIRCPAD_MAX) {
-      return circpad_get(key, pointer);
-    }
-    return 0;
+uint64_t get(int key, int arglen, ...) {
+  va_list arguments;
+  va_start(arguments, arglen);
+  uint64_t ret = 0;
+  if (key < RELAY_MAX) {
+    ret = relay_get(key, &arguments);
   }
-
-  void set(int key, void *pointer, uint64_t val) {
-    if (key < RELAY_MAX) {
-      relay_set(key, pointer, val);
-    }
-    else if (key < CIRCPAD_MAX) {
-    }
+  else if (key < CIRCPAD_MAX) {
+    ret = circpad_get(key, &arguments);
   }
+  va_end(arguments);
+  return ret;
+}
 
-  int call_host_func(int keyfunc, int size, ...) {
-    va_list arguments;
-    int ret = 0;
-    switch (keyfunc) {
-      case RELAY_SEND_COMMAND_FROM_EDGE:
-        {
-          va_start(arguments, size);
-          relay_process_edge_t *pedge = va_arg(arguments, relay_process_edge_t*);
-          ret = relay_send_command_from_edge(0, pedge->circ, RELAY_COMMAND_SENDME, 
-              NULL, 0, pedge->layer_hint);
-          break;
-
-        }
-      case CIRCPAD_REGISTER_PADDING_MACHINE:
-        {
-          va_start(arguments, size);
-          circpad_machine_spec_t *machine = va_arg(arguments, circpad_machine_spec_t *);
-          machine->is_plugin_generated = 1; /* the plugin may already did it, but we do it again for safety */
-          smartlist_t *machine_sl = va_arg(arguments, smartlist_t *);
-          circpad_register_padding_machine(machine, machine_sl);
-          ret = 0;
-          break;
-        }
-      case CIRCPAD_MACHINE_STATES_INIT:
-        {
-          va_start(arguments, size);
-          circpad_machine_spec_t *machine = va_arg(arguments, circpad_machine_spec_t *);
-          int nbr_states = va_arg(arguments, int);
-          circpad_machine_states_init(machine, nbr_states);
-          ret = 0;
-          break;
-        }
-      case CIRCPAD_CIRC_PURPOSE_TO_MASK:
-        {
-          va_start(arguments, size);
-          uint32_t purpose = va_arg(arguments, uint32_t);
-          ret = circpad_circ_purpose_to_mask((uint8_t) purpose);
-          break;
-        }
-    }
-    va_end(arguments);
-    return ret;
+void set(int key, int arglen, ...) {
+  va_list arguments;
+  va_start(arguments, arglen);
+  if (key < RELAY_MAX) {
+    relay_set(key, &arguments);
   }
-
-  entry_point_map_t *plugin_get(entry_point_map_t *key) {
-    entry_point_map_t *found;
-    found = HT_FIND(plugin_map_ht, &plugin_map_ht, key);
-    return found;
+  else if (key < CIRCPAD_MAX) {
   }
+  va_end(arguments);
+}
 
-  uint64_t plugin_run(plugin_entry_point_t *entry_point, void *args, size_t args_size) {
-    uint64_t ret = exec_loaded_code(entry_point, args, args_size);
-    if (ret) {
-      log_debug(LD_PLUGIN, "Plugin execution returned %ld", ret);
-      const char *errormsg = ubpf_get_error_msg(entry_point->vm);
+int call_host_func(int keyfunc, int size, ...) {
+  va_list arguments;
+  int ret = 0;
+  switch (keyfunc) {
+    case RELAY_SEND_COMMAND_FROM_EDGE:
+      {
+        va_start(arguments, size);
+        relay_process_edge_t *pedge = va_arg(arguments, relay_process_edge_t*);
+        ret = relay_send_command_from_edge(0, pedge->circ, RELAY_COMMAND_SENDME, 
+            NULL, 0, pedge->layer_hint);
+        break;
+
+      }
+    case CIRCPAD_REGISTER_PADDING_MACHINE:
+      {
+        va_start(arguments, size);
+        circpad_machine_spec_t *machine = va_arg(arguments, circpad_machine_spec_t *);
+        machine->is_plugin_generated = 1; /* the plugin may already did it, but we do it again for safety */
+        smartlist_t *machine_sl = va_arg(arguments, smartlist_t *);
+        circpad_register_padding_machine(machine, machine_sl);
+        ret = 0;
+        break;
+      }
+    case CIRCPAD_MACHINE_STATES_INIT:
+      {
+        va_start(arguments, size);
+        circpad_machine_spec_t *machine = va_arg(arguments, circpad_machine_spec_t *);
+        int nbr_states = va_arg(arguments, int);
+        circpad_machine_states_init(machine, nbr_states);
+        ret = 0;
+        break;
+      }
+    case CIRCPAD_CIRC_PURPOSE_TO_MASK:
+      {
+        va_start(arguments, size);
+        uint32_t purpose = va_arg(arguments, uint32_t);
+        ret = circpad_circ_purpose_to_mask((uint8_t) purpose);
+        break;
+      }
+  }
+  va_end(arguments);
+  return ret;
+}
+
+entry_point_map_t *plugin_get(entry_point_map_t *key) {
+  entry_point_map_t *found;
+  found = HT_FIND(plugin_map_ht, &plugin_map_ht, key);
+  return found;
+}
+
+uint64_t plugin_run(plugin_entry_point_t *entry_point, void *args, size_t args_size) {
+  uint64_t ret = exec_loaded_code(entry_point, args, args_size);
+  if (ret) {
+    log_debug(LD_PLUGIN, "Plugin execution returned %ld", ret);
+    const char *errormsg = ubpf_get_error_msg(entry_point->vm);
     log_debug(LD_PLUGIN, "vm error message: %s", errormsg);
   }
   return ret;

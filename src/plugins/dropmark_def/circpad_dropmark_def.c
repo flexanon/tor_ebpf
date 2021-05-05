@@ -55,6 +55,8 @@ static __attribute__((always_inline)) void register_relay_machine(plugin_t *plug
 
   circpad_machine_spec_t *relay_machine = my_plugin_malloc(plugin, sizeof(circpad_machine_spec_t));
   relay_machine->name = "relay_dropmark_def";
+  // let's just use plugin_machine_spec as a placeholder for a unique name
+  relay_machine->plugin_machine_spec = relay_machine->name;
 
   relay_machine->conditions.min_hops = 2;
   relay_machine->conditions.apply_state_mask = CIRCPAD_CIRC_OPENED;

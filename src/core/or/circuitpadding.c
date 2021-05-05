@@ -324,7 +324,7 @@ circpad_circuit_machineinfo_new(circuit_t *on_circ, int machine_index)
   mi->on_circ = on_circ;
   mi->last_cell_time_sec = approx_time();
   mi->machine_ctr = on_circ->padding_machine_ctr;
-
+  
   return mi;
 }
 
@@ -2530,6 +2530,28 @@ circpad_setup_machine_on_circ(circuit_t *on_circ,
   on_circ->padding_info[machine->machine_index] =
       circpad_circuit_machineinfo_new(on_circ, machine->machine_index);
   on_circ->padding_machine[machine->machine_index] = machine;
+  /**
+   * note that if we malloc anything in mi->plugin_machine_runtime, we need to
+   * call another entrypoint to free it when the circuit gets closed!
+   *
+   * XXX TODO make sure an entry_point is called when the circuit is closed
+   */
+
+  entry_point_map_t pmap;
+  memset(&pmap, 0, sizeof(pmap));
+  pmap.ptype = PLUGIN_DEV;
+  pmap.putype = PLUGIN_CODE_ADD;
+  pmap.pfamily = PLUGIN_PROTOCOL_CIRCPAD;
+  pmap.entry_name = (char *)"circpad_setup_machine_on_circ_add";
+  caller_id_t caller = CIRCPAD_PROTOCOL_MACHINEINFO_SETUP;
+  circpad_plugin_args_t args;
+  args.origin_padding_machines = origin_padding_machines;
+  args.relay_padding_machines = relay_padding_machines;
+  args.machine = machine;
+  args.machine_runtime = &on_circ->padding_machine[machine->machine_index];
+  if (invoke_plugin_operation_or_default(&pmap, caller, (void *)&args)) {
+    log_info(LD_PLUGIN, "We do not have any circpad machine info setup plugin");
+  }
 }
 
 /** Validate a single state of a padding machine */
@@ -3139,37 +3161,45 @@ circpad_handle_padding_negotiated(circuit_t *circ, cell_t *cell,
  * Plugin related functions
  */
 
-void circpad_set(int key, void *pointer, uint64_t val) {
+/**
+ * Allow plugins to set some specific fields
+ */
 
+void circpad_set(int key, va_list *arguments) {
   switch (key) {
     case CIRCPAD_PLUGIN_CTX:
       {
-        circpad_plugin_args_t *args = (circpad_plugin_args_t *) pointer;
+        circpad_plugin_args_t *args = va_arg(*arguments, circpad_plugin_args_t *);
+        uint64_t val = va_arg(*arguments, uint64_t);
         args->plugin->ctx = (void *) val;
       }
   }
 }
 
-uint64_t circpad_get(int key, void *pointer) {
+/**
+ * Expose host handled data to the plugin
+ */
+
+uint64_t circpad_get(int key, va_list *arguments) {
   switch (key) {
     case CIRCPAD_RELAY_MACHINES_SL:
       {
-        circpad_plugin_args_t *args = (circpad_plugin_args_t*) pointer;
+        circpad_plugin_args_t *args = va_arg(*arguments, circpad_plugin_args_t *);
         return (uint64_t) args->relay_padding_machines;
       }
     case CIRCPAD_CLIENT_MACHINES_SL:
       {
-        circpad_plugin_args_t *args = (circpad_plugin_args_t*) pointer;
+        circpad_plugin_args_t *args = va_arg(*arguments, circpad_plugin_args_t *);
         return (uint64_t) args->origin_padding_machines;
       }
     case CIRCPAD_PLUGIN_T:
       {
-        circpad_plugin_args_t *args = (circpad_plugin_args_t*) pointer;
+        circpad_plugin_args_t *args = va_arg(*arguments, circpad_plugin_args_t *);
         return (uint64_t) args->plugin;
       }
     case CIRCPAD_MACHINE_LIST_SIZE:
       {
-        smartlist_t *machines = (smartlist_t *) pointer;
+        smartlist_t *machines = va_arg(*arguments, smartlist_t *);
         return smartlist_len(machines);
       }
     case CIRCPAD_NEW_EVENTNUM:
@@ -3179,8 +3209,18 @@ uint64_t circpad_get(int key, void *pointer) {
       }
     case CIRCPAD_PLUGIN_CTX:
       {
-        circpad_plugin_args_t *args = (circpad_plugin_args_t*) pointer;
+        circpad_plugin_args_t *args = va_arg(*arguments, circpad_plugin_args_t *);
         return (uint64_t) args->plugin->ctx;
+      }
+    case CIRCPAD_PLUGIN_MACHINE_RUNTIME:
+      {
+        circpad_plugin_args_t *args = va_arg(*arguments, circpad_plugin_args_t *);
+        return (uint64_t) args->machine_runtime->plugin_machine_runtime;
+      }
+    case CIRCPAD_PLUGIN_MACHINE_SPEC:
+      {
+        circpad_plugin_args_t *args = va_arg(*arguments, circpad_plugin_args_t *);
+        return (uint64_t) args->machine->plugin_machine_spec;
       }
     default: return 0;
   }

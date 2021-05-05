@@ -3322,7 +3322,7 @@ circuit_queue_streams_are_blocked(circuit_t *circ)
     return circ->streams_blocked_on_p_chan;
   }
 }
-/***
+/**
  * Plugin related functions 
  *
  * 
@@ -3332,36 +3332,36 @@ circuit_queue_streams_are_blocked(circuit_t *circ)
  *
  */
 
-uint64_t relay_get(int key, void *pointer) {
+uint64_t relay_get(int key, va_list *arguments) {
   switch (key) {
     case RELAY_CIRCUIT_T:
       {
-        relay_process_edge_t *pedge = (relay_process_edge_t *) pointer;
+        relay_process_edge_t *pedge = va_arg(*arguments, relay_process_edge_t *);
         return (uint64_t) pedge->circ;
       }
     case RELAY_CELL_T:
       {
-        relay_process_edge_t *pedge = (relay_process_edge_t *) pointer;
+        relay_process_edge_t *pedge = va_arg(*arguments, relay_process_edge_t *);
         return (uint64_t) pedge->cell;
       }
     case RELAY_CRYPT_PATH_T:
       {
-        relay_process_edge_t *pedge = (relay_process_edge_t *) pointer;
+        relay_process_edge_t *pedge = va_arg(*arguments, relay_process_edge_t *);
         return (uint64_t) pedge->layer_hint;
       }
     case RELAY_LAYER_HINT_DELIVER_WINDOW:
       {
-        crypt_path_t *layer_hint = (crypt_path_t*) pointer;
+        crypt_path_t *layer_hint = va_arg(*arguments, crypt_path_t*);
         return layer_hint->deliver_window;
       }
     case RELAY_CIRC_DELIVER_WINDOW:
       {
-        circuit_t *circ = (circuit_t*) pointer;
+        circuit_t *circ = va_arg(*arguments, circuit_t *);
         return circ->deliver_window;
       }
     case RELAY_CONN_DELIVER_WINDOW:
       {
-        relay_process_edge_t *pedge = (relay_process_edge_t *) pointer;
+        relay_process_edge_t *pedge = va_arg(*arguments, relay_process_edge_t *);
         return (uint64_t) pedge->edgeconn->deliver_window;
       }
     default:
@@ -3370,18 +3370,20 @@ uint64_t relay_get(int key, void *pointer) {
   return 0;
 }
 
-void relay_set(int key, void *pointer, uint64_t val) {
+void relay_set(int key, va_list *arguments) {
   switch(key) {
     case RELAY_CIRCUIT_T:;break;
     case RELAY_CIRC_DELIVER_WINDOW:
       {
-        circuit_t *circ = (circuit_t*) pointer;
+        circuit_t *circ = va_arg(*arguments, circuit_t *);
+        uint64_t val = va_arg(*arguments, uint64_t);
         circ->deliver_window = (int) val;
         break;
       }
     case RELAY_CONN_DELIVER_WINDOW:
       {
-        relay_process_edge_t *pedge = (relay_process_edge_t *) pointer;
+        relay_process_edge_t *pedge = va_arg(*arguments, relay_process_edge_t *);
+        uint64_t val = va_arg(*arguments, uint64_t);
         pedge->edgeconn->deliver_window = (int) val;
         break;
       }
