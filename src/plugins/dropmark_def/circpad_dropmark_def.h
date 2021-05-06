@@ -27,5 +27,6 @@ typedef struct circpad_dropmark_t {
 } circpad_dropmark_t;
 
 #define PLUGIN_NUM_EVENTS 3
+#define RELAY_COMMAND_CIRCPAD_SIGPLUGIN 43
 
 #endif

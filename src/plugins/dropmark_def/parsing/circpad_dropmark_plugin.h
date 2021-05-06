@@ -9,6 +9,14 @@
 #include <stdint.h>
 #include "ext/trunnel/trunnel.h"
 
+#if defined(__COVERITY__) || defined(__clang_analyzer__)
+
+int circpadnegotiation_deadcode_dummy__ = 0;
+#define OR_DEADCODE_DUMMY || circpadnegotiation_deadcode_dummy__
+#else
+#define OR_DEADCODE_DUMMY
+#endif
+
 #define CHECK_REMAINING(nbytes, label)                           \
   do {                                                           \
     if (remaining < (nbytes) OR_DEADCODE_DUMMY) {                \

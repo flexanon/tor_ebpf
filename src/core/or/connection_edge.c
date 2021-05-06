@@ -3365,7 +3365,7 @@ connection_ap_handshake_send_begin,(entry_connection_t *ap_conn))
   conn_edge_plugin_args_t args;
   memset(&args, 0, sizeof(args));
   args.edge_conn = edge_conn;
-  args.on_circ = circ;
+  args.on_circ = TO_CIRCUIT(circ);
   args.entry_conn = ap_conn;
 
   int ret = invoke_plugin_operation_or_default(&pmap, caller, (void*)&args);
@@ -4716,6 +4716,34 @@ connection_edge_update_circuit_isolation(const entry_connection_t *conn,
     return 0;
   }
 }
+
+/**
+ * Plugin stuff
+ */
+
+void connedge_set(int key, va_list *arguments) {
+  (void)arguments;
+  switch (key) {
+    default: break;
+  }
+}
+
+uint64_t connedge_get(int key, va_list *arguments) {
+  switch (key) {
+    case CONNEDGE_ARG_CIRCUIT_T:
+      {
+        conn_edge_plugin_args_t *args = va_arg(*arguments, conn_edge_plugin_args_t *);
+        return (uint64_t) args->on_circ;
+      }
+    case CONNEDGE_ARG_PLUGIN_T:
+      {
+        conn_edge_plugin_args_t *args = va_arg(*arguments, conn_edge_plugin_args_t *);
+        return (uint64_t) args->plugin;
+      }
+  }
+  return 0;
+}
+
 
 /**
  * Clear the isolation settings on <b>circ</b>.

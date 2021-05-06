@@ -1182,7 +1182,7 @@ circpad_machine_remove_token(circpad_machine_runtime_t *mi)
  *
  * Returns negative on error, 0 on success.
  */
-MOCK_IMPL(STATIC signed_error_t,
+MOCK_IMPL(signed_error_t,
 circpad_send_command_to_hop,(origin_circuit_t *circ, uint8_t hopnum,
                              uint8_t relay_command, const uint8_t *payload,
                              ssize_t payload_len))
@@ -2547,8 +2547,8 @@ circpad_setup_machine_on_circ(circuit_t *on_circ,
   circpad_plugin_args_t args;
   args.origin_padding_machines = origin_padding_machines;
   args.relay_padding_machines = relay_padding_machines;
-  args.machine = machine;
-  args.machine_runtime = &on_circ->padding_machine[machine->machine_index];
+  args.machine = (circpad_machine_spec_t *) machine;
+  args.machine_runtime = (circpad_machine_runtime_t *)on_circ->padding_machine[machine->machine_index];
   if (invoke_plugin_operation_or_default(&pmap, caller, (void *)&args)) {
     log_info(LD_PLUGIN, "We do not have any circpad machine info setup plugin");
   }
@@ -3172,6 +3172,15 @@ void circpad_set(int key, va_list *arguments) {
         circpad_plugin_args_t *args = va_arg(*arguments, circpad_plugin_args_t *);
         uint64_t val = va_arg(*arguments, uint64_t);
         args->plugin->ctx = (void *) val;
+        break;
+      }
+
+    case CIRCPAD_PLUGIN_MACHINE_RUNTIME:
+      {
+        circpad_machine_runtime_t *mr = va_arg(*arguments, circpad_machine_runtime_t *);
+        void *ptr = (void *) va_arg(*arguments, uint64_t);
+        mr->plugin_machine_runtime = ptr;
+        break;
       }
   }
 }
@@ -3192,7 +3201,7 @@ uint64_t circpad_get(int key, va_list *arguments) {
         circpad_plugin_args_t *args = va_arg(*arguments, circpad_plugin_args_t *);
         return (uint64_t) args->origin_padding_machines;
       }
-    case CIRCPAD_PLUGIN_T:
+    case CIRCPAD_ARG_PLUGIN_T:
       {
         circpad_plugin_args_t *args = va_arg(*arguments, circpad_plugin_args_t *);
         return (uint64_t) args->plugin;
@@ -3212,15 +3221,43 @@ uint64_t circpad_get(int key, va_list *arguments) {
         circpad_plugin_args_t *args = va_arg(*arguments, circpad_plugin_args_t *);
         return (uint64_t) args->plugin->ctx;
       }
-    case CIRCPAD_PLUGIN_MACHINE_RUNTIME:
+    case CIRCPAD_MACHINE_RUNTIME:
+      {
+        circuit_t *circ = va_arg(*arguments, circuit_t *);
+        char *name = va_arg(*arguments, char*);
+        int namelen = va_arg(*arguments, int);
+        for (int i = 0; i < CIRCPAD_MAX_MACHINES; i++) {
+          if (!strncmp((char*) circ->padding_info[i]->plugin_machine_runtime, name, namelen))
+            return (uint64_t) circ->padding_info[i];
+        }
+        return (uint64_t) 0;
+      }
+    case CIRCPAD_ARG_MACHINE_RUNTIME:
       {
         circpad_plugin_args_t *args = va_arg(*arguments, circpad_plugin_args_t *);
-        return (uint64_t) args->machine_runtime->plugin_machine_runtime;
+        return (uint64_t) args->machine_runtime;
+      }
+    case CIRCPAD_MACHINE_CTR:
+      {
+        circuit_t *circ = va_arg(*arguments, circuit_t *);
+        char *name = va_arg(*arguments, char*);
+        int namelen = va_arg(*arguments, int);
+        for (int i = 0; i < CIRCPAD_MAX_MACHINES; i++) {
+            if (!strncmp((char*) circ->padding_info[i]->plugin_machine_runtime, name, namelen))
+              return (uint64_t) circ->padding_info[i]->machine_ctr;
+        }
+        return (uint64_t) CIRCPAD_MAX_MACHINES+1;
       }
     case CIRCPAD_PLUGIN_MACHINE_SPEC:
       {
         circpad_plugin_args_t *args = va_arg(*arguments, circpad_plugin_args_t *);
         return (uint64_t) args->machine->plugin_machine_spec;
+      }
+
+    case CIRCPAD_MACHINE_SPEC_T:
+      {
+        circpad_plugin_args_t *args = va_arg(*arguments, circpad_plugin_args_t *);
+        return (uint64_t) args->machine;
       }
     default: return 0;
   }

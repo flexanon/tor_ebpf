@@ -93,11 +93,11 @@ typedef struct entry_point_map_t {
    * Access main objects of process_edge
    */
 /** get circuit_t* */
-#define RELAY_CIRCUIT_T 10
+#define RELAY_ARG_CIRCUIT_T 10
 /*  get crypt_path_t*  */
-#define RELAY_CRYPT_PATH_T 11
+#define RELAY_ARG_CRYPT_PATH_T 11
 /*  get cell_t* */
-#define RELAY_CELL_T 12
+#define RELAY_ARG_CELL_T 12
 
 
 // TODO We need something that can be loaded from some state file instead!
@@ -107,6 +107,7 @@ typedef struct entry_point_map_t {
 #define RELAY_CIRC_DELIVER_WINDOW 14
 #define RELAY_CONN_DELIVER_WINDOW 15
 #define RELAY_PLUGIN_CTX 16
+#define RELAY_ARG_PLUGIN_T 17
 
 #define RELAY_MAX 1000
 
@@ -114,13 +115,26 @@ typedef struct entry_point_map_t {
 #define CIRCPAD_MACHINE_LIST_SIZE 1001
 #define CIRCPAD_CLIENT_MACHINES_SL 1002
 #define CIRCPAD_RELAY_MACHINES_SL 1003
-#define CIRCPAD_PLUGIN_T 1004
+/*circpad_plugin_args_t.plugin */
+#define CIRCPAD_ARG_PLUGIN_T 1004
 #define CIRCPAD_NEW_EVENTNUM 1005
 #define CIRCPAD_PLUGIN_CTX 1006
-#define CIRCPAD_PLUGIN_MACHINE_RUNTIME 1007
+#define CIRCPAD_MACHINE_RUNTIME 1007
 #define CIRCPAD_PLUGIN_MACHINE_SPEC 1008
+#define CIRCPAD_MACHINE_CTR 1009
+/*circpad_plugin_args_t.machine */
+#define CIRCPAD_MACHINE_SPEC_T 1010
+/*circpad_plugin_args_t.machine_runtime */
+#define CIRCPAD_ARG_MACHINE_RUNTIME 1011
+/*circpad_machine_runtime_t.plugin_machine_runtime*/
+#define CIRCPAD_PLUGIN_MACHINE_RUNTIME 1012
 
 #define CIRCPAD_MAX 2000
+
+#define CONNEDGE_ARG_CIRCUIT_T 2001
+#define CONNEDGE_ARG_PLUGIN_T 2002
+
+#define CONNEDGE_MAX 3000
 
 /*** KEYFUNC */
 
@@ -132,6 +146,8 @@ typedef struct entry_point_map_t {
 #define CIRCPAD_REGISTER_PADDING_MACHINE 101
 #define CIRCPAD_MACHINE_STATES_INIT 102
 #define CIRCPAD_CIRC_PURPOSE_TO_MASK 103
+#define CIRCPAD_MACHINE_SPEC_TRANSITION 104
+#define CIRCPAD_SEND_COMMAND_TO_MIDDLE_HOP 105
 
 #define CIRCPAD_KEYFUNC_MAX 200
 

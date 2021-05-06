@@ -59,6 +59,7 @@
 
 
 uint32_t my_ntohl(uint32_t const net);
+uint32_t my_htonl(uint32_t const net);
 
 /** The number of bits from an address to consider while doing a masked
  * comparison. */

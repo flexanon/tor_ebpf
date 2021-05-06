@@ -2244,8 +2244,15 @@ string_is_valid_nonrfc_hostname(const char *string)
 
   return result;
 }
+
+static int is_little_endian(void) {
+  int i = 1;
+  return (int)*((unsigned char *)&i) == 1 ? 1 : 0;
+}
+
 //#ifdef PLUGIN_CLANG
 uint32_t my_ntohl(uint32_t const net) {
+  if (is_little_endian()) {
     uint8_t data[4] = {};
     memcpy(&data, &net, sizeof(data));
 
@@ -2253,5 +2260,14 @@ uint32_t my_ntohl(uint32_t const net) {
          | ((uint32_t) data[2] << 8)
          | ((uint32_t) data[1] << 16)
          | ((uint32_t) data[0] << 24);
+  }
+  else
+    return net;
 }
+
+uint32_t my_htonl(uint32_t const net) {
+  return my_ntohl(net);
+}
+
+
 //#endif

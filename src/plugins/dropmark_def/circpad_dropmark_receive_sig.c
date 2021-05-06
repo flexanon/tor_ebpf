@@ -3,7 +3,10 @@
 #include "core/or/circuitpadding.h"
 #include "core/or/plugin.h"
 #include "core/or/plugin_helper.h"
+#include "core/or/cell_st.h"
+#include "core/or/relay.h"
 #include "plugins/dropmark_def/circpad_dropmark_def.h"
+#include "plugins/dropmark_def/parsing/circpad_dropmark_plugin.h"
 #include "ubpf/vm/plugin_memory.h"
 #include "ext/trunnel/trunnel-impl.h"
 #include <assert.h>
@@ -60,20 +63,33 @@ circpad_plugin_transition_parse_into(circpad_plugin_transition_t *obj, const uin
 
 uint64_t circpad_dropmark_def_receive_sig(relay_process_edge_t *pedge) {
 
-  cell_t *cell = (cell_t *) get(RELAY_CELL_T, pedge);
-  cell_t mycell;
+  cell_t *cell = (cell_t *) get(RELAY_ARG_CELL_T, 1, pedge);
+  plugin_t *plugin = (plugin_t *) get(RELAY_ARG_PLUGIN_T, 1, pedge);
+  circuit_t *circ = (circuit_t *) get(RELAY_ARG_CIRCUIT_T, 1, pedge);
+  cell_t *mycell = my_plugin_malloc(plugin, sizeof(*mycell));
   // get accessible content of cell to be parsed
-  my_plugin_memcpy(&mycell, cell, sizeof(mycell));
+  my_plugin_memcpy(mycell, cell, sizeof(*mycell));
 
   circpad_plugin_transition_t signal_transition;
   /** parse the cell and fill in the structure */
-  circpad_parse_plugin_signal(&signal_transition,
-      mycell->payload+RELAY_HEADER_SIZE, CELL_PAYLOAD_SIZE-RELAY_HEADER_SIZE);
+  int ret;
+  if ((ret = circpad_plugin_transition_parse_into(&signal_transition,
+      mycell->payload+RELAY_HEADER_SIZE, CELL_PAYLOAD_SIZE-RELAY_HEADER_SIZE)) < 0){
+    log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__,
+        "Looks like we did not successufully parse the cell: error %d (-2 == truncated), (-1 == fail)", ret);
+  }
+  my_plugin_free(plugin, mycell);
   // get the machine runtime
-
-  circpad_machine_spec_transition(, signal_transition.signal_type);
-  my_plugin_free(mycell.payload);
+  circpad_machine_runtime_t *mr = (circpad_machine_runtime_t *)
+    get(CIRCPAD_MACHINE_RUNTIME, 3, circ, "relay_dropmark_def", (int)18);
+  if (!mr) {
+    log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__,
+        "Looks like CIRCPAD_MACHINE_RUNTIME return NULL for machine 'relay_dropmark_def'");
+    /**
+     * note, we would need to cleanup the whole plugin for that kind of issue
+     **/
+    return PLUGIN_RUN_DEFAULT;
+  }
+  call_host_func(CIRCPAD_MACHINE_SPEC_TRANSITION, 2, mr, signal_transition.signal_type);
   return 0;
-  /** What event do we have here? -- just notify the transition */
-  //XXX todo
 }

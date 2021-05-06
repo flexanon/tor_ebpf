@@ -48,6 +48,9 @@ register_dev_functions(struct ubpf_vm *vm)
   tor_assert(ubpf_register(vm, idx++, "call_host_func", call_host_func) != -1);
 
   tor_assert(ubpf_register(vm, idx++, "my_ntohl", my_ntohl) != -1);
+  // we could map my_htonl to my_ntohl directly instead
+  tor_assert(ubpf_register(vm, idx++, "my_htonl", my_htonl) != -1);
+
   /** memory */
   tor_assert(ubpf_register(vm, idx++, "my_plugin_malloc", my_plugin_malloc) != -1);
   tor_assert(ubpf_register(vm, idx++, "my_plugin_free", my_plugin_free) != -1);

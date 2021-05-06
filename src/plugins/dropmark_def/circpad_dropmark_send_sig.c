@@ -3,7 +3,9 @@
 #include "core/or/circuitpadding.h"
 #include "core/or/plugin.h"
 #include "core/or/plugin_helper.h"
+#include "core/or/cell_st.h"
 #include "plugins/dropmark_def/circpad_dropmark_def.h"
+#include "plugins/dropmark_def/parsing/circpad_dropmark_plugin.h"
 #include "ubpf/vm/plugin_memory.h"
 #include "ext/trunnel/trunnel-impl.h"
 #include "core/or/connection_edge.h"
@@ -85,7 +87,7 @@ circpad_plugin_transition_encode(uint8_t *output, const size_t avail, const circ
   assert(written <= avail);
   if (avail - written < 4)
     goto truncated;
-  trunnel_set_uint32(ptr, trunnel_htonl(obj->machine_ctr));
+  trunnel_set_uint32(ptr, my_htonl(obj->machine_ctr));
   written += 4; ptr += 4;
 
 
@@ -113,19 +115,31 @@ circpad_plugin_transition_encode(uint8_t *output, const size_t avail, const circ
 }
 
 uint64_t circpad_dropmark_def_send_activate_sig(conn_edge_plugin_args_t *args) {
-
-  circuit_t *circ = get(CONNEDGE_CIRCUIT_T, args);
+  circuit_t *circ = (circuit_t *) get(CONNEDGE_ARG_CIRCUIT_T, 1, args);
+  plugin_t *plugin = (plugin_t *) get(CONNEDGE_ARG_PLUGIN_T, 1, args);
   /* get padding machine  -- we may have multiple padding machines per circuit,
    * but only one is the dropmark machine :)*/
-  cell_t cell;
-  my_plugin_memset(&cell, 0, sizeof(cell));
-  cell.command = CELL_RELAY;
+  int machine_ctr = (int) get(CIRCPAD_MACHINE_CTR, 2, circ, "client_dropmark_def", (int)19);
+  if (machine_ctr > CIRCPAD_MAX_MACHINES) {
+    log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__,
+        "Looks like machine 'client_dropmark_def'does not exist");
+    return PLUGIN_RUN_DEFAULT;
+  }
+  /** The bpf stack is only 512 bytes. We cannot stack alloc a cell :'
+   *  We could however create a function on the host to package properly a cell
+   *  from a given payload < 512 bytes that could be stack-allocated */
+  cell_t *cell;
+  cell = my_plugin_malloc(plugin, sizeof(*cell));
+  my_plugin_memset(cell, 0, sizeof(cell));
+  cell->command = CELL_RELAY;
   circpad_plugin_transition_t activate_sig;
   my_plugin_memset(&activate_sig, 0, sizeof(activate_sig));
   activate_sig.command = CIRCPAD_COMMAND_SIGPLUGIN;
   activate_sig.signal_type = CIRCPAD_SIGPLUGIN_ACTIVATE;
-  activate_sig.machine_ctr = ?;
-  circpad_plugin_transition_encode(cell.payload, CELL_PAYLOAD_SIZE, &activate_sig);
-
+  activate_sig.machine_ctr = machine_ctr;
+  ssize_t len = circpad_plugin_transition_encode(cell->payload, CELL_PAYLOAD_SIZE, &activate_sig);
+  call_host_func(CIRCPAD_SEND_COMMAND_TO_MIDDLE_HOP, 3, circ,
+      cell->payload, (ssize_t) len);
+  my_plugin_free(plugin, cell);
   return 0;
 }

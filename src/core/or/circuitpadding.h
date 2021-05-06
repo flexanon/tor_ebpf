@@ -632,6 +632,7 @@ typedef struct circpad_machine_runtime_t {
 
 /**
  * This specifies a particular padding machine to use after negotiation.
+        circuit_t *circ = va_arg(*arguments, circuit_t *);
  *
  * The constants for machine_num_t are in trunnel.
  * We want to be able to define extra numbers in the consensus/torrc, though.
@@ -851,7 +852,7 @@ STATIC void circpad_machine_remove_closest_token(circpad_machine_runtime_t *mi,
                                          bool use_usec);
 STATIC void circpad_machine_setup_tokens(circpad_machine_runtime_t *mi);
 
-MOCK_DECL(STATIC signed_error_t,
+MOCK_DECL(signed_error_t,
 circpad_send_command_to_hop,(struct origin_circuit_t *circ, uint8_t hopnum,
                              uint8_t relay_command, const uint8_t *payload,
                              ssize_t payload_len));

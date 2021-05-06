@@ -163,6 +163,9 @@ uint64_t get(int key, int arglen, ...) {
   else if (key < CIRCPAD_MAX) {
     ret = circpad_get(key, &arguments);
   }
+  else if (key < CONNEDGE_MAX) {
+    ret = connedge_get(key, &arguments);
+  }
   va_end(arguments);
   return ret;
 }
@@ -174,17 +177,27 @@ void set(int key, int arglen, ...) {
     relay_set(key, &arguments);
   }
   else if (key < CIRCPAD_MAX) {
+    circpad_set(key, &arguments);
+  }
+  else if (key < CONNEDGE_MAX) {
+    connedge_set(key, &arguments);
   }
   va_end(arguments);
 }
 
+/**
+ * Indirect call to functions
+ *
+ * Call a host function from some plugin
+ * XXX Ideally we should do input sanitization
+ */
 int call_host_func(int keyfunc, int size, ...) {
   va_list arguments;
   int ret = 0;
+  va_start(arguments, size);
   switch (keyfunc) {
     case RELAY_SEND_COMMAND_FROM_EDGE:
       {
-        va_start(arguments, size);
         relay_process_edge_t *pedge = va_arg(arguments, relay_process_edge_t*);
         ret = relay_send_command_from_edge(0, pedge->circ, RELAY_COMMAND_SENDME, 
             NULL, 0, pedge->layer_hint);
@@ -193,7 +206,6 @@ int call_host_func(int keyfunc, int size, ...) {
       }
     case CIRCPAD_REGISTER_PADDING_MACHINE:
       {
-        va_start(arguments, size);
         circpad_machine_spec_t *machine = va_arg(arguments, circpad_machine_spec_t *);
         machine->is_plugin_generated = 1; /* the plugin may already did it, but we do it again for safety */
         smartlist_t *machine_sl = va_arg(arguments, smartlist_t *);
@@ -203,7 +215,6 @@ int call_host_func(int keyfunc, int size, ...) {
       }
     case CIRCPAD_MACHINE_STATES_INIT:
       {
-        va_start(arguments, size);
         circpad_machine_spec_t *machine = va_arg(arguments, circpad_machine_spec_t *);
         int nbr_states = va_arg(arguments, int);
         circpad_machine_states_init(machine, nbr_states);
@@ -212,10 +223,29 @@ int call_host_func(int keyfunc, int size, ...) {
       }
     case CIRCPAD_CIRC_PURPOSE_TO_MASK:
       {
-        va_start(arguments, size);
         uint32_t purpose = va_arg(arguments, uint32_t);
         ret = circpad_circ_purpose_to_mask((uint8_t) purpose);
         break;
+      }
+    case CIRCPAD_MACHINE_SPEC_TRANSITION:
+      {
+        circpad_machine_runtime_t *mr = va_arg(arguments, circpad_machine_runtime_t *);
+        circpad_event_t event = va_arg(arguments, circpad_event_t);
+        circpad_machine_spec_transition(mr, event);
+        ret = 0;
+        break;
+      }
+    case CIRCPAD_SEND_COMMAND_TO_MIDDLE_HOP:
+      {
+        origin_circuit_t *ocirc = TO_ORIGIN_CIRCUIT(va_arg(arguments, circuit_t*));
+        uint8_t hop = 2;
+        uint8_t command = 255; // should not be used by any core protocol feature
+        uint8_t *payload = va_arg(arguments, uint8_t*);
+        ssize_t len = va_arg(arguments, ssize_t);
+        if (circpad_send_command_to_hop(ocirc, hop, command, payload, len)) {
+          log_debug(LD_PLUGIN, "Failed to send command %d at hop %d, with length %lu", command, hop, len);
+        }
+        ret = 0;
       }
   }
   va_end(arguments);

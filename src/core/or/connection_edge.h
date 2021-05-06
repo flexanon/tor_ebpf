@@ -250,6 +250,9 @@ typedef struct conn_edge_plugin_args_t {
   plugin_t *plugin;
 } conn_edge_plugin_args_t;
 
+void connedge_set(int key, va_list *arguments);
+uint64_t connedge_get(int key, va_list *arguments);
+
 #ifdef CONNECTION_EDGE_PRIVATE
 
 STATIC bool parse_extended_hostname(char *address, hostname_type_t *type_out);

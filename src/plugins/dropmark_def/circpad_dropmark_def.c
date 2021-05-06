@@ -6,7 +6,7 @@
 #include "plugins/dropmark_def/circpad_dropmark_def.h"
 #include "ubpf/vm/plugin_memory.h"
 
-static num_events = CIRCPAD_NUM_EVENTS + PLUGIN_NUM_EVENTS
+static int num_events = CIRCPAD_NUM_EVENTS + PLUGIN_NUM_EVENTS;
 
 /**
  * The plugin has ownership of the machines's memory. States should be malloc'ed
@@ -34,7 +34,7 @@ plugin_circpad_machine_states_init(plugin_t *plugin, circpad_machine_spec_t *mac
   /* Initialize the default next state for all events to
    * "ignore" -- if events aren't specified, they are ignored. */
   for (circpad_statenum_t s = 0; s < num_states; s++) {
-    machine->states[s].next_state = my_plugin_malloc(num_events*sizeof(circpad_statenum_t));
+    machine->states[s].next_state = my_plugin_malloc(plugin, num_events*sizeof(circpad_statenum_t));
     machine->states[s].circpad_num_events = num_events;
     for (int e = 0; e < num_events; e++) {
       machine->states[s].next_state[e] = CIRCPAD_STATE_IGNORE;
@@ -51,12 +51,13 @@ plugin_circpad_machine_states_init(plugin_t *plugin, circpad_machine_spec_t *mac
  * again notified by the client, the machine should be itself silent.
  */
 
-static __attribute__((always_inline)) void register_relay_machine(plugin_t *plugin, smartlist_t *relay_machines) {
+static __attribute__((always_inline)) void register_relay_machine(plugin_t
+    *plugin, circpad_dropmark_t *ctx, smartlist_t *relay_machines) {
 
   circpad_machine_spec_t *relay_machine = my_plugin_malloc(plugin, sizeof(circpad_machine_spec_t));
   relay_machine->name = "relay_dropmark_def";
   // let's just use plugin_machine_spec as a placeholder for a unique name
-  relay_machine->plugin_machine_spec = relay_machine->name;
+  relay_machine->plugin_machine_spec = (void *) relay_machine->name;
 
   relay_machine->conditions.min_hops = 2;
   relay_machine->conditions.apply_state_mask = CIRCPAD_CIRC_OPENED;
@@ -96,7 +97,7 @@ static __attribute__((always_inline)) void register_relay_machine(plugin_t *plug
    * tells us to do so */
 
   relay_machine->states[CIRCPAD_STATE_START].
-    next_state[CIRCPAD_EVENT_SIGPLUGIN_ACTIVATE] =
+    next_state[ctx->CIRCPAD_EVENT_SIGPLUGIN_ACTIVATE] =
     CIRCPAD_STATE_BURST;
   /* transition to itself when all the padding cells are sent -- we wait again some random
    * interval and then send a random number of padding cells again */
@@ -105,10 +106,10 @@ static __attribute__((always_inline)) void register_relay_machine(plugin_t *plug
     CIRCPAD_STATE_BURST;
   /* When the client tells us to be silent, we move to the start state */
   relay_machine->states[CIRCPAD_STATE_BURST].
-    next_state[CIRCPAD_EVENT_SIGPLUGIN_BE_SILENT] =
+    next_state[ctx->CIRCPAD_EVENT_SIGPLUGIN_BE_SILENT] =
     CIRCPAD_STATE_START;
 
-  relay_machine->machine_num = get(CIRCPAD_MACHINE_LIST_SIZE, relay_machines);
+  relay_machine->machine_num = get(CIRCPAD_MACHINE_LIST_SIZE, 1, relay_machines);
   call_host_func(CIRCPAD_REGISTER_PADDING_MACHINE, 2, relay_machine, relay_machines);
 
   log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__,
@@ -116,11 +117,12 @@ static __attribute__((always_inline)) void register_relay_machine(plugin_t *plug
 
 }
 
-static __attribute__((always_inline)) void register_client_machine(plugin_t *plugin, smartlist_t *relay_machines) {
-  circpad_machine_spec_t *client_machine = my_public_malloc(plugin, sizeof(circpad_machine_spec_t));
+static __attribute__((always_inline)) void register_client_machine(plugin_t
+    *plugin, circpad_dropmark_t *ctx, smartlist_t *client_machines) {
+  circpad_machine_spec_t *client_machine = my_plugin_malloc(plugin, sizeof(circpad_machine_spec_t));
 
   client_machine->name = "client_dropmark_def";
-  client_machine->conditions.target_hopnum = 2;
+  client_machine->target_hopnum = 2;
 
   client_machine->is_origin_side = 1;
 
@@ -129,23 +131,23 @@ static __attribute__((always_inline)) void register_client_machine(plugin_t *plu
    * It tells the middle relay to stop the padding */
 
   client_machine->states[CIRCPAD_STATE_START].
-    next_state[CIRCPAD_EVENT_SIGPLUGIN_BE_SILENT] =
+    next_state[ctx->CIRCPAD_EVENT_SIGPLUGIN_BE_SILENT] =
     CIRCPAD_STATE_START;
   /**
    * This event should trigger a new message to the middle relay to activate
    * padding
    **/
   client_machine->states[CIRCPAD_STATE_START].
-    next_state[CIRCPAD_EVENT_SIGPLUGIN_ACTIVATE] =
+    next_state[ctx->CIRCPAD_EVENT_SIGPLUGIN_ACTIVATE] =
     CIRCPAD_STATE_START;
 
   client_machine->states[CIRCPAD_STATE_START].
-    next_state[CIRCPAD_EVENT_SIGPLUGIN_CLOSE] =
+    next_state[ctx->CIRCPAD_EVENT_SIGPLUGIN_CLOSE] =
     CIRCPAD_STATE_END;
 
   client_machine->should_negotiate_end = 1;
 
-  client_machine->machine_num = get(CIRCPAD_MACHINE_LIST_SIZE, client_machines);
+  client_machine->machine_num = (int) get(CIRCPAD_MACHINE_LIST_SIZE, 1, client_machines);
 
   call_host_func(CIRCPAD_REGISTER_PADDING_MACHINE, 2, client_machine, client_machines);
   log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__,
@@ -154,14 +156,15 @@ static __attribute__((always_inline)) void register_client_machine(plugin_t *plu
 
 uint64_t circpad_dropmark_defense(circpad_plugin_args_t *args) {
   //register events
-  smartlist_t *client_machines = (smartlist_t*) get(CIRCPAD_CLIENT_MACHINES_SL, args);
-  smartlist_t *relay_machines = (smartlist_t*) get(CIRCPAD_RELAY_MACHINES_SL, args);
-  circpad_dropmark_t *ctx = my_plugin_malloc(sizeof(*ctx));
-  ctx->CIRCPAD_EVENT_SIGPLUGIN_ACTIVATE = (int) get(CIRCPAD_NEW_EVENTNUM, NULL);
-  ctx->CIRCPAD_EVENT_SIGPLUGIN_BE_SILENT = (int) get(CIRCPAD_NEW_EVENTNUM, NULL);
-  cxt->CIRCPAD_EVENT_SIGPLUGIN_CLOSE = (int) get(CIRCPAD_NEW_EVENTNUM, NULL);
-  set(CIRCPAD_PLUGIN_CTX, args, ctx);
-  plugin_t *plugin = (plugin_t *) get(CIRCPAD_PLUGIN_T, args);
-  register_relay_machine(plugin, relay_machines);
-  register_client_machine(plugin, client_machines);
+  smartlist_t *client_machines = (smartlist_t*) get(CIRCPAD_CLIENT_MACHINES_SL, 1, args);
+  smartlist_t *relay_machines = (smartlist_t*) get(CIRCPAD_RELAY_MACHINES_SL, 1, args);
+  plugin_t *plugin = (plugin_t *) get(CIRCPAD_ARG_PLUGIN_T, 1, args);
+  circpad_dropmark_t *ctx = my_plugin_malloc(plugin, sizeof(*ctx));
+  ctx->CIRCPAD_EVENT_SIGPLUGIN_ACTIVATE = (int) get(CIRCPAD_NEW_EVENTNUM, 0, NULL);
+  ctx->CIRCPAD_EVENT_SIGPLUGIN_BE_SILENT = (int) get(CIRCPAD_NEW_EVENTNUM, 0, NULL);
+  ctx->CIRCPAD_EVENT_SIGPLUGIN_CLOSE = (int) get(CIRCPAD_NEW_EVENTNUM, 0, NULL);
+  set(CIRCPAD_PLUGIN_CTX, 2, args, ctx);
+  register_relay_machine(plugin, ctx, relay_machines);
+  register_client_machine(plugin, ctx, client_machines);
+  return 0;
 }

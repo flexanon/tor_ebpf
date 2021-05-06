@@ -3334,17 +3334,22 @@ circuit_queue_streams_are_blocked(circuit_t *circ)
 
 uint64_t relay_get(int key, va_list *arguments) {
   switch (key) {
-    case RELAY_CIRCUIT_T:
+    case RELAY_ARG_CIRCUIT_T:
       {
         relay_process_edge_t *pedge = va_arg(*arguments, relay_process_edge_t *);
         return (uint64_t) pedge->circ;
       }
-    case RELAY_CELL_T:
+    case RELAY_ARG_CELL_T:
       {
         relay_process_edge_t *pedge = va_arg(*arguments, relay_process_edge_t *);
         return (uint64_t) pedge->cell;
       }
-    case RELAY_CRYPT_PATH_T:
+    case RELAY_ARG_PLUGIN_T:
+      {
+        relay_process_edge_t *pedge = va_arg(*arguments, relay_process_edge_t *);
+        return (uint64_t) pedge->plugin;
+      }
+    case RELAY_ARG_CRYPT_PATH_T:
       {
         relay_process_edge_t *pedge = va_arg(*arguments, relay_process_edge_t *);
         return (uint64_t) pedge->layer_hint;
@@ -3372,7 +3377,7 @@ uint64_t relay_get(int key, va_list *arguments) {
 
 void relay_set(int key, va_list *arguments) {
   switch(key) {
-    case RELAY_CIRCUIT_T:;break;
+    case RELAY_ARG_CIRCUIT_T:;break;
     case RELAY_CIRC_DELIVER_WINDOW:
       {
         circuit_t *circ = va_arg(*arguments, circuit_t *);
