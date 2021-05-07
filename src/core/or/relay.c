@@ -1403,6 +1403,23 @@ connection_edge_process_relay_cell_not_open(
              (unsigned)circ->n_circ_id,
              rh->stream_id,
              (int)(time(NULL) - conn->base_.timestamp_last_read_allowed));
+    /**
+     * We got a connected cell -- let's add a plugin if any
+     */
+    entry_point_map_t pmap;
+    memset(&pmap, 0, sizeof(pmap));
+    pmap.ptype = PLUGIN_DEV;
+    pmap.putype = PLUGIN_CODE_ADD;
+    pmap.pfamily = PLUGIN_PROTOCOL_CONN_EDGE;
+    pmap.entry_name = (char *) "plugin_received_connected_cell";
+    caller_id_t caller = RELAY_RECEIVED_CONNECTED_CELL;
+    conn_edge_plugin_args_t args;
+    memset(&args, 0, sizeof(args));
+    args.on_circ = circ;
+    args.edge_conn = conn;
+    if (invoke_plugin_operation_or_default(&pmap, caller, (void*)&args)) {
+      log_debug(LD_PLUGIN, "Entry point %s returned a non-zero value", pmap.entry_name);
+    }
     if (connected_cell_parse(rh, cell, &addr, &ttl) < 0) {
       log_fn(LOG_PROTOCOL_WARN, LD_APP,
              "Got a badly formatted connected cell. Closing.");

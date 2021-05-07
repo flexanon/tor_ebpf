@@ -31,6 +31,11 @@
 #include <grp.h>
 #endif /* defined(_WIN32) */
 
+/**
+ * Read a line of the .plugin file.
+ * We may expect this logic to _completely_ change in the future :)
+ */
+
 static int insert_plugin_from_transaction_line(char *line, char *plugin_dirname,
     entry_info_t *einfo, plugin_t *plugin) {
   /* Part one: extract name */
@@ -54,6 +59,10 @@ static int insert_plugin_from_transaction_line(char *line, char *plugin_dirname,
   }
   else if (strncmp(token, "protocol_circpad", 16) == 0) {
     einfo->pfamily = PLUGIN_PROTOCOL_CIRCPAD;
+    einfo->ptype = PLUGIN_DEV;
+  }
+  else if (strncmp(token, "protocol_conn_edge", 18) == 0) {
+    einfo->pfamily = PLUGIN_PROTOCOL_CONN_EDGE;
     einfo->ptype = PLUGIN_DEV;
   }
   else {

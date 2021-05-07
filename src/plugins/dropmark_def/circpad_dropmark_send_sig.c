@@ -117,6 +117,7 @@ circpad_plugin_transition_encode(uint8_t *output, const size_t avail, const circ
 uint64_t circpad_dropmark_def_send_activate_sig(conn_edge_plugin_args_t *args) {
   circuit_t *circ = (circuit_t *) get(CONNEDGE_ARG_CIRCUIT_T, 1, args);
   plugin_t *plugin = (plugin_t *) get(CONNEDGE_ARG_PLUGIN_T, 1, args);
+  circpad_dropmark_t *ctx = (circpad_dropmark_t *) get(CONNEDGE_PLUGIN_CTX, 1, args);
   /* get padding machine  -- we may have multiple padding machines per circuit,
    * but only one is the dropmark machine :)*/
   int machine_ctr = (int) get(CIRCPAD_MACHINE_CTR, 2, circ, "client_dropmark_def", (int)19);
@@ -135,7 +136,18 @@ uint64_t circpad_dropmark_def_send_activate_sig(conn_edge_plugin_args_t *args) {
   circpad_plugin_transition_t activate_sig;
   my_plugin_memset(&activate_sig, 0, sizeof(activate_sig));
   activate_sig.command = CIRCPAD_COMMAND_SIGPLUGIN;
-  activate_sig.signal_type = CIRCPAD_SIGPLUGIN_ACTIVATE;
+  int param = (int) get(CONNEDGE_ARG_PARAM, 1, args);
+  if (param == CIRCPAD_EVENT_SHOULD_SIGPLUGIN_ACTIVATE)
+    activate_sig.signal_type = ctx->CIRCPAD_EVENT_SIGPLUGIN_ACTIVATE;
+  else if (param == CIRCPAD_EVENT_SHOULD_SIGPLUGIN_BE_SILENT)
+    activate_sig.signal_type = ctx->CIRCPAD_EVENT_SIGPLUGIN_BE_SILENT;
+  else {
+    log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__,
+        "Unsupported param %d", param);
+    return PLUGIN_RUN_DEFAULT;
+  }
+  log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__,
+      "Our signal type is %d", activate_sig.signal_type);
   activate_sig.machine_ctr = machine_ctr;
   ssize_t len = circpad_plugin_transition_encode(cell->payload, CELL_PAYLOAD_SIZE, &activate_sig);
   call_host_func(CIRCPAD_SEND_COMMAND_TO_MIDDLE_HOP, 3, circ,

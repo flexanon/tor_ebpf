@@ -113,6 +113,7 @@ typedef struct relay_process_edge_t {
   circuit_t *circ;
   crypt_path_t *layer_hint;
   edge_connection_t *edgeconn;
+  int param;
   /** cell received */
   cell_t *cell;
 } relay_process_edge_t;

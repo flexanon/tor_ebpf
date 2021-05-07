@@ -240,13 +240,12 @@ void half_edge_free_(struct half_edge_t *he);
 #define BEGIN_FLAG_IPV6_PREFERRED (1u<<2)
 /**@}*/
 
-
 /** plugin stuff */
-
 typedef struct conn_edge_plugin_args_t {
   entry_connection_t *entry_conn;
   edge_connection_t *edge_conn;
   circuit_t *on_circ;
+  int param;
   plugin_t *plugin;
 } conn_edge_plugin_args_t;
 

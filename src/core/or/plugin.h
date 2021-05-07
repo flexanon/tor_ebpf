@@ -55,11 +55,6 @@ typedef struct entry_info_t {
   int param;
 } entry_info_t;
 
-/** parameters given to the plugin when executed */
-typedef struct plugin_args_t {
-  int param; /** empty for now */
-} plugin_args_t;
-
 /**
  * Who's calling us? Will be used to prepare plugin_run()
  */
@@ -69,6 +64,8 @@ typedef enum {
   RELAY_REPLACE_STREAM_DATA_RECEIVED,
   /** We received a cell that is not part of the current relay protocol version*/
   RELAY_PROCESS_EDGE_UNKNOWN,
+  /** received a relay cell we can react to it */
+  RELAY_RECEIVED_CONNECTED_CELL,
   /** We have one or several circpad machines to globally add to all circuits */
   CIRCPAD_PROTOCOL_INIT,
   CIRCPAD_PROTOCOL_MACHINEINFO_SETUP,
@@ -108,6 +105,7 @@ typedef struct entry_point_map_t {
 #define RELAY_CONN_DELIVER_WINDOW 15
 #define RELAY_PLUGIN_CTX 16
 #define RELAY_ARG_PLUGIN_T 17
+#define RELAY_ARG_PARAM 18
 
 #define RELAY_MAX 1000
 
@@ -133,6 +131,8 @@ typedef struct entry_point_map_t {
 
 #define CONNEDGE_ARG_CIRCUIT_T 2001
 #define CONNEDGE_ARG_PLUGIN_T 2002
+#define CONNEDGE_ARG_PARAM 2003
+#define CONNEDGE_PLUGIN_CTX 2004
 
 #define CONNEDGE_MAX 3000
 

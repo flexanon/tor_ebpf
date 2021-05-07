@@ -120,6 +120,7 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
           /** probably need to pass a ctx of many interesting things */
           struct relay_process_edge_t *ctx = (relay_process_edge_t *) args;
           ctx->plugin = found->plugin;
+          ctx->param = found->param;
           return plugin_run(found->entry_point, ctx, sizeof(relay_process_edge_t*));
         }
       case CIRCPAD_PROTOCOL_INIT:
@@ -132,6 +133,14 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
         {
           conn_edge_plugin_args_t *ctx = (conn_edge_plugin_args_t *) args;
           ctx->plugin = found->plugin;
+          ctx->param = found->param;
+          return plugin_run(found->entry_point, ctx, sizeof(conn_edge_plugin_args_t *));
+        }
+      case RELAY_RECEIVED_CONNECTED_CELL:
+        {
+          conn_edge_plugin_args_t *ctx = (conn_edge_plugin_args_t *) args;
+          ctx->plugin = found->plugin;
+          ctx->param = found->param;
           return plugin_run(found->entry_point, ctx, sizeof(conn_edge_plugin_args_t *));
         }
       default:

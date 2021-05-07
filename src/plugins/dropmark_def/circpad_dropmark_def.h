@@ -18,6 +18,9 @@
  * context
  */
 
+#define CIRCPAD_EVENT_SHOULD_SIGPLUGIN_ACTIVATE 1
+#define CIRCPAD_EVENT_SHOULD_SIGPLUGIN_BE_SILENT 2
+
 typedef struct circpad_dropmark_t {
 
   int CIRCPAD_EVENT_SIGPLUGIN_ACTIVATE;
