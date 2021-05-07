@@ -3243,6 +3243,9 @@ uint64_t circpad_get(int key, va_list *arguments) {
         char *name = va_arg(*arguments, char*);
         int namelen = va_arg(*arguments, int);
         for (int i = 0; i < CIRCPAD_MAX_MACHINES; i++) {
+          if (!circ->padding_info[i])
+            continue;
+          if (circ->padding_info[i]->plugin_machine_runtime)
             if (!strncmp((char*) circ->padding_info[i]->plugin_machine_runtime, name, namelen))
               return (uint64_t) circ->padding_info[i]->machine_ctr;
         }

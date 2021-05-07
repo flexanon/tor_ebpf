@@ -91,7 +91,9 @@ int plugin_plug_elf(plugin_t *plugin, entry_info_t *einfo, char *elfpath) {
     /** Register the plugin; do it for each family*/
     found->param = einfo->param;
     HT_INSERT(plugin_map_ht, &plugin_map_ht, found);
-    log_debug(LD_PLUGIN, "Inserted plugin in map");
+    log_debug(LD_PLUGIN, "Inserted plugin name:%s; putype:%d, ptype: %d,\
+        pfamily:%d, param:%d in map", found->entry_name, found->putype,
+        found->ptype, found->pfamily, found->param);
   }
   return 0;
 }

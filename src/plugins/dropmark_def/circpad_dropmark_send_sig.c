@@ -120,7 +120,7 @@ uint64_t circpad_dropmark_def_send_activate_sig(conn_edge_plugin_args_t *args) {
   circpad_dropmark_t *ctx = (circpad_dropmark_t *) get(CONNEDGE_PLUGIN_CTX, 1, args);
   /* get padding machine  -- we may have multiple padding machines per circuit,
    * but only one is the dropmark machine :)*/
-  int machine_ctr = (int) get(CIRCPAD_MACHINE_CTR, 2, circ, "client_dropmark_def", (int)19);
+  int machine_ctr = (int) get(CIRCPAD_MACHINE_CTR, 3, circ, "client_dropmark_def", (int)19);
   if (machine_ctr > CIRCPAD_MAX_MACHINES) {
     log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__,
         "Looks like machine 'client_dropmark_def'does not exist");
@@ -147,7 +147,7 @@ uint64_t circpad_dropmark_def_send_activate_sig(conn_edge_plugin_args_t *args) {
     return PLUGIN_RUN_DEFAULT;
   }
   log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__,
-      "Our signal type is %d", activate_sig.signal_type);
+      "Our signal type is %d. Encoding and sending now.", activate_sig.signal_type);
   activate_sig.machine_ctr = machine_ctr;
   ssize_t len = circpad_plugin_transition_encode(cell->payload, CELL_PAYLOAD_SIZE, &activate_sig);
   call_host_func(CIRCPAD_SEND_COMMAND_TO_MIDDLE_HOP, 3, circ,

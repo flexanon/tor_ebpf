@@ -66,7 +66,7 @@ static __attribute__((always_inline)) void register_relay_machine(plugin_t
 
   /** TODO reconfigure the number of events and add the new events */
 
-  plugin_circpad_machine_states_init(plugin, relay_machine, 2);
+  plugin_circpad_machine_states_init(plugin, relay_machine, 3);
 
 
   /** We make send rand(1, 42) cells at uniformly random intervals  */
@@ -129,6 +129,7 @@ static __attribute__((always_inline)) void register_client_machine(plugin_t
   client_machine->conditions.apply_purpose_mask = CIRCPAD_CIRC_OPENED;
   /* This event should be triggered when the client sends a RELAY_BEGIN
    * It tells the middle relay to stop the padding */
+  plugin_circpad_machine_states_init(plugin, client_machine, 2);
 
   client_machine->states[CIRCPAD_STATE_START].
     next_state[ctx->CIRCPAD_EVENT_SIGPLUGIN_BE_SILENT] =
@@ -164,7 +165,11 @@ uint64_t circpad_dropmark_defense(circpad_plugin_args_t *args) {
   ctx->CIRCPAD_EVENT_SIGPLUGIN_BE_SILENT = (int) get(CIRCPAD_NEW_EVENTNUM, 0, NULL);
   ctx->CIRCPAD_EVENT_SIGPLUGIN_CLOSE = (int) get(CIRCPAD_NEW_EVENTNUM, 0, NULL);
   set(CIRCPAD_PLUGIN_CTX, 2, args, ctx);
+  log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__, "Registering relay machine");
   register_relay_machine(plugin, ctx, relay_machines);
+  log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__, "Relay machine registered");
+  log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__, "Registering client machine");
   register_client_machine(plugin, ctx, client_machines);
+  log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__, "Client machine registered");
   return 0;
 }

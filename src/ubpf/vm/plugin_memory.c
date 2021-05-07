@@ -216,18 +216,6 @@ done:
 	return (dst0);
 }
 
-void *
-my_memmove(void *s1, const void *s2, size_t n)
-{
-	return memcpy(s1, s2, n);
-}
-
-void
-my_bcopy(const void *s1, void *s2, size_t n)
-{
-	memcpy(s2, s1, n);
-}
-
 void * __attribute__((weak)) my_plugin_memset(void * dest, int c, size_t n)
 {
     unsigned char *s = dest;
@@ -273,8 +261,8 @@ plugin_t *plugin_memory_init(size_t memory_size){
   plugin->memory = tor_malloc_zero(sizeof(char)*memory_size);
   plugin->memory_pool = (memory_pool_t*) tor_malloc_zero(sizeof(memory_pool_t));
   plugin->memory_pool->mem_start = (uint8_t *) plugin->memory;
-	plugin->memory_pool->size_of_each_block = 2100; /* TEST */
-	plugin->memory_pool->num_of_blocks = memory_size / 2100;
+	plugin->memory_pool->size_of_each_block = 4096; /* TEST */
+	plugin->memory_pool->num_of_blocks = memory_size / 4096;
 	plugin->memory_pool->num_initialized = 0;
 	plugin->memory_pool->num_free_blocks = plugin->memory_pool->num_of_blocks;
 	plugin->memory_pool->next = plugin->memory_pool->mem_start;

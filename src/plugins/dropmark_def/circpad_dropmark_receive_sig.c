@@ -77,6 +77,9 @@ uint64_t circpad_dropmark_def_receive_sig(relay_process_edge_t *pedge) {
       mycell->payload+RELAY_HEADER_SIZE, CELL_PAYLOAD_SIZE-RELAY_HEADER_SIZE)) < 0){
     log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__,
         "Looks like we did not successufully parse the cell: error %d (-2 == truncated), (-1 == fail)", ret);
+    // yep -- there we should just kill the hell out of this circuit, and log
+    // who sent that cell.
+    return PLUGIN_RUN_DEFAULT;
   }
   my_plugin_free(plugin, mycell);
   // get the machine runtime
@@ -90,6 +93,8 @@ uint64_t circpad_dropmark_def_receive_sig(relay_process_edge_t *pedge) {
      **/
     return PLUGIN_RUN_DEFAULT;
   }
+  log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__,
+      "Received sign type %d, calling machine_spec_transition", signal_transition.signal_type);
   call_host_func(CIRCPAD_MACHINE_SPEC_TRANSITION, 2, mr, signal_transition.signal_type);
   return 0;
 }

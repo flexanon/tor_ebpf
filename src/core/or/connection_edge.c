@@ -3360,6 +3360,8 @@ MOCK_IMPL(int,
   // this is a edge conn protocol plugin
   pmap.pfamily = PLUGIN_PROTOCOL_CONN_EDGE;
   pmap.entry_name = (char *)"plugin_add_connection_ap_handshake_send_begin";
+  //XXX fixme
+  pmap.param = 1;
   // who calls a plugin -- not very useful though
   caller_id_t caller = CONNECTION_EDGE_ADD_TO_SENDING_BEGIN;
   conn_edge_plugin_args_t args;
