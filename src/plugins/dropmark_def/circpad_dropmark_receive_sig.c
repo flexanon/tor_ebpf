@@ -21,7 +21,8 @@
  */
 
 static __attribute__((always_inline)) ssize_t
-circpad_plugin_transition_parse_into(circpad_plugin_transition_t *obj, const uint8_t *input, const size_t len_in)
+circpad_plugin_transition_parse_into(circpad_plugin_transition_t *obj, const
+    uint8_t *input, const size_t len_in, circpad_dropmark_t *ctx)
 {
   const uint8_t *ptr = input;
   size_t remaining = len_in;
@@ -39,7 +40,9 @@ circpad_plugin_transition_parse_into(circpad_plugin_transition_t *obj, const uin
   CHECK_REMAINING(1, truncated);
   obj->signal_type = (trunnel_get_uint8(ptr));
   remaining -= 1; ptr += 1;
-  if (! (obj->signal_type == CIRCPAD_SIGPLUGIN_ACTIVATE || obj->signal_type == CIRCPAD_SIGPLUGIN_BE_SILENT || obj->signal_type == CIRCPAD_SIGPLUGIN_CLOSE))
+  if (! (obj->signal_type == ctx->CIRCPAD_EVENT_SIGPLUGIN_ACTIVATE ||
+        obj->signal_type == ctx->CIRCPAD_EVENT_SIGPLUGIN_BE_SILENT ||
+        obj->signal_type == ctx->CIRCPAD_EVENT_SIGPLUGIN_CLOSE))
     goto fail;
 
   /* Parse u32 machine_ctr */
@@ -65,6 +68,7 @@ uint64_t circpad_dropmark_def_receive_sig(relay_process_edge_t *pedge) {
 
   cell_t *cell = (cell_t *) get(RELAY_ARG_CELL_T, 1, pedge);
   plugin_t *plugin = (plugin_t *) get(RELAY_ARG_PLUGIN_T, 1, pedge);
+  circpad_dropmark_t *ctx = (circpad_dropmark_t *) get(RELAY_PLUGIN_CTX, 1, plugin);
   circuit_t *circ = (circuit_t *) get(RELAY_ARG_CIRCUIT_T, 1, pedge);
   cell_t *mycell = my_plugin_malloc(plugin, sizeof(*mycell));
   // get accessible content of cell to be parsed
@@ -74,7 +78,7 @@ uint64_t circpad_dropmark_def_receive_sig(relay_process_edge_t *pedge) {
   /** parse the cell and fill in the structure */
   int ret;
   if ((ret = circpad_plugin_transition_parse_into(&signal_transition,
-      mycell->payload+RELAY_HEADER_SIZE, CELL_PAYLOAD_SIZE-RELAY_HEADER_SIZE)) < 0){
+      mycell->payload+RELAY_HEADER_SIZE, CELL_PAYLOAD_SIZE-RELAY_HEADER_SIZE, ctx)) < 0){
     log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__,
         "Looks like we did not successufully parse the cell: error %d (-2 == truncated), (-1 == fail)", ret);
     // yep -- there we should just kill the hell out of this circuit, and log

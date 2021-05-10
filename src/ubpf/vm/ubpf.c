@@ -68,6 +68,9 @@ register_dev_functions(struct ubpf_vm *vm)
   tor_assert(ubpf_register(vm, idx++, "trunnel_get_uint8", trunnel_get_uint8) != -1);
   tor_assert(ubpf_register(vm, idx++, "trunnel_get_uint16", trunnel_get_uint16) != -1);
   tor_assert(ubpf_register(vm, idx++, "trunnel_get_uint32", trunnel_get_uint32) != -1);
+
+  /** some tools */
+  tor_assert(ubpf_register(vm, idx++, "strcmp", strcmp) != -1);
 }
 
   static void

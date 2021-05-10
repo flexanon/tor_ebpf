@@ -24,7 +24,7 @@ struct circpad_machine_spec_t;
 struct circpad_machine_runtime_t;
 
 /** Number of padding state machines on a circuit. */
-#define CIRCPAD_MAX_MACHINES (2)
+#define CIRCPAD_MAX_MACHINES (3)
 
 /** "magic" value for an origin_circuit_t */
 #define ORIGIN_CIRCUIT_MAGIC 0x35315243u

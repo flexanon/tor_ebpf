@@ -2548,7 +2548,7 @@ circpad_setup_machine_on_circ(circuit_t *on_circ,
   args.origin_padding_machines = origin_padding_machines;
   args.relay_padding_machines = relay_padding_machines;
   args.machine = (circpad_machine_spec_t *) machine;
-  args.machine_runtime = (circpad_machine_runtime_t *)on_circ->padding_machine[machine->machine_index];
+  args.machine_runtime = (circpad_machine_runtime_t *)on_circ->padding_info[machine->machine_index];
   if (invoke_plugin_operation_or_default(&pmap, caller, (void *)&args)) {
     log_info(LD_PLUGIN, "We do not have any circpad machine info setup plugin");
   }
@@ -3178,7 +3178,8 @@ void circpad_set(int key, va_list *arguments) {
     case CIRCPAD_PLUGIN_MACHINE_RUNTIME:
       {
         circpad_machine_runtime_t *mr = va_arg(*arguments, circpad_machine_runtime_t *);
-        void *ptr = (void *) va_arg(*arguments, uint64_t);
+        char *ptr = va_arg(*arguments, char*);
+        log_debug(LD_PLUGIN, "Setting plugin_machin_runtime with string %s", ptr);
         mr->plugin_machine_runtime = ptr;
         break;
       }
@@ -3227,8 +3228,12 @@ uint64_t circpad_get(int key, va_list *arguments) {
         char *name = va_arg(*arguments, char*);
         int namelen = va_arg(*arguments, int);
         for (int i = 0; i < CIRCPAD_MAX_MACHINES; i++) {
-          if (!strncmp((char*) circ->padding_info[i]->plugin_machine_runtime, name, namelen))
-            return (uint64_t) circ->padding_info[i];
+          if (!circ->padding_info[i])
+            continue;
+          if (circ->padding_info[i]->plugin_machine_runtime) {
+            if (!strncmp((char*) circ->padding_info[i]->plugin_machine_runtime, name, namelen))
+              return (uint64_t) circ->padding_info[i];
+          }
         }
         return (uint64_t) 0;
       }
@@ -3245,9 +3250,16 @@ uint64_t circpad_get(int key, va_list *arguments) {
         for (int i = 0; i < CIRCPAD_MAX_MACHINES; i++) {
           if (!circ->padding_info[i])
             continue;
-          if (circ->padding_info[i]->plugin_machine_runtime)
+          log_debug(LD_PLUGIN, "runtime info: Machine ctr %d; machine index: %d", circ->padding_info[i]->machine_ctr, circ->padding_info[i]->machine_index);
+          log_debug(LD_PLUGIN, "spec info: Machine name from same index: %s; machine index: %d", circ->padding_machine[i]->name, circ->padding_machine[i]->machine_index);
+          log_debug(LD_PLUGIN, "Plugin machine rutime addrs %lu", (uint64_t) circ->padding_info[i]->plugin_machine_runtime);
+          if (circ->padding_info[i]->plugin_machine_runtime) {
+            log_debug(LD_PLUGIN, "getting name %s", name);
+
+            log_debug(LD_PLUGIN, "Comparing machine names %s and %s", (char *) circ->padding_info[i]->plugin_machine_runtime, name);
             if (!strncmp((char*) circ->padding_info[i]->plugin_machine_runtime, name, namelen))
               return (uint64_t) circ->padding_info[i]->machine_ctr;
+          }
         }
         return (uint64_t) CIRCPAD_MAX_MACHINES+1;
       }

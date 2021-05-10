@@ -8,6 +8,7 @@
 #include "app/config/config.h"
 #include "core/or/circuitpadding.h"
 #include "core/or/connection_edge.h"
+#include "core/or/circuitlist.h"
 #include "core/or/plugin.h"
 #include "core/or/plugin_helper.h"
 #include "core/or/relay.h"
@@ -126,18 +127,13 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
           return plugin_run(found->entry_point, ctx, sizeof(relay_process_edge_t*));
         }
       case CIRCPAD_PROTOCOL_INIT:
+      case CIRCPAD_PROTOCOL_MACHINEINFO_SETUP:
         {
           circpad_plugin_args_t *ctx = (circpad_plugin_args_t *) args;
           ctx->plugin = found->plugin;
           return plugin_run(found->entry_point, ctx, sizeof(circpad_plugin_args_t*));
         }
       case CONNECTION_EDGE_ADD_TO_SENDING_BEGIN:
-        {
-          conn_edge_plugin_args_t *ctx = (conn_edge_plugin_args_t *) args;
-          ctx->plugin = found->plugin;
-          ctx->param = found->param;
-          return plugin_run(found->entry_point, ctx, sizeof(conn_edge_plugin_args_t *));
-        }
       case RELAY_RECEIVED_CONNECTED_CELL:
         {
           conn_edge_plugin_args_t *ctx = (conn_edge_plugin_args_t *) args;

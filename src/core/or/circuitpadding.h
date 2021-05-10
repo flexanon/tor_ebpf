@@ -612,11 +612,11 @@ typedef struct circpad_machine_runtime_t {
 
 /** Max number of padding machines on each circuit. If changed,
  * also ensure the machine_index bitwith supports the new size. */
-#define CIRCPAD_MAX_MACHINES    (2)
+#define CIRCPAD_MAX_MACHINES    (3)
   /** Which padding machine index was this for.
    * (make sure changes to the bitwidth can support the
    * CIRCPAD_MAX_MACHINES define). */
-  unsigned machine_index : 1;
+  int machine_index;
 
   /**
    * reserved for machines from plugin usage and for circpad framework
@@ -652,7 +652,7 @@ typedef struct circpad_machine_spec_t {
 
   /** Which machine index slot should this machine go into in
    *  the array on the circuit_t */
-  unsigned machine_index : 1;
+  int machine_index;
 
   /** Send a padding negotiate to shut down machine at end state? */
   unsigned should_negotiate_end : 1;
@@ -811,6 +811,11 @@ circpad_machine_spec_transition, (circpad_machine_runtime_t *mi,
 circpad_decision_t circpad_send_padding_cell_for_callback(
                                  circpad_machine_runtime_t *mi);
 
+MOCK_DECL(signed_error_t,
+circpad_send_command_to_hop,(struct origin_circuit_t *circ, uint8_t hopnum,
+                             uint8_t relay_command, const uint8_t *payload,
+                             ssize_t payload_len));
+
 void circpad_set(int key, va_list *argument);
 uint64_t circpad_get(int key, va_list *arguments);
 
@@ -852,10 +857,6 @@ STATIC void circpad_machine_remove_closest_token(circpad_machine_runtime_t *mi,
                                          bool use_usec);
 STATIC void circpad_machine_setup_tokens(circpad_machine_runtime_t *mi);
 
-MOCK_DECL(signed_error_t,
-circpad_send_command_to_hop,(struct origin_circuit_t *circ, uint8_t hopnum,
-                             uint8_t relay_command, const uint8_t *payload,
-                             ssize_t payload_len));
 
 MOCK_DECL(STATIC const node_t *,
 circuit_get_nth_node,(origin_circuit_t *circ, int hop));

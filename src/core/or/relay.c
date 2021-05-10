@@ -3352,6 +3352,11 @@ circuit_queue_streams_are_blocked(circuit_t *circ)
 
 uint64_t relay_get(int key, va_list *arguments) {
   switch (key) {
+    case RELAY_PLUGIN_CTX:
+      {
+        plugin_t *plugin = va_arg(*arguments, plugin_t*);
+        return (uint64_t) plugin->ctx;
+      }
     case RELAY_ARG_CIRCUIT_T:
       {
         relay_process_edge_t *pedge = va_arg(*arguments, relay_process_edge_t *);

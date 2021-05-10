@@ -265,6 +265,7 @@ const char *plugin_caller_id_to_string(caller_id_t caller) {
     case RELAY_PROCESS_EDGE_UNKNOWN: return "host-code unknown new protocol feature";
     case CIRCPAD_PROTOCOL_INIT: return "initializing global circpad machines";
     case CONNECTION_EDGE_ADD_TO_SENDING_BEGIN: return "calling a plugin after sending a begin_cell";
+    case CIRCPAD_PROTOCOL_MACHINEINFO_SETUP: return "calling a plugin while setting up a machine to a circuit";
     default:
       return "unsupported";
   }
