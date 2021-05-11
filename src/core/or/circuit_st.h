@@ -77,6 +77,11 @@ struct circuit_t {
    */
   circid_t n_circ_id;
 
+  /**
+   *Used to have a global unique id for signal_attack code.
+   */
+  circid_t timing_circ_id;
+
   /** Queue of cells waiting to be transmitted on n_chan */
   cell_queue_t n_chan_cells;
 
