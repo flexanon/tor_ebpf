@@ -1,3 +1,12 @@
+/**
+ * Code written for the paper "Dropping on the Edge: Flexibility and Traffic
+ * Confirmation in Onion Routing Protocols"
+ *
+ * rebased on the top of tor-0.4.5.7 and slightly modified to cover internal
+ * changes
+ */
+
+
 #include "core/or/signal_attack.h"
 
 
