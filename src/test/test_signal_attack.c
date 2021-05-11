@@ -1,12 +1,12 @@
 #include "orconfig.h"
+#include "test/test.h"
 #define TOR_SIGNALATTACK_PRIVATE
 #include <time.h>
-#include "or.h"
-#include "config.h"
-#include "relay.h"
-#include "signal_attack.h"
-#include "circuitlist.h"
-#include "test.h"
+#include "core/or/or.h"
+#include "app/config/config.h"
+#include "core/or/relay.h"
+#include "core/or/signal_attack.h"
+#include "core/or/circuitlist.h"
 #include <stdio.h>
 
 

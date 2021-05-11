@@ -15,6 +15,7 @@
 int router_get_orport(const routerinfo_t *router,
                        tor_addr_port_t *addr_port_out,
                        int family);
+int router_has_addr(const routerinfo_t *router, const tor_addr_t *addr);
 int router_has_orport(const routerinfo_t *router,
                       const tor_addr_port_t *orport);
 

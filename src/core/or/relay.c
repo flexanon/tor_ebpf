@@ -1636,7 +1636,8 @@ handle_relay_cell_command(cell_t *cell, circuit_t *circ,
 {
   unsigned domain = layer_hint?LD_APP:LD_EXIT;
   int reason;
-
+  
+  struct timespec time_now;
   tor_assert(rh);
 
   /* First pass the cell to the circuit padding subsystem, in case it's a

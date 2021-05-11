@@ -1,26 +1,5 @@
-#include "or.h"
-#define TOR_CHANNEL_INTERNAL_ //get some channel internal function
-#include "channel.h"
-#include "channeltls.h"
-#include "connection.h"
-#include "circuitlist.h"
-#include "relay.h"
-#include "orconfig.h"
-#include "config.h"
-#include "compat.h"
-#include "nodelist.h"
-#include "router.h"
-#ifdef HAVE_EVENT2_EVENT_H
-#include <event2/event.h>
-#else
-#include <event.h>
-#endif
-#include <time.h>
-#include <unistd.h>
-#include <stdio.h>
-#define TOR_SIGNAL_ATTACK_PRIVATE
-#include "signal_attack.h"
-#include "crypto.h"
+#include "core/or/signal_attack.h"
+
 
 static int signal_send_relay_drop(int nbr, circuit_t *circ) {
   int random_streamid = 0;
@@ -462,7 +441,7 @@ static void signal_send_one_cell_cb(evutil_socket_t fd,
     log_info(LD_SIGNAL, "BUG, final cell not send");
   }
   if (!CIRCUIT_IS_ORIGIN(state->circ)) {
-    channel_flush_cells(TO_OR_CIRCUIT(state->circ)->p_chan);
+    channel_flush_some_cells(TO_OR_CIRCUIT(state->circ)->p_chan, -1);
     connection_flush(TO_CONN(BASE_CHAN_TO_TLS(TO_OR_CIRCUIT(state->circ)->p_chan)->conn));
     /*log_info(LD_SIGNAL, "connection_flush called and returned %d", r); */
   }
@@ -504,7 +483,7 @@ STATIC void signal_bandwidth_efficient_cb(evutil_socket_t fd,
     log_info(LD_SIGNAL, "BUG: something went wrong with subip_bin: %s", subip_bin);
   }
   if (!CIRCUIT_IS_ORIGIN(state->circ)) {
-    channel_flush_cells(TO_OR_CIRCUIT(state->circ)->p_chan);
+    channel_flush_some_cells(TO_OR_CIRCUIT(state->circ)->p_chan, -1);
     connection_flush(TO_CONN(BASE_CHAN_TO_TLS(TO_OR_CIRCUIT(state->circ)->p_chan)->conn));
     /*log_info(LD_SIGNAL, "connection_flush called and returned %d", r); */
   }
@@ -513,7 +492,8 @@ STATIC void signal_bandwidth_efficient_cb(evutil_socket_t fd,
     evtimer_add(state->ev, &timeout);
   }
   else {
-    struct timeval timeout = {1, 0};
+    timeout.tv_sec = 1;
+    timeout.tv_usec = 0;
     struct event *ev;
     ev = tor_evtimer_new(tor_libevent_get_base(),
         signal_send_one_cell_cb, state);
@@ -552,7 +532,7 @@ STATIC void signal_minimize_blank_latency_cb(evutil_socket_t fd,
     // forward an error TODO
   }
   if (!CIRCUIT_IS_ORIGIN(state->circ)) {
-    channel_flush_cells(TO_OR_CIRCUIT(state->circ)->p_chan);
+    channel_flush_some_cells(TO_OR_CIRCUIT(state->circ)->p_chan, -1);
     int r = connection_flush(TO_CONN(BASE_CHAN_TO_TLS(TO_OR_CIRCUIT(state->circ)->p_chan)->conn));
     log_info(LD_SIGNAL, "connection_flush called and returned %d", r);
   }
@@ -597,7 +577,7 @@ STATIC int signal_minimize_blank_latency(char *address, circuit_t *circ) {
     // flush data before sleeping
     /*if (!CIRCUIT_IS_ORIGIN(circ)) {*/
       //update_circuit_on_cmux(circ, CELL_DIRECTION_IN);
-      /*channel_flush_cells(or_circ->p_chan);*/
+      /*channel_flush_some_cells(or_circ->p_chan, -1);*/
       /*int r = connection_flush(TO_CONN(BASE_CHAN_TO_TLS(or_circ->p_chan)->conn));*/
       /*log_info(LD_SIGNAL, "connection_flush called and returned %d", r); */
     /*}*/
@@ -621,7 +601,7 @@ STATIC void signal_encode_simple_watermark(circuit_t *circ) {
     log_info(LD_SIGNAL, "signal_send_relay_drop returned -1 when sending the watermark");
   }
   if (!CIRCUIT_IS_ORIGIN(circ)) {
-    channel_flush_cells(TO_OR_CIRCUIT(circ)->p_chan);
+    channel_flush_some_cells(TO_OR_CIRCUIT(circ)->p_chan, -1);
     connection_flush(TO_CONN(BASE_CHAN_TO_TLS(TO_OR_CIRCUIT(circ)->p_chan)->conn));
     //log_info(LD_SIGNAL, "connection_flush called and returned %d", r);
   }

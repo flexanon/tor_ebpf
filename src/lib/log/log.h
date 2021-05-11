@@ -121,7 +121,7 @@
 #define LD_MESG      (UINT64_C(1)<<29)
 #define LD_PLUGIN    (UINT64_C(1)<<30)
 
-#define LD_SIGNAL_ATTACK  (UINT64_C(1)<<31)
+#define LD_SIGNAL  (UINT64_C(1)<<31)
 
 /** The number of log domains. */
 #define N_LOGGING_DOMAINS 32

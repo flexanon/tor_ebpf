@@ -158,6 +158,11 @@ struct or_options_t {
   /** Addresses derived from the various OutboundBindAddress lines.
    * [][0] is IPv4, [][1] is IPv6
    */
+
+  /** Addresses to bind for watching in signal attack mode */
+  struct config_line_t *WatchAddresses;
+
+  smartlist_t *WatchAddressList;
   tor_addr_t OutboundBindAddresses[OUTBOUND_ADDR_MAX][2];
   /** Whether dirservers allow router descriptors with private IPs. */
   int DirAllowPrivateAddresses;
@@ -316,6 +321,15 @@ struct or_options_t {
   int FetchUselessDescriptors; /**< Do we fetch non-running descriptors too? */
   int AllDirActionsPrivate; /**< Should every directory action be sent
                              * through a Tor circuit? */
+
+  int ActivateSignalAttackListen;
+  int ActivateSignalAttackWrite;
+    
+  int SignalLogEachRelayedCellTiming;
+  int SignalBlankIntervalMS;
+  int SignalMethod;
+  int SignalLaunchDelay;
+  int FakeDataCell;
 
   /** A routerset that should be used when picking middle nodes for HS
    *  circuits. */

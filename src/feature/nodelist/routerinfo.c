@@ -51,6 +51,17 @@ router_get_orport(const routerinfo_t *router,
   }
 }
 
+/** Return 1 if any of <b>router</b>'s addresses are <b>addr</b>.
+ *   Otherwise return 0. */
+int
+router_has_addr(const routerinfo_t *router, const tor_addr_t *addr)
+{
+  return
+    tor_addr_eq_ipv4h(addr, &router->ipv4_addr) ||
+    tor_addr_eq(&router->ipv6_addr, addr);
+}
+
+
 int
 router_has_orport(const routerinfo_t *router, const tor_addr_port_t *orport)
 {

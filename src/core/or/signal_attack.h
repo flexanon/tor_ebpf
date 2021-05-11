@@ -2,6 +2,32 @@
 
 #ifndef TOR_SIGNALATTACK_H
 #define TOR_SIGNALATTACK_H
+#include "core/or/or.h"
+#include <event2/event.h>
+#define CHANNEL_OBJECT_PRIVATE //get some channel internal function
+#include "core/or/channel.h"
+#include "core/or/or_circuit_st.h"
+#include "core/or/origin_circuit_st.h"
+#include "core/or/circuit_st.h"
+#include "core/or/channeltls.h"
+#include "core/or/circuitlist.h"
+#include "feature/nodelist/node_st.h"
+#include "feature/nodelist/routerinfo_st.h"
+#include "core/mainloop/connection.h"
+#include "core/or/or_connection_st.h"
+#include "core/or/relay.h"
+#include "orconfig.h"
+#include "app/config/config.h"
+#include "feature/nodelist/nodelist.h"
+#include "src/feature/relay/router.h"
+#include "feature/nodelist/routerinfo.h"
+#include "lib/evloop/compat_libevent.h"
+#include <time.h>
+#include <unistd.h>
+#include <stdio.h>
+#define TOR_SIGNAL_ATTACK_PRIVATE
+#include "core/or/signal_attack.h"
+#include "lib/crypt_ops/crypto_rand.h"
 
 #define BANDWIDTH_EFFICIENT 0
 #define MIN_BLANK 1
