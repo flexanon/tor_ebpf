@@ -999,7 +999,7 @@ check_machine_token_supply(circpad_machine_runtime_t *mi)
         return CIRCPAD_STATE_CHANGED;
     }
   }
-
+  log_debug(LD_PLUGIN, "State length is %lu", mi->state_length);
   if (mi->state_length == 0) {
     return circpad_internal_event_state_length_up(mi);
   }

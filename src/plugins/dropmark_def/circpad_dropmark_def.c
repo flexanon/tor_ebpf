@@ -59,14 +59,13 @@ static __attribute__((always_inline)) void register_relay_machine(plugin_t
   // let's just use plugin_machine_spec as a placeholder for a unique name
   relay_machine->plugin_machine_spec = (void *) relay_machine->name;
 
-  relay_machine->conditions.min_hops = 3;
   relay_machine->conditions.apply_state_mask = CIRCPAD_CIRC_OPENED;
 
   relay_machine->is_origin_side = 0;
 
   /** TODO reconfigure the number of events and add the new events */
 
-  plugin_circpad_machine_states_init(plugin, relay_machine, 3);
+  plugin_circpad_machine_states_init(plugin, relay_machine, 4);
 
 
   /** We make send rand(1, 42) cells at uniformly random intervals  */
@@ -75,23 +74,43 @@ static __attribute__((always_inline)) void register_relay_machine(plugin_t
   relay_machine->states[CIRCPAD_STATE_BURST].
     length_dist.param1 = 1;
   relay_machine->states[CIRCPAD_STATE_BURST].
-    length_dist.param2 = 42;
+    length_dist.param2 = 5;
 
   /* define the histogram  -- this should make the state chooses a timer between [1,
    * 100ms] uniformly before sending the padding, then circle back to this state*/
   relay_machine->states[CIRCPAD_STATE_BURST].
     histogram_len = 2;
   relay_machine->states[CIRCPAD_STATE_BURST].
-    histogram_edges[0] = 1000; // 1ms
+    histogram_edges[0] = 1; // 1µs
   relay_machine->states[CIRCPAD_STATE_BURST].
-    histogram_edges[1] = 100000; //100ms
+    histogram_edges[1] = 1000; //1ms
 
   relay_machine->states[CIRCPAD_STATE_BURST].
     histogram[0] = 1000;
-
+  
   relay_machine->states[CIRCPAD_STATE_BURST].
     histogram_total_tokens = relay_machine->states[CIRCPAD_STATE_BURST].
     histogram[0];
+
+  relay_machine->states[CIRCPAD_STATE_GAP].
+    histogram_len = 2;
+  relay_machine->states[CIRCPAD_STATE_GAP].
+    histogram_edges[0] = 1000; // 1ms
+  relay_machine->states[CIRCPAD_STATE_GAP].
+    histogram_edges[1] = 100000; // 100ms
+
+  relay_machine->states[CIRCPAD_STATE_GAP].
+    histogram[0] = 1000;
+  relay_machine->states[CIRCPAD_STATE_GAP].
+    histogram_total_tokens = relay_machine->states[CIRCPAD_STATE_GAP].
+    histogram[0];
+
+
+
+  /** Activate the machine as soon as a non-padding cell is received */
+  relay_machine->states[CIRCPAD_STATE_START].
+    next_state[CIRCPAD_EVENT_NONPADDING_SENT] =
+    CIRCPAD_STATE_BURST;
 
   /* Transition from the start state to burst state when the client
    * tells us to do so */
@@ -99,15 +118,36 @@ static __attribute__((always_inline)) void register_relay_machine(plugin_t
   relay_machine->states[CIRCPAD_STATE_START].
     next_state[ctx->CIRCPAD_EVENT_SIGPLUGIN_ACTIVATE] =
     CIRCPAD_STATE_BURST;
-  /* transition to itself when all the padding cells are sent -- we wait again some random
-   * interval and then send a random number of padding cells again */
+
+  /** schedule more padding until state_length is 0 */
+  relay_machine->states[CIRCPAD_STATE_BURST].
+    next_state[CIRCPAD_EVENT_PADDING_SENT] =
+    CIRCPAD_STATE_BURST;
+  
+  /* transition to the GAP state when all the padding cells are sent -- we wait again some random
+   * interval and then transition to the BURST state again */
   relay_machine->states[CIRCPAD_STATE_BURST].
     next_state[CIRCPAD_EVENT_LENGTH_COUNT] =
+    CIRCPAD_STATE_GAP;
+
+
+  /* We try to schedule padding after some random time, but get the infinity
+   * bin. So we don't schedule anything and goes to the burst state. This
+   * mechanic implements a random gap */
+  relay_machine->states[CIRCPAD_STATE_GAP].
+    next_state[CIRCPAD_EVENT_PADDING_SENT] =
     CIRCPAD_STATE_BURST;
-  /* When the client tells us to be silent, we move to the start state */
+
+  /* goes silent mode if the client tells to do so */
+  relay_machine->states[CIRCPAD_STATE_GAP].
+    next_state[ctx->CIRCPAD_EVENT_SIGPLUGIN_BE_SILENT] =
+    CIRCPAD_STATE_SILENCE;
+
+  /* When the client tells us to be silent, we move to the gap state in which
+   * nothing should happen */
   relay_machine->states[CIRCPAD_STATE_BURST].
     next_state[ctx->CIRCPAD_EVENT_SIGPLUGIN_BE_SILENT] =
-    CIRCPAD_STATE_START;
+    CIRCPAD_STATE_SILENCE;
 
   relay_machine->machine_num = get(CIRCPAD_MACHINE_LIST_SIZE, 1, relay_machines);
   call_host_func(CIRCPAD_REGISTER_PADDING_MACHINE, 2, relay_machine, relay_machines);
@@ -124,6 +164,7 @@ static __attribute__((always_inline)) void register_client_machine(plugin_t
   client_machine->name = "client_dropmark_def";
   client_machine->target_hopnum = 2;
 
+  client_machine->conditions.min_hops = 3;
   client_machine->is_origin_side = 1;
 
   client_machine->conditions.apply_state_mask = CIRCPAD_CIRC_OPENED;
