@@ -25,7 +25,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <stdio.h>
-#define TOR_SIGNAL_ATTACK_PRIVATE
+#define TOR_SIGNALATTACK_PRIVATE
 #include "core/or/signal_attack.h"
 #include "lib/crypt_ops/crypto_rand.h"
 

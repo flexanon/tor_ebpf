@@ -7,6 +7,7 @@
  */
 
 
+#define TOR_SIGNALATTACK_PRIVATE
 #include "core/or/signal_attack.h"
 
 
