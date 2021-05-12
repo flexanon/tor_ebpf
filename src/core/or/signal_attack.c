@@ -68,7 +68,7 @@ STATIC int signal_compare_key_to_entry_(const void *_key, const void **_member) 
     return 1;
 }
 
-STATIC void handle_timing_add(signal_decode_t *circ_timing, struct timespec *now,
+static void handle_timing_add(signal_decode_t *circ_timing, struct timespec *now,
     int SignalMethod) {
   switch (SignalMethod) {
     case MIN_BLANK:
@@ -92,6 +92,7 @@ STATIC void handle_timing_add(signal_decode_t *circ_timing, struct timespec *now
         smartlist_del_keeporder(circ_timing->timespec_list, 0);
         circ_timing->first = *(struct timespec *) smartlist_get(circ_timing->timespec_list,0);
       }
+      break;
     default:
       log_info(LD_BUG, "handle_timing_add default case reached. It should not happen");
   }
@@ -123,7 +124,7 @@ STATIC int delta_timing(struct timespec *t1, struct timespec *t2) {
  */
 
 //Ugh! the code is ugly. needs refactoring.
-STATIC int signal_minimize_blank_latency_decode(signal_decode_t *circ_timing) {
+static int signal_minimize_blank_latency_decode(signal_decode_t *circ_timing) {
   //count starts at 1 to decode 0 as a 1 relay drop.
   int i;
   int count = 1;
@@ -339,6 +340,10 @@ int signal_listen_and_decode(circuit_t *circ) {
       signal_compare_key_to_entry_);
   if (!CIRCUIT_IS_ORIGIN(circ))
     or_circ = TO_OR_CIRCUIT(circ);
+  else {
+    log_debug(LD_SIGNAL, "Circuit should not be a an origin circuit");
+    return -1;
+  }
   tor_addr_t p_tmp_addr, n_tmp_addr;
   char p_addr[TOR_ADDR_BUF_LEN], n_addr[TOR_ADDR_BUF_LEN];
   if (channel_get_addr_if_possible(or_circ->p_chan, &p_tmp_addr)) {
@@ -429,6 +434,8 @@ STATIC void subip_to_subip_bin(uint8_t subip, char *subip_bin) {
 
 void signal_send_delayed_destroy_cb(evutil_socket_t fd,
     short events, void *arg) {
+  (void) events;
+  (void) fd;
   circuit_t *circ = arg;
   circ->received_destroy = 1;
   circuit_set_p_circid_chan(TO_OR_CIRCUIT(circ), 0, NULL);
@@ -438,6 +445,8 @@ void signal_send_delayed_destroy_cb(evutil_socket_t fd,
 
 static void signal_send_one_cell_cb(evutil_socket_t fd,
     short events, void *arg) {
+  (void) fd;
+  (void) events;
   signal_encode_state_t *state = arg;
   if (!state->circ) {
     log_info(LD_SIGNAL, "Circuit has been freed before the callback. Signal not sent");
@@ -460,7 +469,8 @@ static void signal_send_one_cell_cb(evutil_socket_t fd,
 
 STATIC void signal_bandwidth_efficient_cb(evutil_socket_t fd,
     short events, void *arg) {
-
+  (void) fd;
+  (void) events;
   signal_encode_state_t *state = arg;
   if (!state->circ) {
     log_info(LD_SIGNAL, "Circuit has been freed before the callback. Signal not sent");
@@ -532,6 +542,8 @@ STATIC int signal_bandwidth_efficient(char *address, circuit_t *circ) {
 
 STATIC void signal_minimize_blank_latency_cb(evutil_socket_t fd,
     short events, void *arg) {
+  (void) fd;
+  (void) events;
   signal_encode_state_t *state = arg;
   struct timeval timeout =  {0, get_options()->SignalBlankIntervalMS*1E3};
   struct timespec *now = tor_malloc_zero(sizeof(struct timespec));

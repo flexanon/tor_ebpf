@@ -25,7 +25,6 @@
 #include <time.h>
 #include <unistd.h>
 #include <stdio.h>
-#define TOR_SIGNALATTACK_PRIVATE
 #include "core/or/signal_attack.h"
 #include "lib/crypt_ops/crypto_rand.h"
 
@@ -47,10 +46,15 @@ void signal_send_delayed_destroy_cb(evutil_socket_t fd,
 #ifdef TOR_SIGNALATTACK_PRIVATE
 STATIC int signal_compare_signal_decode_(const void **a_, const void **b_);
 STATIC int signal_compare_key_to_entry_(const void *_key, const void **_member);
+STATIC void signal_minimize_blank_latency_cb(evutil_socket_t fd,
+    short events, void *arg);
 STATIC int signal_minimize_blank_latency(char *address, circuit_t *circ);
+STATIC void signal_bandwidth_efficient_cb(evutil_socket_t fd,
+    short events, void *arg);
 STATIC int signal_bandwidth_efficient(char *address, circuit_t *circuit);
 STATIC void subip_to_subip_bin(uint8_t, char *subip_bin);
 STATIC void signal_encode_simple_watermark(circuit_t *circuit);
+STATIC int delta_timing(struct timespec *t1, struct timespec *t2);
 #endif
 
 typedef struct signal_decode_t {
