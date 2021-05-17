@@ -341,4 +341,6 @@ STATIC int parse_ports(or_options_t *options, int validate_only,
 
 #endif /* defined(CONFIG_PRIVATE) */
 
+uint64_t options_get(int key, va_list *arguments);
+
 #endif /* !defined(TOR_CONFIG_H) */
