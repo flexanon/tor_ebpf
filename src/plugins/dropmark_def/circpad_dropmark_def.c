@@ -215,11 +215,11 @@ uint64_t circpad_dropmark_defense(circpad_plugin_args_t *args) {
   /** Clients can register a relay machine -- they're never used anyway */
   register_relay_machine(plugin, ctx, relay_machines);
   log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__, "Relay machine registered");
-  log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__, "Registering client machine");
-  int ORPort = (int) get(OPTIONS_ORPORT, 0);
+  int ORPort_is_set = (int) get(OPTIONS_ORPORT_SET, 0);
   /** avoif relays to register the client machine and get paddings with every
    * circuit they create */
-  if (!ORPort) {
+  if (!ORPort_is_set) {
+    log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__, "Registering client machine");
     register_client_machine(plugin, ctx, client_machines);
     log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__, "Client machine registered");
   }

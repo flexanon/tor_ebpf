@@ -71,7 +71,6 @@ register_dev_functions(struct ubpf_vm *vm)
 
   /** some tools */
   tor_assert(ubpf_register(vm, idx++, "strcmp", strcmp) != -1);
-  tor_assert(ubpf_register(vm, idx++, "get_options", get_options) != -1);
 
 }
 
