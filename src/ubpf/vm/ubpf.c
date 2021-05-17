@@ -107,13 +107,13 @@ static void *readfile(const char *path, size_t maxlen, size_t *len)
     return NULL;
   }
 
-  if (!feof(file)) {
+  /*if (!feof(file)) {
     log_debug(LD_PLUGIN, "Failed to read %s because it is too large (max %u bytes) and current offset: %lu",
         path, (unsigned)maxlen, offset);
     fclose(file);
     tor_free(data);
     return NULL;
-  }
+  } */
 
   fclose(file);
   if (len) {
