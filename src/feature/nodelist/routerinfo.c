@@ -57,7 +57,7 @@ int
 router_has_addr(const routerinfo_t *router, const tor_addr_t *addr)
 {
   return
-    tor_addr_eq_ipv4h(addr, &router->ipv4_addr) ||
+    tor_addr_eq(addr, &router->ipv4_addr) ||
     tor_addr_eq(&router->ipv6_addr, addr);
 }
 

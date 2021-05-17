@@ -136,7 +136,7 @@ typedef struct entry_point_map_t {
 
 #define CONNEDGE_MAX 3000
 
-#define OPTIONS_ORPORT 3001
+#define OPTIONS_ORPORT_SET 3001
 
 #define OPTIONS_MAX 4000
 /*** KEYFUNC */
