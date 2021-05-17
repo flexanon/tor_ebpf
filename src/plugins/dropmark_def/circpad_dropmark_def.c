@@ -212,10 +212,16 @@ uint64_t circpad_dropmark_defense(circpad_plugin_args_t *args) {
   ctx->CIRCPAD_EVENT_SIGPLUGIN_CLOSE = (int) get(CIRCPAD_NEW_EVENTNUM, 0, NULL);
   set(CIRCPAD_PLUGIN_CTX, 2, args, ctx);
   log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__, "Registering relay machine");
+  /** Clients can register a relay machine -- they're never used anyway */
   register_relay_machine(plugin, ctx, relay_machines);
   log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__, "Relay machine registered");
   log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__, "Registering client machine");
-  register_client_machine(plugin, ctx, client_machines);
-  log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__, "Client machine registered");
+  int ORPort = (int) get(OPTIONS_ORPORT, 0);
+  /** avoif relays to register the client machine and get paddings with every
+   * circuit they create */
+  if (!ORPort) {
+    register_client_machine(plugin, ctx, client_machines);
+    log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__, "Client machine registered");
+  }
   return 0;
 }

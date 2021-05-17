@@ -173,6 +173,9 @@ uint64_t get(int key, int arglen, ...) {
   else if (key < CONNEDGE_MAX) {
     ret = connedge_get(key, &arguments);
   }
+  else if (key < OPTIONS_MAX) {
+    ret = options_get(key, &arguments);
+  }
   va_end(arguments);
   return ret;
 }
