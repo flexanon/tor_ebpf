@@ -80,6 +80,7 @@
 #include "core/or/dos.h"
 #include "core/or/policies.h"
 #include "core/or/relay.h"
+#include "core/or/plugin.h"
 #include "core/or/scheduler.h"
 #include "feature/client/addressmap.h"
 #include "feature/client/bridges.h"
@@ -7469,3 +7470,14 @@ options_any_client_port_set(const or_options_t *options)
           options->DNSPort_set ||
           options->HTTPTunnelPort_set);
 }
+
+uint64_t options_get(int key, va_list *arguments) {
+  switch (key) {
+    case OPTIONS_ORPORT_SET:
+      (void) arguments;
+      return (uint64_t) get_options()->ORPort_set;
+  }
+
+}
+
+

@@ -71,6 +71,7 @@ register_dev_functions(struct ubpf_vm *vm)
 
   /** some tools */
   tor_assert(ubpf_register(vm, idx++, "strcmp", strcmp) != -1);
+
 }
 
   static void
@@ -99,21 +100,21 @@ static void *readfile(const char *path, size_t maxlen, size_t *len)
   while ((rv = fread(data+offset, 1, maxlen-offset, file)) > 0) {
     offset += rv;
   }
-
-  if (ferror(file)) {
+  int ret;
+  if ((ret = ferror(file))) {
     log_debug(LD_PLUGIN, "Failed to read %s: %s\n", path, strerror(errno));
     fclose(file);
     tor_free(data);
     return NULL;
   }
 
-  /*if (!feof(file)) {
-    log_debug(LD_PLUGIN, "Failed to read %s because it is too large (max %u bytes) and current offset: %lu",
-        path, (unsigned)maxlen, offset);
-    fclose(file);
-    tor_free(data);
-    return NULL;
-  } */
+  /*if ((ret = feof(file)) == 0) {*/
+    /*log_debug(LD_PLUGIN, "Failed to read %s because it is too large (max %u bytes) and current offset: %lu",*/
+        /*path, (unsigned)maxlen, offset);*/
+    /*fclose(file);*/
+    /*tor_free(data);*/
+    /*return NULL;*/
+  /*}*/
 
   fclose(file);
   if (len) {
