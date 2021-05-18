@@ -108,7 +108,7 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
     caller_id_t caller, void *args) {
   if (!get_options()->EnablePlugins) {
     log_debug(LD_PLUGIN, "Plugins not enabled; defaulting to existing code");
-    return -1;
+    return PLUGIN_RUN_DEFAULT;
   }
   entry_point_map_t *found;
   found = HT_FIND(plugin_map_ht, &plugin_map_ht, key);
