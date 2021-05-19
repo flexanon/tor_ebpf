@@ -8,7 +8,7 @@
 /*We don't have new events in this plugin */
 #define PLUGIN_NUM_EVENTS 0
 
-static num_events = CIRCPAD_NUM_EVENTS + PLUGIN_NUM_EVENTS;
+static int num_events = CIRCPAD_NUM_EVENTS + PLUGIN_NUM_EVENTS;
 
 static __attribute__((always_inline)) void
 plugin_circpad_machine_states_init(plugin_t *plugin, circpad_machine_spec_t *machine,
@@ -23,7 +23,7 @@ plugin_circpad_machine_states_init(plugin_t *plugin, circpad_machine_spec_t *mac
   /* Initialize the default next state for all events to
    * "ignore" -- if events aren't specified, they are ignored. */
   for (circpad_statenum_t s = 0; s < num_states; s++) {
-    machine->states[s].next_state = my_plugin_malloc(num_events*sizeof(circpad_statenum_t));
+    machine->states[s].next_state = my_plugin_malloc(plugin, num_events*sizeof(circpad_statenum_t));
     machine->states[s].circpad_num_events = num_events;
     for (int e = 0; e < num_events; e++) {
       machine->states[s].next_state[e] = CIRCPAD_STATE_IGNORE;
@@ -68,7 +68,7 @@ static __attribute__((always_inline)) void register_client_machine(plugin_t *plu
     next_state[CIRCPAD_EVENT_NONPADDING_SENT] =
     CIRCPAD_STATE_END;
 
-  client_machine->machine_num = get(CIRCPAD_MACHINE_LIST_SIZE, client_machines);
+  client_machine->machine_num = get(CIRCPAD_MACHINE_LIST_SIZE, 1, client_machines);
 
   call_host_func(CIRCPAD_REGISTER_PADDING_MACHINE, 2, client_machine, client_machines);
   log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__,
@@ -102,7 +102,7 @@ static __attribute__((always_inline)) void register_relay_machine(plugin_t *plug
     CIRCPAD_STATE_END;
   /** dereference relay_machines */
   // one state to start with: START (-> END, never takes a slot in states)
-  relay_machine->machine_num = get(CIRCPAD_MACHINE_LIST_SIZE, relay_machines);
+  relay_machine->machine_num = get(CIRCPAD_MACHINE_LIST_SIZE, 1, relay_machines);
   // register the machine
   // one state to start with: START (-> END, never takes a slot in states)
   call_host_func(CIRCPAD_REGISTER_PADDING_MACHINE, 2, relay_machine, relay_machines);
@@ -112,9 +112,9 @@ static __attribute__((always_inline)) void register_relay_machine(plugin_t *plug
 
 uint64_t circpad_global_machine_init(circpad_plugin_args_t *args) {
   log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__, "Entering");
-  smartlist_t *client_machines = (smartlist_t*) get(CIRCPAD_CLIENT_MACHINES_SL, args);
-  smartlist_t *relay_machines = (smartlist_t*) get(CIRCPAD_RELAY_MACHINES_SL, args);
-  plugin_t *plugin = (plugin_t *) get(CIRCPAD_PLUGIN_T, args);
+  smartlist_t *client_machines = (smartlist_t*) get(CIRCPAD_CLIENT_MACHINES_SL, 1, args);
+  smartlist_t *relay_machines = (smartlist_t*) get(CIRCPAD_RELAY_MACHINES_SL, 1, args);
+  plugin_t *plugin = (plugin_t *) get(CIRCPAD_ARG_PLUGIN_T, 1, args);
   log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__, "Calling register_relay_machine");
   register_relay_machine(plugin, relay_machines);
   log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__, "Calling register_client_machine");
