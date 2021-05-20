@@ -1256,8 +1256,8 @@ circpad_send_padding_cell_for_callback(circpad_machine_runtime_t *mi)
     // If we're a non-origin circ, we can just send from here as if we're the
     // edge.
     if (TO_OR_CIRCUIT(circ)->p_chan_cells.n <= circpad_max_circ_queued_cells) {
-      log_info(LD_CIRC, "Callback: Sending padding to circuit (%d)"
-               " [length: %"PRIu64"]", mi->on_circ->purpose, mi->state_length);
+      log_info(LD_CIRC, "Callback: Sending padding to circuit (%d), cirdid: %d"
+               " [length: %"PRIu64"]", mi->on_circ->purpose, mi->on_circ->n_circ_id, mi->state_length);
       relay_send_command_from_edge(0, mi->on_circ, RELAY_COMMAND_DROP, NULL,
                                    0, NULL);
       rep_hist_padding_count_write(PADDING_TYPE_DROP);
