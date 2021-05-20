@@ -7477,7 +7477,7 @@ uint64_t options_get(int key, va_list *arguments) {
       (void) arguments;
       return (uint64_t) get_options()->ORPort_set;
   }
-
+  return 0;
 }
 
 

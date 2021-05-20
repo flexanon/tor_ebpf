@@ -1249,9 +1249,9 @@ circpad_send_padding_cell_for_callback(circpad_machine_runtime_t *mi)
                                 CIRCPAD_GET_MACHINE(mi)->target_hopnum,
                                 RELAY_COMMAND_DROP, NULL, 0);
     log_info(LD_CIRC, "Callback: Sending padding to origin circuit %u"
-             " (%d) [length: %"PRIu64"]",
+             " (%d), circid: %d [length: %"PRIu64"]",
              TO_ORIGIN_CIRCUIT(mi->on_circ)->global_identifier,
-             mi->on_circ->purpose, mi->state_length);
+             mi->on_circ->purpose, mi->on_circ->n_circ_id, mi->state_length);
   } else {
     // If we're a non-origin circ, we can just send from here as if we're the
     // edge.
