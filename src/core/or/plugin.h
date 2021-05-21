@@ -66,6 +66,8 @@ typedef enum {
   RELAY_PROCESS_EDGE_UNKNOWN,
   /** received a relay cell we can react to it */
   RELAY_RECEIVED_CONNECTED_CELL,
+  /** we received some data -- let's tell the sendme alg */
+  RELAY_SENDME_CIRCUIT_DATA_RECEIVED,
   /** We have one or several circpad machines to globally add to all circuits */
   CIRCPAD_PROTOCOL_INIT,
   CIRCPAD_PROTOCOL_MACHINEINFO_SETUP,
@@ -139,6 +141,10 @@ typedef struct entry_point_map_t {
 #define OPTIONS_ORPORT_SET 3001
 
 #define OPTIONS_MAX 4000
+
+#define UTIL_CIRCUIT_IS_ORIGIN 4001
+
+#define UTIL_MAX 5000
 /*** KEYFUNC */
 
 #define RELAY_SEND_COMMAND_FROM_EDGE 1

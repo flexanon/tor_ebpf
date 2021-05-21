@@ -8,12 +8,12 @@
 #include "app/config/config.h"
 #include "core/or/circuitpadding.h"
 #include "core/or/connection_edge.h"
+#include "core/or/circuit_st.h"
 #include "core/or/circuitlist.h"
 #include "core/or/plugin.h"
 #include "core/or/plugin_helper.h"
 #include "core/or/relay.h"
 #include "ubpf/vm/inc/ubpf.h"
-
 /**
  * Hashtable containing plugin information 
  */
@@ -119,6 +119,7 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
       case RELAY_REPLACE_PROCESS_EDGE_SENDME:
       case RELAY_REPLACE_STREAM_DATA_RECEIVED:
       case RELAY_PROCESS_EDGE_UNKNOWN:
+      case RELAY_SENDME_CIRCUIT_DATA_RECEIVED:
         {
           /** probably need to pass a ctx of many interesting things */
           struct relay_process_edge_t *ctx = (relay_process_edge_t *) args;
@@ -155,6 +156,22 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
   }
 }
 
+static uint64_t util_get(int key, va_list *arguments) {
+  
+  switch (key) {
+    case UTIL_CIRCUIT_IS_ORIGIN:
+      {
+        circuit_t *circ = va_arg(*arguments, circuit_t*);
+        if (CIRCUIT_IS_ORIGIN(circ))
+            return 1;
+        break;
+      }
+    default:
+      return 0;
+  }
+  return 0;
+}
+
 /**
  * get and set API access to the plugins
  *
@@ -175,6 +192,9 @@ uint64_t get(int key, int arglen, ...) {
   }
   else if (key < OPTIONS_MAX) {
     ret = options_get(key, &arguments);
+  }
+  else if (key < UTIL_MAX) {
+    ret = util_get(key, &arguments);
   }
   va_end(arguments);
   return ret;

@@ -1,0 +1,3 @@
+memory 0
+sendme_circuit_data_received protocol_relay replace sendme_circuit_data_received.o
+circuit_consider_sending_sendme protocol_relay replace circuit_consider_sending_sendme.o
