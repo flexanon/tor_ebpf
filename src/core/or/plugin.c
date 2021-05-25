@@ -14,6 +14,7 @@
 #include "core/or/plugin_helper.h"
 #include "core/or/relay.h"
 #include "ubpf/vm/inc/ubpf.h"
+#include <time.h>
 /**
  * Hashtable containing plugin information 
  */
@@ -72,7 +73,13 @@ int plugin_plug_elf(plugin_t *plugin, entry_info_t *einfo, char *elfpath) {
   else {
     plugin_entry_point_t *entry_point = tor_malloc_zero(sizeof(*entry_point));
     int ret;
+    clock_t start, end;
+    double cpu_time_used;
+    start = clock();
     ret = load_elf_file(elfpath,  plugin, entry_point);
+    end = clock();
+    cpu_time_used =  ((double) (end - start)) / CLOCKS_PER_SEC;
+    log_info(LD_PLUGIN, "Loading Plugin entry_point %s took %f sec", search.entry_name, cpu_time_used);
     if (ret < 0) {
       log_debug(LD_PLUGIN, "Failed to load plugin at elfpath %s, with heap of size %lu bytes", elfpath,
           plugin->memory_size);
