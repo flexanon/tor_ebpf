@@ -12,6 +12,18 @@
 #ifndef TOR_CIRCUITUSE_H
 #define TOR_CIRCUITUSE_H
 
+// Plugin stuff
+
+
+typedef struct circuit_plugin_args_t {
+  origin_circuit_t *circ;
+} circuit_plugin_args_t;
+
+uint64_t circuituse_get(int key, va_list *arguments);
+
+void circuituse_set(int key, va_list *arguments);
+
+
 void circuit_expire_building(void);
 void circuit_expire_waiting_for_better_guard(void);
 void circuit_remove_handled_ports(smartlist_t *needed_ports);

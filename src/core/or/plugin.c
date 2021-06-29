@@ -11,8 +11,9 @@
 #include "core/or/circuit_st.h"
 #include "core/or/circuitlist.h"
 #include "core/or/plugin.h"
-#include "core/or/plugin_helper.h"
+/*#include "core/or/plugin_helper.h"*/
 #include "core/or/relay.h"
+#include "feature/relay/routermode.h"
 #include "ubpf/vm/inc/ubpf.h"
 #include <time.h>
 /**
@@ -172,6 +173,10 @@ static uint64_t util_get(int key, va_list *arguments) {
         if (CIRCUIT_IS_ORIGIN(circ))
             return 1;
         break;
+      }
+    case UTIL_IS_RELAY:
+      {
+        return server_mode(get_options());
       }
     default:
       return 0;

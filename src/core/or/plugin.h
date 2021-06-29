@@ -71,6 +71,7 @@ typedef enum {
   /** We have one or several circpad machines to globally add to all circuits */
   CIRCPAD_PROTOCOL_INIT,
   CIRCPAD_PROTOCOL_MACHINEINFO_SETUP,
+  CIRCPAD_EVENT_CIRC_HAS_BUILT,
   /**Conn edge stuffs */
   CONNECTION_EDGE_ADD_TO_SENDING_BEGIN,
 } caller_id_t;
@@ -128,6 +129,7 @@ typedef struct entry_point_map_t {
 #define CIRCPAD_ARG_MACHINE_RUNTIME 1011
 /*circpad_machine_runtime_t.plugin_machine_runtime*/
 #define CIRCPAD_PLUGIN_MACHINE_RUNTIME 1012
+#define CIRCPAD_ARG_CIRCUIT_T 1013
 
 #define CIRCPAD_MAX 2000
 
@@ -143,6 +145,7 @@ typedef struct entry_point_map_t {
 #define OPTIONS_MAX 4000
 
 #define UTIL_CIRCUIT_IS_ORIGIN 4001
+#define UTIL_IS_RELAY 4002
 
 #define UTIL_MAX 5000
 /*** KEYFUNC */

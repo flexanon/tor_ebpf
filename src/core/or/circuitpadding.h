@@ -719,6 +719,7 @@ typedef struct circpad_plugin_args_t {
   /*placeholder for a machine */
   circpad_machine_spec_t *machine;
   circpad_machine_runtime_t *machine_runtime;
+  circuit_t *circ;
 } circpad_plugin_args_t;
 
 

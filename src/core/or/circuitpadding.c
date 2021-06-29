@@ -2265,6 +2265,21 @@ circpad_machine_event_circ_built(origin_circuit_t *circ)
 {
   circpad_shutdown_old_machines(circ);
   circpad_add_matching_machines(circ, origin_padding_machines);
+  entry_point_map_t pmap;
+  memset(&pmap, 0, sizeof(pmap));
+  pmap.ptype = PLUGIN_DEV;
+  pmap.putype = PLUGIN_CODE_ADD;
+  pmap.pfamily = PLUGIN_PROTOCOL_CIRCPAD;
+  pmap.entry_name = "circpad_machine_event_circ_built_add";
+  caller_id_t CIRCPAD_EVENT_CIRC_HAS_BUILT;
+  circpad_plugin_args_t args;
+  memset(&args, 0, sizeof(args));/
+  args.circ = TO_CIRCUIT(circ);
+  args.origin_padding_machines = origin_padding_machines;
+  args.relay_padding_machines = relay_padding_machines;
+  args.machine = NULL;
+  args.machine_runtime = NULL;
+  invoke_plugin_operation_or_default(&pmap, caller, (void*) &args);
 }
 
 /**
@@ -2545,6 +2560,7 @@ circpad_setup_machine_on_circ(circuit_t *on_circ,
   pmap.entry_name = (char *)"circpad_setup_machine_on_circ_add";
   caller_id_t caller = CIRCPAD_PROTOCOL_MACHINEINFO_SETUP;
   circpad_plugin_args_t args;
+  args.circ = on_circ;
   args.origin_padding_machines = origin_padding_machines;
   args.relay_padding_machines = relay_padding_machines;
   args.machine = (circpad_machine_spec_t *) machine;
@@ -2822,6 +2838,7 @@ circpad_machines_init(void)
   pmap.entry_name = (char *)"circpad_global_machine_init";
   caller_id_t caller = CIRCPAD_PROTOCOL_INIT;
   circpad_plugin_args_t args;
+  memset(&args, 0, sizeof(args));
   args.origin_padding_machines = origin_padding_machines;
   args.relay_padding_machines = relay_padding_machines;
   /** Load any global machine we have in our .o bytecode objects */
@@ -3262,6 +3279,11 @@ uint64_t circpad_get(int key, va_list *arguments) {
           }
         }
         return (uint64_t) CIRCPAD_MAX_MACHINES+1;
+      }
+    case CIRCPAD_ARG_CIRCUIT_T:
+      {
+        circpad_plugin_args_t *args = va_arg(*arguments, circpad_plugin_args_t *);
+        return (uint64_t) args->circ;
       }
     case CIRCPAD_PLUGIN_MACHINE_SPEC:
       {

@@ -3201,3 +3201,18 @@ circuit_read_valid_data(origin_circuit_t *circ, uint16_t relay_body_len)
       tor_add_u32_nowrap(circ->n_overhead_read_circ_bw,
                          RELAY_PAYLOAD_SIZE-relay_body_len);
 }
+
+/* Plugin get/set */
+
+uint64_t circuituse_get(int key, va_list *arguments) {
+  (void) key;
+  (void) arguments;
+  return 0;
+}
+
+void circuituse_set(int key, va_list *arguments) {
+  (void) key;
+  (void) arguments;
+}
+
+
