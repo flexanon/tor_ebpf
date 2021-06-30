@@ -168,7 +168,7 @@ static __attribute__((always_inline)) void register_client_machine(plugin_t
   client_machine->conditions.apply_state_mask = CIRCPAD_CIRC_OPENED;
 
   client_machine->conditions.apply_purpose_mask =
-    (circpad_purpose_mask_t) call_host_func(CIRCPAD_CIRC_PURPOSE_TO_MASK, 1, (uint32_t) CIRCUIT_PURPOSE_C_GENERAL);
+    (circpad_purpose_mask_t) call_host_func(CIRCPAD_CIRC_PURPOSE_TO_MASK, 1, (uint8_t) CIRCUIT_PURPOSE_C_GENERAL);
 
 
   /* This event should be triggered when the client sends a RELAY_BEGIN
