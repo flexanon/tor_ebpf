@@ -1692,6 +1692,7 @@ circuit_testing_failed(origin_circuit_t *circ, int at_last_hop)
 void
 circuit_has_opened(origin_circuit_t *circ)
 {
+  log_debug(LD_CIRC, "calling circuit_has_opened()");
   tor_trace(TR_SUBSYS(circuit), TR_EV(opened), circ);
   circuit_event_status(circ, CIRC_EVENT_BUILT, 0);
 
@@ -1699,6 +1700,7 @@ circuit_has_opened(origin_circuit_t *circ)
    * it building again later (e.g. by extending it), we will know not
    * to consider its build time. */
   circ->has_opened = 1;
+  circpad_machine_event_circ_opened(circ);
 
   switch (TO_CIRCUIT(circ)->purpose) {
     case CIRCUIT_PURPOSE_C_ESTABLISH_REND:

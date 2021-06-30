@@ -2028,6 +2028,7 @@ circpad_machine_conditions_apply(origin_circuit_t *circ,
     if (!machine->conditions.reduced_padding_ok)
       return 0;
   }
+  log_debug(LD_CIRC, "Checking circuit purpose, %d", TO_CIRCUIT(circ)->purpose);
 
   if (!(circpad_circ_purpose_to_mask(TO_CIRCUIT(circ)->purpose)
       & machine->conditions.apply_purpose_mask))
@@ -2040,7 +2041,8 @@ circpad_machine_conditions_apply(origin_circuit_t *circ,
     if (!(options->HSLayer2Nodes || options->HSLayer3Nodes))
       return 0;
   }
-
+  log_debug(LD_CIRC, "Checking condition state mask %d vs condition: %d",
+      circpad_circuit_state(circ), machine->conditions.apply_state_mask);
   /* We check for any bits set in the circuit state mask so that machines
    * can say any of the following through their state bitmask:
    * "I want to apply to circuits with either streams or no streams"; OR
@@ -2048,6 +2050,9 @@ circpad_machine_conditions_apply(origin_circuit_t *circ,
    * "I only want to apply to circuits without streams". */
   if (!(circpad_circuit_state(circ) & machine->conditions.apply_state_mask))
     return 0;
+
+  log_debug(LD_CIRC, "Checking condition min hops: %d < %d to return 0",
+      circuit_get_cpath_opened_len(circ), machine->conditions.min_hops);
 
   if (circuit_get_cpath_opened_len(circ) < machine->conditions.min_hops)
     return 0;
@@ -2206,6 +2211,7 @@ circpad_add_matching_machines(origin_circuit_t *on_circ,
       if (machine->machine_index == i &&
           circpad_machine_conditions_apply(on_circ, machine)) {
 
+        log_debug(LD_CIRC, "Circpad machine, condition apply");
         // We can only replace this machine if the target hopnum
         // is the same, otherwise we'll get invalid data
         if (circ->padding_machine[i]) {
@@ -2263,6 +2269,7 @@ circpad_machine_event_circ_added_hop(origin_circuit_t *on_circ)
 void
 circpad_machine_event_circ_built(origin_circuit_t *circ)
 {
+  log_debug(LD_CIRC, "Circpad module event circ built -- circ state: %d", circ->base_.state);
   circpad_shutdown_old_machines(circ);
   circpad_add_matching_machines(circ, origin_padding_machines);
   entry_point_map_t pmap;
@@ -2270,10 +2277,40 @@ circpad_machine_event_circ_built(origin_circuit_t *circ)
   pmap.ptype = PLUGIN_DEV;
   pmap.putype = PLUGIN_CODE_ADD;
   pmap.pfamily = PLUGIN_PROTOCOL_CIRCPAD;
-  pmap.entry_name = "circpad_machine_event_circ_built_add";
-  caller_id_t CIRCPAD_EVENT_CIRC_HAS_BUILT;
+  //fixme -- param is useless
+  pmap.param = 1;
+  pmap.entry_name = (char *)"circpad_machine_event_circ_built_add";
+  caller_id_t caller = CIRCPAD_EVENT_CIRC_HAS_BUILT;
   circpad_plugin_args_t args;
-  memset(&args, 0, sizeof(args));/
+  memset(&args, 0, sizeof(args));
+  args.circ = TO_CIRCUIT(circ);
+  args.origin_padding_machines = origin_padding_machines;
+  args.relay_padding_machines = relay_padding_machines;
+  args.machine = NULL;
+  args.machine_runtime = NULL;
+  invoke_plugin_operation_or_default(&pmap, caller, (void*) &args);
+}
+
+/**
+ * Event taht us that an origin circuit is now open
+ */
+
+void
+circpad_machine_event_circ_opened(origin_circuit_t *circ)
+{
+  circpad_shutdown_old_machines(circ);
+  circpad_add_matching_machines(circ, origin_padding_machines);
+  entry_point_map_t pmap;
+  memset(&pmap, 0, sizeof(pmap));
+  pmap.ptype = PLUGIN_DEV;
+  pmap.putype = PLUGIN_CODE_ADD;
+  pmap.pfamily = PLUGIN_PROTOCOL_CIRCPAD;
+  //fixme -- param is useless
+  pmap.param = 1;
+  pmap.entry_name = (char *)"circpad_machine_event_circ_opened_add";
+  caller_id_t caller = CIRCPAD_EVENT_CIRC_HAS_OPENED;
+  circpad_plugin_args_t args;
+  memset(&args, 0, sizeof(args));
   args.circ = TO_CIRCUIT(circ);
   args.origin_padding_machines = origin_padding_machines;
   args.relay_padding_machines = relay_padding_machines;

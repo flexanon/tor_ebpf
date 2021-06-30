@@ -756,6 +756,7 @@ circpad_decision_t circpad_internal_event_state_length_up(
  *  tear down padding state machines. */
 void circpad_machine_event_circ_added_hop(struct origin_circuit_t *on_circ);
 void circpad_machine_event_circ_built(struct origin_circuit_t *circ);
+void circpad_machine_event_circ_opened(struct origin_circuit_t *circ);
 void circpad_machine_event_circ_purpose_changed(struct origin_circuit_t *circ);
 void circpad_machine_event_circ_has_streams(struct origin_circuit_t *circ);
 void circpad_machine_event_circ_has_no_streams(struct origin_circuit_t *circ);

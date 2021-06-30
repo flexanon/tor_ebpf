@@ -11,7 +11,7 @@
 #include "core/or/circuit_st.h"
 #include "core/or/circuitlist.h"
 #include "core/or/plugin.h"
-/*#include "core/or/plugin_helper.h"*/
+#include "core/or/plugin_helper.h"
 #include "core/or/relay.h"
 #include "feature/relay/routermode.h"
 #include "ubpf/vm/inc/ubpf.h"
@@ -137,6 +137,7 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
         }
       case CIRCPAD_PROTOCOL_INIT:
       case CIRCPAD_PROTOCOL_MACHINEINFO_SETUP:
+      case CIRCPAD_EVENT_CIRC_HAS_BUILT:
         {
           circpad_plugin_args_t *ctx = (circpad_plugin_args_t *) args;
           ctx->plugin = found->plugin;
