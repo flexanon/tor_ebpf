@@ -32,7 +32,7 @@ uint64_t consider_sending_sendme(relay_process_edge_t *pedge) {
       set(RELAY_CIRC_DELIVER_WINDOW, 2, circ, circ_del_window);
     }
 
-    if (call_host_func(RELAY_SEND_COMMAND_FROM_EDGE, 1, pedge) < 0) {
+    if (call_host_func(RELAY_SEND_COMMAND_FROM_EDGE, 3, circ, (uint32_t) RELAY_COMMAND_SENDME, layer_hint) < 0) {
       log_fn_(LOG_WARN, LD_PLUGIN, __FUNCTION__,
           "relay_send_command_from_edge_ failed in plugin");
       return 1;

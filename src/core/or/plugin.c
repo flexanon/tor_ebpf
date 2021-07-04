@@ -138,6 +138,8 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
       case CIRCPAD_PROTOCOL_INIT:
       case CIRCPAD_PROTOCOL_MACHINEINFO_SETUP:
       case CIRCPAD_EVENT_CIRC_HAS_BUILT:
+      case CIRCPAD_SEND_PADDING_CALLBACK:
+      case CIRCPAD_EVENT_CIRC_HAS_OPENED:
         {
           circpad_plugin_args_t *ctx = (circpad_plugin_args_t *) args;
           ctx->plugin = found->plugin;
@@ -209,6 +211,9 @@ uint64_t get(int key, int arglen, ...) {
   else if (key < UTIL_MAX) {
     ret = util_get(key, &arguments);
   }
+  else if (key < CIRCUIT_MAX) {
+    ret = circuit_get(key, &arguments);
+  }
   va_end(arguments);
   return ret;
 }
@@ -224,6 +229,13 @@ void set(int key, int arglen, ...) {
   }
   else if (key < CONNEDGE_MAX) {
     connedge_set(key, &arguments);
+  }
+  else if (key < OPTIONS_MAX) {
+  }
+  else if (key < UTIL_MAX) {
+  }
+  else if (key < CIRCUIT_MAX) {
+    circuit_set(key, &arguments);
   }
   va_end(arguments);
 }
@@ -241,9 +253,11 @@ int call_host_func(int keyfunc, int size, ...) {
   switch (keyfunc) {
     case RELAY_SEND_COMMAND_FROM_EDGE:
       {
-        relay_process_edge_t *pedge = va_arg(arguments, relay_process_edge_t*);
-        ret = relay_send_command_from_edge(0, pedge->circ, RELAY_COMMAND_SENDME, 
-            NULL, 0, pedge->layer_hint);
+        circuit_t *circ = va_arg(arguments, circuit_t*);
+        uint32_t command = va_arg(arguments, uint32_t);
+        crypt_path_t *layer_hint = va_arg(arguments, crypt_path_t *);
+        ret = relay_send_command_from_edge(0, circ, command, 
+            NULL, 0, layer_hint);
         break;
 
       }
@@ -289,6 +303,34 @@ int call_host_func(int keyfunc, int size, ...) {
           log_debug(LD_PLUGIN, "Failed to send command %d at hop %d, with length %lu", command, hop, len);
         }
         ret = 0;
+        break;
+      }
+    case CIRCPAD_CHECK_MACHINE_TOKEN_SUPPLY:
+    case CIRCPAD_MACHINE_COUNT_PADDING_SENT:
+      {
+        return call_static_circpad_func(keyfunc, &arguments);
+      }
+    case CIRCPAD_SEND_COMMAND_DROP_TO_HOP:
+      {
+        origin_circuit_t *ocirc = TO_ORIGIN_CIRCUIT(va_arg(arguments, circuit_t*));
+        uint8_t hop = va_arg(arguments, uint32_t);
+        if (circpad_send_command_to_hop(ocirc, hop, RELAY_COMMAND_DROP, NULL, 0)) {
+          log_debug(LD_PLUGIN, "Failed to send command DROP at hop %d", hop);
+          ret = -1;
+        }
+        ret = 0;
+        break;
+      }
+    case CIRCPAD_CELL_EVENT_PADDING_SENT:
+      {
+        circuit_t *circ = va_arg(arguments, circuit_t*);
+        circpad_cell_event_padding_sent(circ);
+        break;
+      }
+    case TIMER_DISABLE:
+      {
+        tor_timer_t *timer = va_arg(arguments, tor_timer_t*);
+        timer_disable(timer);
       }
   }
   va_end(arguments);

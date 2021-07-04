@@ -823,6 +823,9 @@ uint64_t circpad_get(int key, va_list *arguments);
 
 void circpad_free_all(void);
 
+int
+call_static_circpad_func(int key, va_list *arguments);
+
 #ifdef CIRCUITPADDING_PRIVATE
 STATIC void  machine_spec_free_(circpad_machine_spec_t *m);
 #define machine_spec_free(chan) \
