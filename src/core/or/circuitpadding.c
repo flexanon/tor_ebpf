@@ -1303,7 +1303,24 @@ circpad_send_padding_callback(tor_timer_t *timer, void *args,
 
   if (mi && mi->on_circ) {
     assert_circuit_ok(mi->on_circ);
-    circpad_send_padding_cell_for_callback(mi);
+    
+    entry_point_map_t pmap;
+    memset(&pmap, 0, sizeof(pmap));
+    pmap.ptype = PLUGIN_DEV;
+    pmap.putype = PLUGIN_CODE_HIJACK;
+    pmap.pfamily = PLUGIN_PROTOCOL_CIRCPAD;
+    pmap.entry_name = (char *) "circpad_send_padding_cell_for_callback_replace";
+    caller_id_t caller = CIRCPAD_SEND_PADDING_CALLBACK;
+    circpad_plugin_args_t pargs;
+    memset(&pargs, 0, sizeof(pargs));
+    pargs.origin_padding_machines = origin_padding_machines;
+    pargs.relay_padding_machines = relay_padding_machines;
+    pargs.machine_runtime = mi;
+    pargs.machine = (circpad_machine_spec_t *) CIRCPAD_GET_MACHINE(mi);
+    pargs.circ = mi->on_circ;
+    if (invoke_plugin_operation_or_default(&pmap, caller, (void*) &pargs) == PLUGIN_RUN_DEFAULT) {
+      circpad_send_padding_cell_for_callback(mi);
+    }
   } else {
     // This shouldn't happen (represents a timer leak)
     log_fn(LOG_WARN,LD_CIRC,
@@ -1491,14 +1508,15 @@ circpad_machine_schedule_padding,(circpad_machine_runtime_t *mi))
   } else {
     mi->padding_scheduled_at_usec = 1;
   }
-  log_fn(LOG_INFO,LD_CIRC,"\tPadding in %u usec on circuit %u", in_usec,
-       CIRCUIT_IS_ORIGIN(mi->on_circ) ?
-           TO_ORIGIN_CIRCUIT(mi->on_circ)->global_identifier : 0);
-
   // Don't schedule if we have infinite delay.
   if (in_usec == CIRCPAD_DELAY_INFINITE) {
     return circpad_internal_event_infinity(mi);
   }
+
+  log_fn(LOG_INFO,LD_CIRC,"\tPadding in %u usec on circuit %u", in_usec,
+       CIRCUIT_IS_ORIGIN(mi->on_circ) ?
+           TO_ORIGIN_CIRCUIT(mi->on_circ)->global_identifier : 0);
+
 
   if (mi->state_length == 0) {
     /* If we're at length 0, that means we hit 0 after sending
@@ -1511,7 +1529,31 @@ circpad_machine_schedule_padding,(circpad_machine_runtime_t *mi))
   }
 
   if (in_usec <= 0) {
-    return circpad_send_padding_cell_for_callback(mi);
+
+    entry_point_map_t pmap;
+    memset(&pmap, 0, sizeof(pmap));
+    pmap.ptype = PLUGIN_DEV;
+    pmap.putype = PLUGIN_CODE_HIJACK;
+    pmap.pfamily = PLUGIN_PROTOCOL_CIRCPAD;
+    pmap.entry_name = (char *) "circpad_send_padding_cell_for_callback_replace";
+    caller_id_t caller = CIRCPAD_SEND_PADDING_CALLBACK;
+    circpad_plugin_args_t args;
+    memset(&args, 0, sizeof(args));
+    args.origin_padding_machines = origin_padding_machines;
+    args.relay_padding_machines = relay_padding_machines;
+    args.machine_runtime = mi;
+    args.machine = (circpad_machine_spec_t *) CIRCPAD_GET_MACHINE(mi);
+    args.circ = mi->on_circ;
+    int ret = invoke_plugin_operation_or_default(&pmap, caller, (void*) &args);
+    if (ret == PLUGIN_RUN_DEFAULT) {
+      return circpad_send_padding_cell_for_callback(mi);
+    }
+    else if (ret < 0) {
+      log_debug(LD_PLUGIN, "Calling circpad_send_padding_cell_for_callback_replace returned %d", ret);
+    }
+    else {
+      return (circpad_decision_t) ret;
+    }
   }
 
   timeout.tv_sec = in_usec/TOR_USEC_PER_SEC;
@@ -2028,6 +2070,7 @@ circpad_machine_conditions_apply(origin_circuit_t *circ,
     if (!machine->conditions.reduced_padding_ok)
       return 0;
   }
+  log_debug(LD_CIRC, "Checking circuit purpose, %d", TO_CIRCUIT(circ)->purpose);
 
   if (!(circpad_circ_purpose_to_mask(TO_CIRCUIT(circ)->purpose)
       & machine->conditions.apply_purpose_mask))
@@ -2040,7 +2083,8 @@ circpad_machine_conditions_apply(origin_circuit_t *circ,
     if (!(options->HSLayer2Nodes || options->HSLayer3Nodes))
       return 0;
   }
-
+  log_debug(LD_CIRC, "Checking condition state mask %d vs condition: %d",
+      circpad_circuit_state(circ), machine->conditions.apply_state_mask);
   /* We check for any bits set in the circuit state mask so that machines
    * can say any of the following through their state bitmask:
    * "I want to apply to circuits with either streams or no streams"; OR
@@ -2048,6 +2092,9 @@ circpad_machine_conditions_apply(origin_circuit_t *circ,
    * "I only want to apply to circuits without streams". */
   if (!(circpad_circuit_state(circ) & machine->conditions.apply_state_mask))
     return 0;
+
+  log_debug(LD_CIRC, "Checking condition min hops: %d < %d to return 0",
+      circuit_get_cpath_opened_len(circ), machine->conditions.min_hops);
 
   if (circuit_get_cpath_opened_len(circ) < machine->conditions.min_hops)
     return 0;
@@ -2206,6 +2253,7 @@ circpad_add_matching_machines(origin_circuit_t *on_circ,
       if (machine->machine_index == i &&
           circpad_machine_conditions_apply(on_circ, machine)) {
 
+        log_debug(LD_CIRC, "Circpad machine, condition apply");
         // We can only replace this machine if the target hopnum
         // is the same, otherwise we'll get invalid data
         if (circ->padding_machine[i]) {
@@ -2263,8 +2311,52 @@ circpad_machine_event_circ_added_hop(origin_circuit_t *on_circ)
 void
 circpad_machine_event_circ_built(origin_circuit_t *circ)
 {
+  log_debug(LD_CIRC, "Circpad module event circ built -- circ state: %d", circ->base_.state);
   circpad_shutdown_old_machines(circ);
   circpad_add_matching_machines(circ, origin_padding_machines);
+  entry_point_map_t pmap;
+  memset(&pmap, 0, sizeof(pmap));
+  pmap.ptype = PLUGIN_DEV;
+  pmap.putype = PLUGIN_CODE_ADD;
+  pmap.pfamily = PLUGIN_PROTOCOL_CIRCPAD;
+  //fixme -- param is useless
+  pmap.param = 1;
+  pmap.entry_name = (char *)"circpad_machine_event_circ_built_add";
+  caller_id_t caller = CIRCPAD_EVENT_CIRC_HAS_BUILT;
+  circpad_plugin_args_t args;
+  memset(&args, 0, sizeof(args));
+  args.circ = TO_CIRCUIT(circ);
+  args.origin_padding_machines = origin_padding_machines;
+  args.relay_padding_machines = relay_padding_machines;
+  invoke_plugin_operation_or_default(&pmap, caller, (void*) &args);
+}
+
+/**
+ * Event taht us that an origin circuit is now open
+ */
+
+void
+circpad_machine_event_circ_opened(origin_circuit_t *circ)
+{
+  circpad_shutdown_old_machines(circ);
+  circpad_add_matching_machines(circ, origin_padding_machines);
+  entry_point_map_t pmap;
+  memset(&pmap, 0, sizeof(pmap));
+  pmap.ptype = PLUGIN_DEV;
+  pmap.putype = PLUGIN_CODE_ADD;
+  pmap.pfamily = PLUGIN_PROTOCOL_CIRCPAD;
+  //fixme -- param is useless
+  pmap.param = 1;
+  pmap.entry_name = (char *)"circpad_machine_event_circ_opened_add";
+  caller_id_t caller = CIRCPAD_EVENT_CIRC_HAS_OPENED;
+  circpad_plugin_args_t args;
+  memset(&args, 0, sizeof(args));
+  args.circ = TO_CIRCUIT(circ);
+  args.origin_padding_machines = origin_padding_machines;
+  args.relay_padding_machines = relay_padding_machines;
+  args.machine = NULL;
+  args.machine_runtime = NULL;
+  invoke_plugin_operation_or_default(&pmap, caller, (void*) &args);
 }
 
 /**
@@ -2545,6 +2637,7 @@ circpad_setup_machine_on_circ(circuit_t *on_circ,
   pmap.entry_name = (char *)"circpad_setup_machine_on_circ_add";
   caller_id_t caller = CIRCPAD_PROTOCOL_MACHINEINFO_SETUP;
   circpad_plugin_args_t args;
+  args.circ = on_circ;
   args.origin_padding_machines = origin_padding_machines;
   args.relay_padding_machines = relay_padding_machines;
   args.machine = (circpad_machine_spec_t *) machine;
@@ -2822,6 +2915,7 @@ circpad_machines_init(void)
   pmap.entry_name = (char *)"circpad_global_machine_init";
   caller_id_t caller = CIRCPAD_PROTOCOL_INIT;
   circpad_plugin_args_t args;
+  memset(&args, 0, sizeof(args));
   args.origin_padding_machines = origin_padding_machines;
   args.relay_padding_machines = relay_padding_machines;
   /** Load any global machine we have in our .o bytecode objects */
@@ -3178,10 +3272,26 @@ void circpad_set(int key, va_list *arguments) {
     case CIRCPAD_PLUGIN_MACHINE_RUNTIME:
       {
         circpad_machine_runtime_t *mr = va_arg(*arguments, circpad_machine_runtime_t *);
+        tor_assert(mr);
         char *ptr = va_arg(*arguments, char*);
         log_debug(LD_PLUGIN, "Setting plugin_machin_runtime with string %s", ptr);
         mr->plugin_machine_runtime = ptr;
         break;
+      }
+    case CIRCPAD_MACHINE_RUNTIME_PADDING_SCHEDULED_AT_USEC:
+      {
+        circpad_machine_runtime_t *mr = va_arg(*arguments, circpad_machine_runtime_t *);
+        tor_assert(mr);
+        circpad_time_t padding_scheduled_at_usec = va_arg(*arguments, circpad_time_t);
+        mr->padding_scheduled_at_usec = padding_scheduled_at_usec;
+        break;
+      }
+    case CIRCPAD_MACHINE_RUNTIME_IS_PADDING_TIMER_SCHEDULED:
+      {
+        circpad_machine_runtime_t *mr = va_arg(*arguments, circpad_machine_runtime_t *);
+        tor_assert(mr);
+        uint32_t is_padding_timer_scheduled = va_arg(*arguments, uint32_t);
+        mr->is_padding_timer_scheduled = is_padding_timer_scheduled;
       }
   }
 }
@@ -3263,22 +3373,83 @@ uint64_t circpad_get(int key, va_list *arguments) {
         }
         return (uint64_t) CIRCPAD_MAX_MACHINES+1;
       }
+    case CIRCPAD_ARG_CIRCUIT_T:
+      {
+        circpad_plugin_args_t *args = va_arg(*arguments, circpad_plugin_args_t *);
+        return (uint64_t) args->circ;
+      }
     case CIRCPAD_PLUGIN_MACHINE_SPEC:
       {
         circpad_plugin_args_t *args = va_arg(*arguments, circpad_plugin_args_t *);
         return (uint64_t) args->machine->plugin_machine_spec;
       }
 
-    case CIRCPAD_MACHINE_SPEC_T:
+    case CIRCPAD_ARG_MACHINE_SPEC_T:
       {
         circpad_plugin_args_t *args = va_arg(*arguments, circpad_plugin_args_t *);
         return (uint64_t) args->machine;
       }
+    case CIRCPAD_MACHINE_RUNTIME_STATE:
+      {
+        circpad_machine_runtime_t *mi = va_arg(*arguments, circpad_machine_runtime_t *);
+        return mi->current_state;
+      }
+    case CIRCPAD_MAX_CIRC_QUEUED_CELLS:
+      return circpad_max_circ_queued_cells;
+    case CIRCPAD_MACHINE_SPEC_TARGET_HOP:
+      {
+        circpad_machine_spec_t *ms = va_arg(*arguments, circpad_machine_spec_t*);
+        return ms->target_hopnum;
+      }
+    case CIRCPAD_MACHINE_RUNTIME_STATELENGTH:
+      {
+        circpad_machine_runtime_t *mi = va_arg(*arguments, circpad_machine_runtime_t *);
+        return mi->state_length;
+      }
+    case CIRCPAD_MACHINE_SPEC_NAME:
+      {
+        circpad_machine_spec_t *machine = va_arg(*arguments, circpad_machine_spec_t*);
+        return (uint64_t) machine->name;
+      }
+    case CIRCPAD_MACHINE_RUNTIME_IS_PADDING_TIMER_SCHEDULED:
+     {
+        circpad_machine_runtime_t *mi = va_arg(*arguments, circpad_machine_runtime_t *);
+        return mi->is_padding_timer_scheduled;
+     }
+    case CIRCPAD_MACHINE_RUNTIME_PADDING_TIMER:
+     {
+        circpad_machine_runtime_t *mi = va_arg(*arguments, circpad_machine_runtime_t *);
+        return (uint64_t) mi->padding_timer;
+     }
     default: return 0;
   }
   return 0;
 }
 
+/**
+ * indirect calls for static functions defined within this module, which plugins
+ * would like to call
+ */
+
+int
+call_static_circpad_func(int key, va_list *arguments) {
+  int ret = 0;
+  switch(key) {
+    case CIRCPAD_CHECK_MACHINE_TOKEN_SUPPLY:
+    {
+      circpad_machine_runtime_t *mi = va_arg(*arguments, circpad_machine_runtime_t*);
+      return check_machine_token_supply(mi);
+    }
+    case CIRCPAD_MACHINE_COUNT_PADDING_SENT:
+    {
+      circpad_machine_runtime_t *mi = va_arg(*arguments, circpad_machine_runtime_t*);
+      tor_assert(mi);
+      circpad_machine_count_padding_sent(mi);
+      break;
+    }
+  }
+  return ret;
+}
 
 /** Free memory allocated by this machine spec. */
 STATIC void

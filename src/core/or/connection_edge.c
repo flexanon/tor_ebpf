@@ -3372,6 +3372,7 @@ MOCK_IMPL(int,
   args.edge_conn = edge_conn;
   args.on_circ = TO_CIRCUIT(circ);
   args.entry_conn = ap_conn;
+  args.param = 1;
   int ret = invoke_plugin_operation_or_default(&pmap, caller, (void*)&args);
   if (ret == PLUGIN_RUN_DEFAULT) {
     log_debug(LD_PLUGIN, "Run default code");

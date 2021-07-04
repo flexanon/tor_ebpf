@@ -263,9 +263,14 @@ const char *plugin_caller_id_to_string(caller_id_t caller) {
     case RELAY_REPLACE_PROCESS_EDGE_SENDME: return "circuit sending sendme cells";
     case RELAY_REPLACE_STREAM_DATA_RECEIVED: return "stream has received data";
     case RELAY_PROCESS_EDGE_UNKNOWN: return "host-code unknown new protocol feature";
+    case RELAY_RECEIVED_CONNECTED_CELL: return "plugin call when the Tor client received a Connected Cell";
+    case RELAY_SENDME_CIRCUIT_DATA_RECEIVED: return "plugin called in the control-flow algs when circuit has received data";
     case CIRCPAD_PROTOCOL_INIT: return "initializing global circpad machines";
-    case CONNECTION_EDGE_ADD_TO_SENDING_BEGIN: return "calling a plugin after sending a begin_cell";
     case CIRCPAD_PROTOCOL_MACHINEINFO_SETUP: return "calling a plugin while setting up a machine to a circuit";
+    case CIRCPAD_EVENT_CIRC_HAS_BUILT: return "calling a plugin in the circpad module when a circuit has built";
+    case CIRCPAD_EVENT_CIRC_HAS_OPENED: return "calling a plugin in the circpad module when a circuit has opened";
+    case CONNECTION_EDGE_ADD_TO_SENDING_BEGIN: return "calling a plugin after sending a begin_cell";
+      
     default:
       return "unsupported";
   }

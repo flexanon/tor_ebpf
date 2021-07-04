@@ -719,6 +719,7 @@ typedef struct circpad_plugin_args_t {
   /*placeholder for a machine */
   circpad_machine_spec_t *machine;
   circpad_machine_runtime_t *machine_runtime;
+  circuit_t *circ;
 } circpad_plugin_args_t;
 
 
@@ -755,6 +756,7 @@ circpad_decision_t circpad_internal_event_state_length_up(
  *  tear down padding state machines. */
 void circpad_machine_event_circ_added_hop(struct origin_circuit_t *on_circ);
 void circpad_machine_event_circ_built(struct origin_circuit_t *circ);
+void circpad_machine_event_circ_opened(struct origin_circuit_t *circ);
 void circpad_machine_event_circ_purpose_changed(struct origin_circuit_t *circ);
 void circpad_machine_event_circ_has_streams(struct origin_circuit_t *circ);
 void circpad_machine_event_circ_has_no_streams(struct origin_circuit_t *circ);
@@ -820,6 +822,9 @@ void circpad_set(int key, va_list *argument);
 uint64_t circpad_get(int key, va_list *arguments);
 
 void circpad_free_all(void);
+
+int
+call_static_circpad_func(int key, va_list *arguments);
 
 #ifdef CIRCUITPADDING_PRIVATE
 STATIC void  machine_spec_free_(circpad_machine_spec_t *m);

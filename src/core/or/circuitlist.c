@@ -86,6 +86,7 @@
 #include "core/crypto/onion_crypto.h"
 #include "core/crypto/onion_fast.h"
 #include "core/or/policies.h"
+#include "core/or/plugin.h"
 #include "core/or/relay.h"
 #include "core/crypto/relay_crypto.h"
 #include "feature/rend/rendclient.h"
@@ -2847,4 +2848,31 @@ assert_circuit_ok,(const circuit_t *c))
   } else {
     tor_assert(!or_circ || !or_circ->rend_splice);
   }
+}
+
+uint64_t circuit_get(int key, va_list *arguments) {
+  switch (key) {
+    case CIRCUIT_MARKED_FOR_CLOSE:
+      {
+        circuit_t *circ = va_arg(*arguments, circuit_t*);
+        return (uint64_t) circ->marked_for_close;
+      }
+    case CIRCUIT_P_CHAN_QUEUED_CELLS:
+      {
+        circuit_t *circ = va_arg(*arguments, circuit_t*);
+        tor_assert(!CIRCUIT_IS_ORIGIN(circ));
+        return TO_OR_CIRCUIT(circ)->p_chan_cells.n;
+      }
+    case CIRCUIT_N_CIRC_ID:
+      {
+        circuit_t *circ = va_arg(*arguments, circuit_t *);
+        return circ->n_circ_id;
+      }
+  }
+  return 0;
+}
+
+void circuit_set(int key, va_list *arguments) {
+  (void) key;
+  (void) arguments;
 }

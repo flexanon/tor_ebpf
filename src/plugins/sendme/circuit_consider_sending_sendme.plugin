@@ -1,3 +1,4 @@
 memory 0
 circuit_consider_sending_sendme protocol_relay replace circuit_consider_sending_sendme.o
 sendme_stream_data_received protocol_relay replace sendme_stream_data_received.o
+sendme_circuit_data_received protocol_relay replace sendme_circuit_data_received.o

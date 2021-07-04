@@ -66,9 +66,14 @@ typedef enum {
   RELAY_PROCESS_EDGE_UNKNOWN,
   /** received a relay cell we can react to it */
   RELAY_RECEIVED_CONNECTED_CELL,
+  /** we received some data -- let's tell the sendme alg */
+  RELAY_SENDME_CIRCUIT_DATA_RECEIVED,
   /** We have one or several circpad machines to globally add to all circuits */
   CIRCPAD_PROTOCOL_INIT,
   CIRCPAD_PROTOCOL_MACHINEINFO_SETUP,
+  CIRCPAD_EVENT_CIRC_HAS_BUILT,
+  CIRCPAD_EVENT_CIRC_HAS_OPENED,
+  CIRCPAD_SEND_PADDING_CALLBACK,
   /**Conn edge stuffs */
   CONNECTION_EDGE_ADD_TO_SENDING_BEGIN,
 } caller_id_t;
@@ -121,11 +126,20 @@ typedef struct entry_point_map_t {
 #define CIRCPAD_PLUGIN_MACHINE_SPEC 1008
 #define CIRCPAD_MACHINE_CTR 1009
 /*circpad_plugin_args_t.machine */
-#define CIRCPAD_MACHINE_SPEC_T 1010
+#define CIRCPAD_ARG_MACHINE_SPEC_T 1010
 /*circpad_plugin_args_t.machine_runtime */
 #define CIRCPAD_ARG_MACHINE_RUNTIME 1011
 /*circpad_machine_runtime_t.plugin_machine_runtime*/
 #define CIRCPAD_PLUGIN_MACHINE_RUNTIME 1012
+#define CIRCPAD_ARG_CIRCUIT_T 1013
+#define CIRCPAD_MACHINE_RUNTIME_PADDING_SCHEDULED_AT_USEC 1014
+#define CIRCPAD_MACHINE_RUNTIME_IS_PADDING_TIMER_SCHEDULED 1015
+#define CIRCPAD_MACHINE_RUNTIME_STATE 1016
+#define CIRCPAD_MAX_CIRC_QUEUED_CELLS 1017
+#define CIRCPAD_MACHINE_SPEC_TARGET_HOP 1018
+#define CIRCPAD_MACHINE_RUNTIME_STATELENGTH 1019
+#define CIRCPAD_MACHINE_SPEC_NAME 1020
+#define CIRCPAD_MACHINE_RUNTIME_PADDING_TIMER 1021
 
 #define CIRCPAD_MAX 2000
 
@@ -139,6 +153,17 @@ typedef struct entry_point_map_t {
 #define OPTIONS_ORPORT_SET 3001
 
 #define OPTIONS_MAX 4000
+
+#define UTIL_CIRCUIT_IS_ORIGIN 4001
+#define UTIL_IS_RELAY 4002
+
+#define UTIL_MAX 5000
+
+#define CIRCUIT_MARKED_FOR_CLOSE 5001
+#define CIRCUIT_P_CHAN_QUEUED_CELLS 5002
+#define CIRCUIT_N_CIRC_ID 5003
+
+#define CIRCUIT_MAX 6000
 /*** KEYFUNC */
 
 #define RELAY_SEND_COMMAND_FROM_EDGE 1
@@ -151,8 +176,16 @@ typedef struct entry_point_map_t {
 #define CIRCPAD_CIRC_PURPOSE_TO_MASK 103
 #define CIRCPAD_MACHINE_SPEC_TRANSITION 104
 #define CIRCPAD_SEND_COMMAND_TO_MIDDLE_HOP 105
+#define CIRCPAD_MACHINE_COUNT_PADDING_SENT 106
+#define CIRCPAD_SEND_COMMAND_DROP_TO_HOP 107
+#define CIRCPAD_CHECK_MACHINE_TOKEN_SUPPLY 108
+#define CIRCPAD_CELL_EVENT_PADDING_SENT 109
 
 #define CIRCPAD_KEYFUNC_MAX 200
+
+#define TIMER_DISABLE 201
+
+#define TIMER_KEYFUNC_MAX 300
 
 /**
  * Authentify and load plugins from $(data_directory)/plugins

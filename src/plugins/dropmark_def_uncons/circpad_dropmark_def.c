@@ -91,14 +91,6 @@ static __attribute__((always_inline)) void register_relay_machine(plugin_t
   relay_machine->states[CIRCPAD_STATE_BURST].
     histogram_total_tokens = relay_machine->states[CIRCPAD_STATE_BURST].
     histogram[0];
-  
-  /** Send 1 padding at the end of the GAP time */
-  relay_machine->states[CIRCPAD_STATE_GAP].
-    length_dist.type = CIRCPAD_DIST_UNIFORM;
-  relay_machine->states[CIRCPAD_STATE_GAP].
-    length_dist.param1 = 1;
-  relay_machine->states[CIRCPAD_STATE_GAP].
-    length_dist.param2 = 2;
 
   relay_machine->states[CIRCPAD_STATE_GAP].
     histogram_len = 2;
@@ -154,10 +146,6 @@ static __attribute__((always_inline)) void register_relay_machine(plugin_t
   relay_machine->states[CIRCPAD_STATE_BURST].
     next_state[ctx->CIRCPAD_EVENT_SIGPLUGIN_BE_SILENT] =
     CIRCPAD_STATE_SILENCE;
-
-  relay_machine->states[CIRCPAD_STATE_SILENCE].
-    next_state[ctx->CIRCPAD_EVENT_SIGPLUGIN_ACTIVATE] =
-    CIRCPAD_STATE_BURST;
 
   relay_machine->machine_num = get(CIRCPAD_MACHINE_LIST_SIZE, 1, relay_machines);
   call_host_func(CIRCPAD_REGISTER_PADDING_MACHINE, 2, relay_machine, relay_machines);

@@ -1692,32 +1692,42 @@ handle_relay_cell_command(cell_t *cell, circuit_t *circ,
       return connection_exit_begin_conn(cell, circ);
     case RELAY_COMMAND_DATA:
       ++stats_n_data_cells_received;
+      entry_point_map_t pmap;
+      relay_process_edge_t args;
+      args.circ = circ;
+      args.layer_hint = layer_hint;
+      args.edgeconn = conn;
+      caller_id_t caller;
 
       /* Update our circuit-level deliver window that we received a DATA cell.
        * If the deliver window goes below 0, we end the circuit and stream due
        * to a protocol failure. */
-      if (sendme_circuit_data_received(circ, layer_hint) < 0) {
-        log_fn(LOG_PROTOCOL_WARN, LD_PROTOCOL,
-               "(relay data) circ deliver_window below 0. Killing.");
-        connection_edge_end_close(conn, END_STREAM_REASON_TORPROTOCOL);
-        return -END_CIRC_REASON_TORPROTOCOL;
+      memset(&pmap, 0, sizeof(pmap));
+      pmap.ptype = PLUGIN_DEV;
+      pmap.putype = PLUGIN_CODE_HIJACK;
+      pmap.pfamily = PLUGIN_PROTOCOL_RELAY;
+      pmap.entry_name = (char *) "sendme_circuit_data_received";
+      caller = RELAY_SENDME_CIRCUIT_DATA_RECEIVED;
+
+      if (invoke_plugin_operation_or_default(&pmap, caller, (void*) &args) == PLUGIN_RUN_DEFAULT) {
+        if (sendme_circuit_data_received(circ, layer_hint) < 0) {
+          log_fn(LOG_PROTOCOL_WARN, LD_PROTOCOL,
+                 "(relay data) circ deliver_window below 0. Killing.");
+          connection_edge_end_close(conn, END_STREAM_REASON_TORPROTOCOL);
+          return -END_CIRC_REASON_TORPROTOCOL;
+        }
       }
 
       /* Consider sending a circuit-level SENDME cell. */
       /** Set the key map; the caller id and args defining the context to
        *  the plugin */
-      entry_point_map_t pmap;
       memset(&pmap, 0, sizeof(pmap));
       pmap.ptype = PLUGIN_DEV;
       pmap.putype = PLUGIN_CODE_HIJACK;
       pmap.pfamily = PLUGIN_PROTOCOL_RELAY;
       pmap.entry_name = (char*)"circuit_consider_sending_sendme";
       pmap.param = 0;
-      caller_id_t caller = RELAY_REPLACE_PROCESS_EDGE_SENDME;
-      relay_process_edge_t args;
-      args.circ = circ;
-      args.layer_hint = layer_hint;
-      args.edgeconn = conn;
+      caller = RELAY_REPLACE_PROCESS_EDGE_SENDME;
       
       if (invoke_plugin_operation_or_default(&pmap, caller, (void*)&args) == PLUGIN_RUN_DEFAULT){
         log_debug(LD_PLUGIN, "Run default code");

@@ -83,7 +83,6 @@ uint64_t circpad_dropmark_def_receive_sig(relay_process_edge_t *pedge) {
         "Looks like we did not successufully parse the cell: error %d (-2 == truncated), (-1 == fail)", ret);
     // yep -- there we should just kill the hell out of this circuit, and log
     // who sent that cell.
-    my_plugin_free(plugin, mycell);
     return PLUGIN_RUN_DEFAULT;
   }
   my_plugin_free(plugin, mycell);
@@ -100,18 +99,6 @@ uint64_t circpad_dropmark_def_receive_sig(relay_process_edge_t *pedge) {
   }
   log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__,
       "Received sign type %d, calling machine_spec_transition", signal_transition.signal_type);
-  
-  // We need to disable any scheduled padding if we silence or close
-  if (signal_transition.signal_type == ctx->CIRCPAD_EVENT_SIGPLUGIN_BE_SILENT ||
-      signal_transition.signal_type == ctx->CIRCPAD_EVENT_SIGPLUGIN_CLOSE) {
-    int is_padding_timer_scheduled = (int) get(CIRCPAD_MACHINE_RUNTIME_IS_PADDING_TIMER_SCHEDULED, 1, mr);
-    if (is_padding_timer_scheduled) {
-      set(CIRCPAD_MACHINE_RUNTIME_IS_PADDING_TIMER_SCHEDULED, 2, mr, (uint32_t) 0);
-      tor_timer_t *timer = (tor_timer_t *) get(CIRCPAD_MACHINE_RUNTIME_PADDING_TIMER, 1, mr);
-      call_host_func(TIMER_DISABLE, 1, timer);
-    }
-  }
-
   call_host_func(CIRCPAD_MACHINE_SPEC_TRANSITION, 2, mr, signal_transition.signal_type);
   return 0;
 }

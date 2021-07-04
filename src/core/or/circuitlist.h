@@ -250,6 +250,10 @@ HANDLE_DECL(circuit, circuit_t, )
 #define circuit_handle_free(h)    \
     FREE_AND_NULL(circuit_handle_t, circuit_handle_free_, (h))
 
+// Plugin stuffs
+uint64_t circuit_get(int key, va_list *arguments);
+void circuit_set(int key, va_list *arguments);
+
 #ifdef CIRCUITLIST_PRIVATE
 STATIC void circuit_free_(circuit_t *circ);
 #define circuit_free(circ) FREE_AND_NULL(circuit_t, circuit_free_, (circ))

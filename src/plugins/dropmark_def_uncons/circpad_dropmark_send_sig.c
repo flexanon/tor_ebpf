@@ -1,7 +1,7 @@
 #include "core/or/or.h"
 #include "core/or/circuitlist.h"
-#include "core/or/plugin.h"
 #include "core/or/circuitpadding.h"
+#include "core/or/plugin.h"
 #include "core/or/plugin_helper.h"
 #include "core/or/cell_st.h"
 #include "plugins/dropmark_def/circpad_dropmark_def.h"
