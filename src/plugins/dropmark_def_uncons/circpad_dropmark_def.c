@@ -72,9 +72,9 @@ static __attribute__((always_inline)) void register_relay_machine(plugin_t
   relay_machine->states[CIRCPAD_STATE_BURST].
     length_dist.type = CIRCPAD_DIST_UNIFORM;
   relay_machine->states[CIRCPAD_STATE_BURST].
-    length_dist.param1 = 1;
+    length_dist.param1 = 3;
   relay_machine->states[CIRCPAD_STATE_BURST].
-    length_dist.param2 = 5;
+    length_dist.param2 = 9;
 
   /* define the histogram  -- this should make the state chooses a timer between [1,
    * 100ms] uniformly before sending the padding, then circle back to this state*/
@@ -83,7 +83,7 @@ static __attribute__((always_inline)) void register_relay_machine(plugin_t
   relay_machine->states[CIRCPAD_STATE_BURST].
     histogram_edges[0] = 1; // 1µs
   relay_machine->states[CIRCPAD_STATE_BURST].
-    histogram_edges[1] = 1000; //1ms
+    histogram_edges[1] = 10 //10µs
 
   relay_machine->states[CIRCPAD_STATE_BURST].
     histogram[0] = 1000;
