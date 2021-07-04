@@ -2510,10 +2510,10 @@ circpad_deliver_recognized_relay_cell_events(circuit_t *circ,
        destination, which means that we received a padding cell. We might be
        the client or the Middle node, still, because leaky-pipe. */
     circpad_cell_event_padding_received(circ);
-    log_fn(LOG_INFO, LD_CIRC, "Got padding cell on %s circuit %u.",
-           CIRCUIT_IS_ORIGIN(circ) ? "origin" : "non-origin",
-           CIRCUIT_IS_ORIGIN(circ) ?
-             TO_ORIGIN_CIRCUIT(circ)->global_identifier : 0);
+    /*log_fn(LOG_INFO, LD_CIRC, "Got padding cell on %s circuit %u.",*/
+           /*CIRCUIT_IS_ORIGIN(circ) ? "origin" : "non-origin",*/
+           /*CIRCUIT_IS_ORIGIN(circ) ?*/
+             /*TO_ORIGIN_CIRCUIT(circ)->global_identifier : 0);*/
   } else {
     /* We received a non-padding cell on the edge */
     circpad_cell_event_nonpadding_received(circ);
