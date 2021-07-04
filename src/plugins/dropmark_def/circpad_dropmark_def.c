@@ -59,7 +59,7 @@ static __attribute__((always_inline)) void register_relay_machine(plugin_t
   // let's just use plugin_machine_spec as a placeholder for a unique name
   relay_machine->plugin_machine_spec = (void *) relay_machine->name;
 
-  relay_machine->conditions.apply_state_mask = CIRCPAD_CIRC_OPENED;
+  relay_machine->conditions.apply_state_mask = CIRCPAD_CIRC_STREAMS;
 
   relay_machine->is_origin_side = 0;
 
