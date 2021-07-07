@@ -83,7 +83,7 @@ static __attribute__((always_inline)) void register_relay_machine(plugin_t
   relay_machine->states[CIRCPAD_STATE_BURST].
     histogram_edges[0] = 1; // 1µs
   relay_machine->states[CIRCPAD_STATE_BURST].
-    histogram_edges[1] = 10 //10µs
+    histogram_edges[1] = 10; //10µs
 
   relay_machine->states[CIRCPAD_STATE_BURST].
     histogram[0] = 1000;
