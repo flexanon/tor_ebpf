@@ -251,7 +251,11 @@ smartlist_t* plugin_helper_find_all_and_init(void) {
 
 /**
  * Unplug the plugin -- i.e., free the map, destroy the ebpf vm and free the
- * plugin
+ *
+ * Note:
+ * That's critical to write as soon as we enable per-connection plugins. Right
+ * now we only have global plugins that would need to be unplugged on error or
+ * when Tor closes anyway.
  */
 
 void plugin_unplug(plugin_t *plugin) {
