@@ -249,7 +249,8 @@ struct circuit_t {
    * that STOP commands actually correspond to the current machine,
    * and not a previous one. */
   uint32_t padding_machine_ctr;
-
+  
+  unsigned int signal_listen : 1;
   /**
    * PLUGIN_XXX
    *

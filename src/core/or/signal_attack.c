@@ -9,6 +9,7 @@
 
 #define TOR_SIGNALATTACK_PRIVATE
 #include "core/or/signal_attack.h"
+#include "core/or/plugin.h"
 
 
 static int signal_send_relay_drop(int nbr, circuit_t *circ) {
@@ -185,30 +186,30 @@ static int signal_minimize_blank_latency_decode(signal_decode_t *circ_timing) {
 }
 
 
-static int signal_decode_simple_watermark(signal_decode_t *circ_timing,
+static int signal_decode_simple_watermark(circuit_t *circ, signal_decode_t *circ_timing,
     char *p_addr, char *n_addr) {
   
-  if (smartlist_len(circ_timing->timespec_list) == 4) {
+  if (smartlist_len(circ_timing->timespec_list) == 5 && circ->signal_listen) {
     int count = 0;
-    if (delta_timing(smartlist_get(circ_timing->timespec_list, 0),
-          smartlist_get(circ_timing->timespec_list, 1)) == 1)
-      count++;
     if (delta_timing(smartlist_get(circ_timing->timespec_list, 1),
           smartlist_get(circ_timing->timespec_list, 2)) == 1)
       count++;
-   
     if (delta_timing(smartlist_get(circ_timing->timespec_list, 2),
           smartlist_get(circ_timing->timespec_list, 3)) == 1)
       count++;
-    if (delta_timing(smartlist_get(circ_timing->timespec_list, 0),
-          smartlist_get(circ_timing->timespec_list, 2)) == 1)
+   
+    if (delta_timing(smartlist_get(circ_timing->timespec_list, 3),
+          smartlist_get(circ_timing->timespec_list, 4)) == 1)
+      count++;
+    if (delta_timing(smartlist_get(circ_timing->timespec_list, 1),
+          smartlist_get(circ_timing->timespec_list, 4)) == 1)
       count++;
 
     if (delta_timing(smartlist_get(circ_timing->timespec_list, 1),
           smartlist_get(circ_timing->timespec_list, 3)) == 1)
       count++;
     
-    if (count >= 2) {
+    if (count >= 3) {
       log_info(LD_SIGNAL, "Spotted watermark, predecessor: %s, successor: %s", p_addr, n_addr);
     }
     else {
@@ -395,7 +396,7 @@ int signal_listen_and_decode(circuit_t *circ) {
             break;
     case MIN_BLANK: return signal_minimize_blank_latency_decode(circ_timing);
             break;
-    case SIMPLE_WATERMARK: return signal_decode_simple_watermark(circ_timing, p_addr, n_addr);
+    case SIMPLE_WATERMARK: return signal_decode_simple_watermark(circ, circ_timing, p_addr, n_addr);
     default:
       log_info(LD_BUG, "signal_listen_and_decode switch: no correct case\n");
       return -1;
@@ -642,6 +643,16 @@ void signal_encode_destination(void *p) {
             break;
     case SIMPLE_WATERMARK: signal_encode_simple_watermark(circ);
             break;
+  }
+}
+
+void signal_set(int key, va_list *arguments) {
+  switch (key) {
+    case SIGNAL_LISTEN_TO_CIRCUIT:
+      {
+        circuit_t *circ = va_arg(*arguments, circuit_t *);
+        circ->signal_listen = 1;
+      }
   }
 }
 

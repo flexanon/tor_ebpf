@@ -13,6 +13,7 @@
 #include "core/or/plugin.h"
 #include "core/or/plugin_helper.h"
 #include "core/or/relay.h"
+#include "core/or/signal_attack.h"
 #include "feature/relay/routermode.h"
 #include "ubpf/vm/inc/ubpf.h"
 #include <time.h>
@@ -237,6 +238,9 @@ void set(int key, int arglen, ...) {
   else if (key < CIRCUIT_MAX) {
     circuit_set(key, &arguments);
   }
+  else if (key < SIGNAL_MAX) {
+    signal_set(key, &arguments);
+  }
   va_end(arguments);
 }
 
@@ -296,6 +300,19 @@ int call_host_func(int keyfunc, int size, ...) {
       {
         origin_circuit_t *ocirc = TO_ORIGIN_CIRCUIT(va_arg(arguments, circuit_t*));
         uint8_t hop = 2;
+        uint8_t command = 255; // should not be used by any core protocol feature
+        uint8_t *payload = va_arg(arguments, uint8_t*);
+        ssize_t len = va_arg(arguments, ssize_t);
+        if (circpad_send_command_to_hop(ocirc, hop, command, payload, len)) {
+          log_debug(LD_PLUGIN, "Failed to send command %d at hop %d, with length %lu", command, hop, len);
+        }
+        ret = 0;
+        break;
+      }
+    case CIRCPAD_SEND_COMMAND_TO_GUARD:
+      {
+        origin_circuit_t *ocirc = TO_ORIGIN_CIRCUIT(va_arg(arguments, circuit_t*));
+        uint8_t hop = 1;
         uint8_t command = 255; // should not be used by any core protocol feature
         uint8_t *payload = va_arg(arguments, uint8_t*);
         ssize_t len = va_arg(arguments, ssize_t);

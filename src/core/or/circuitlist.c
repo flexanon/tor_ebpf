@@ -2868,6 +2868,13 @@ uint64_t circuit_get(int key, va_list *arguments) {
         circuit_t *circ = va_arg(*arguments, circuit_t *);
         return circ->n_circ_id;
       }
+    case CIRCUIT_PATH_LEN:
+      {
+        circuit_t *circ = va_arg(*arguments, circuit_t *);
+        tor_assert(CIRCUIT_IS_ORIGIN(circ));
+        origin_circuit_t *ocirc = TO_ORIGIN_CIRCUIT(circ);
+        return ocirc->build_state->desired_path_len;
+      }
   }
   return 0;
 }

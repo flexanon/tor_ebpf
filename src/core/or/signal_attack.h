@@ -81,5 +81,6 @@ typedef struct signal_encode_state_t {
 
 void signal_encode_state_free(signal_encode_state_t *state);
 
+void signal_set(int key, va_list *arguments);
 
 #endif
