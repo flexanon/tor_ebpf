@@ -1,0 +1,4 @@
+memory 16777216
+circpad_global_machine_init protocol_circpad add signal_def.o
+relay_process_edge_unknown protocol_relay add signal_receive_sig.o
+plugin_add_connection_ap_handshake_send_begin protocol_conn_edge param 1 add signal_send_sig.o
