@@ -189,7 +189,8 @@ static int signal_minimize_blank_latency_decode(signal_decode_t *circ_timing) {
 static int signal_decode_simple_watermark(circuit_t *circ, signal_decode_t *circ_timing,
     char *p_addr, char *n_addr) {
   
-  if (smartlist_len(circ_timing->timespec_list) == 5 && circ->signal_listen) {
+  /*if (smartlist_len(circ_timing->timespec_list) == 5 && circ->signal_listen) {*/
+  if (smartlist_len(circ_timing->timespec_list) == 5) {
     int count = 0;
     if (delta_timing(smartlist_get(circ_timing->timespec_list, 1),
           smartlist_get(circ_timing->timespec_list, 2)) == 1)
