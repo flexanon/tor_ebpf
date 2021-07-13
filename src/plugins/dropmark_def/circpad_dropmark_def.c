@@ -113,10 +113,10 @@ static __attribute__((always_inline)) void register_relay_machine(plugin_t
     histogram_total_tokens = relay_machine->states[CIRCPAD_STATE_GAP].
     histogram[0];
 
-  /** Activate the machine as soon as a non-padding cell is received */
-  relay_machine->states[CIRCPAD_STATE_START].
-    next_state[CIRCPAD_EVENT_NONPADDING_SENT] =
-    CIRCPAD_STATE_BURST;
+  /*[>* Activate the machine as soon as a non-padding cell is received <]*/
+  /*relay_machine->states[CIRCPAD_STATE_START].*/
+    /*next_state[CIRCPAD_EVENT_NONPADDING_SENT] =*/
+    /*CIRCPAD_STATE_BURST;*/
 
   /* Transition from the start state to burst state when the client
    * tells us to do so */
@@ -125,10 +125,10 @@ static __attribute__((always_inline)) void register_relay_machine(plugin_t
     next_state[ctx->CIRCPAD_EVENT_SIGPLUGIN_ACTIVATE] =
     CIRCPAD_STATE_BURST;
 
-  /** schedule more padding until state_length is 0 */
-  relay_machine->states[CIRCPAD_STATE_BURST].
-    next_state[CIRCPAD_EVENT_PADDING_SENT] =
-    CIRCPAD_STATE_BURST;
+  /*[>* schedule more padding until state_length is 0 <]*/
+  /*relay_machine->states[CIRCPAD_STATE_BURST].*/
+    /*next_state[CIRCPAD_EVENT_PADDING_SENT] =*/
+    /*CIRCPAD_STATE_BURST;*/
   
   /* transition to the GAP state when all the padding cells are sent -- we wait again some random
    * interval and then transition to the BURST state again */
