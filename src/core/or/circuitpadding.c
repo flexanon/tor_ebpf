@@ -2311,7 +2311,7 @@ circpad_machine_event_circ_added_hop(origin_circuit_t *on_circ)
 void
 circpad_machine_event_circ_built(origin_circuit_t *circ)
 {
-  log_debug(LD_CIRC, "Circpad module event circ built -- circ state: %d", circ->base_.state);
+  log_info(LD_CIRC, "Circpad module event circ built -- circ state: %d", circ->base_.state);
   circpad_shutdown_old_machines(circ);
   circpad_add_matching_machines(circ, origin_padding_machines);
   entry_point_map_t pmap;

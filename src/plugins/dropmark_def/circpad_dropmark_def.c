@@ -177,7 +177,7 @@ static __attribute__((always_inline)) void register_client_machine(plugin_t
   client_machine->conditions.min_hops = 3;
   client_machine->is_origin_side = 1;
 
-  client_machine->conditions.apply_state_mask = CIRCPAD_CIRC_STREAMS;
+  client_machine->conditions.apply_state_mask = CIRCPAD_CIRC_BUILDING;
 
   client_machine->conditions.apply_purpose_mask =
     (circpad_purpose_mask_t) call_host_func(CIRCPAD_CIRC_PURPOSE_TO_MASK, 1, (uint8_t) CIRCUIT_PURPOSE_C_GENERAL);
