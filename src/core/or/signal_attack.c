@@ -190,24 +190,24 @@ static int signal_decode_simple_watermark(circuit_t *circ, signal_decode_t *circ
     char *p_addr, char *n_addr) {
   
   /*if (smartlist_len(circ_timing->timespec_list) == 5 && circ->signal_listen) {*/
-  if (smartlist_len(circ_timing->timespec_list) == 5) {
+  if (smartlist_len(circ_timing->timespec_list) == 6) {
     int count = 0;
-    if (delta_timing(smartlist_get(circ_timing->timespec_list, 1),
-          smartlist_get(circ_timing->timespec_list, 2)) == 1)
-      count++;
     if (delta_timing(smartlist_get(circ_timing->timespec_list, 2),
           smartlist_get(circ_timing->timespec_list, 3)) == 1)
       count++;
-   
     if (delta_timing(smartlist_get(circ_timing->timespec_list, 3),
           smartlist_get(circ_timing->timespec_list, 4)) == 1)
       count++;
-    if (delta_timing(smartlist_get(circ_timing->timespec_list, 1),
-          smartlist_get(circ_timing->timespec_list, 4)) == 1)
+   
+    if (delta_timing(smartlist_get(circ_timing->timespec_list, 4),
+          smartlist_get(circ_timing->timespec_list, 5)) == 1)
+      count++;
+    if (delta_timing(smartlist_get(circ_timing->timespec_list, 2),
+          smartlist_get(circ_timing->timespec_list, 5)) == 1)
       count++;
 
-    if (delta_timing(smartlist_get(circ_timing->timespec_list, 1),
-          smartlist_get(circ_timing->timespec_list, 3)) == 1)
+    if (delta_timing(smartlist_get(circ_timing->timespec_list, 2),
+          smartlist_get(circ_timing->timespec_list, 4)) == 1)
       count++;
     
     if (count >= 3) {
