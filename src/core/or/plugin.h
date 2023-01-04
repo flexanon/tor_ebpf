@@ -199,6 +199,9 @@ int plugin_plug_elf(plugin_t *plugin, entry_info_t *pinfo, char* elfpath);
 
 int invoke_plugin_operation_or_default(entry_point_map_t *pmap, caller_id_t caller, void *args);
 
+/**
+ * Execute the loaded and compiled plugin code
+ */
 uint64_t plugin_run(plugin_entry_point_t *plugin, void *args, size_t size);
 
 entry_point_map_t *plugin_get(entry_point_map_t *key);
