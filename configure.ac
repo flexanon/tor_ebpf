@@ -3,7 +3,7 @@ dnl Copyright (c) 2004-2006, Roger Dingledine, Nick Mathewson
 dnl Copyright (c) 2007-2019, The Tor Project, Inc.
 dnl See LICENSE for licensing information
 
-AC_PREREQ([2.63])
+AC_PREREQ([2.71])
 AC_INIT([tor],[0.4.5.7])
 AC_CONFIG_SRCDIR([src/app/main/tor_main.c])
 AC_CONFIG_MACRO_DIR([m4])
@@ -441,7 +441,11 @@ AM_CONDITIONAL(BUILD_MANPAGE, [test "x$enable_manpage" != "xno"])
 AM_CONDITIONAL(BUILD_HTML_DOCS, [test "x$enable_html_manual" != "xno"])
 
 AM_PROG_CC_C_O
-AC_PROG_CC_C99
+
+dnl Before autoconf 2.70, AC_PROG_CC_C99 is supposedly necessary for some
+dnl compilers if you wan't C99 support. Starting with 2.70, it is obsolete and
+dnl forbidden.
+m4_version_prereq([2.70], [:], [AC_PROG_CC_C99])
 
 AC_CACHE_CHECK([for Python 3], [tor_cv_PYTHON],
    [AC_PATH_PROGS_FEATURE_CHECK([PYTHON], [ \
