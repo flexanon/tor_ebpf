@@ -124,9 +124,10 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
     log_debug(LD_PLUGIN, "Plugin found for caller %s",
               plugin_caller_id_to_string(caller));
     switch (caller) {
+      case RELAY_CIRCUIT_UNRECOGNIZED_DATA_RECEIVED:
+      case RELAY_PROCESS_EDGE_UNKNOWN:
       case RELAY_REPLACE_PROCESS_EDGE_SENDME:
       case RELAY_REPLACE_STREAM_DATA_RECEIVED:
-      case RELAY_PROCESS_EDGE_UNKNOWN:
       case RELAY_SENDME_CIRCUIT_DATA_RECEIVED:
         {
           /** probably need to pass a ctx of many interesting things */

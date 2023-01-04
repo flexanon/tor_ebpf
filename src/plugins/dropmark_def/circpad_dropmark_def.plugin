@@ -1,4 +1,5 @@
 memory 16777216
+uid 42
 circpad_global_machine_init protocol_circpad add circpad_dropmark_def.o
 circpad_setup_machine_on_circ_add protocol_circpad add circpad_dropmark_circ_setup.o
 relay_process_edge_unknown protocol_relay add circpad_dropmark_receive_sig.o

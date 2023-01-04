@@ -137,7 +137,7 @@ plugin_t* plugin_insert_transaction(const char *plugin_filepath, const char *fil
     line2 = line;
     char *token = strsep(&line2, " ");
     if (!token) {
-      log_debug(LD_PLUGIN, "No token for memory instracted?");
+      log_debug(LD_PLUGIN, "No token for memory extracted?");
       ok = false;
     }
     if (strncmp(token, "memory", 6) == 0) {
@@ -158,8 +158,36 @@ plugin_t* plugin_insert_transaction(const char *plugin_filepath, const char *fil
   else {
     ok = false;
   }
+  /** Parse the uid  -- copy/past above code in an ugly way.*/
+  uint64_t uid = 0;
+  if ((ret = getline(&line, &len, file)) != -1) {
+    line2 = line;
+    char *token = strsep(&line2, " ");
+    if (!token) {
+      log_debug(LD_PLUGIN, "No token for uid extracted?");
+      ok = false;
+    }
+    if (strncmp(token, "uid", 3) == 0) {
+      token = strsep(&line2, "\n");
+      char * errmsg = NULL;
+      uid = (uint64_t) strtoul(token, &errmsg, 0);
+      if (errmsg != NULL && strncmp(errmsg, "", 1) != 0) {
+        log_debug(LD_PLUGIN, "Invalid parameter %s, val is %ld. Errmsg: %s", token, uid, errmsg);
+        ok = false;
+      }
+    }
+    else {
+      log_debug(LD_PLUGIN, "Expected 'uid' token, got %s", token);
+      ok = false;
+    }
+  }
+  else {
+    ok = false;
+  }
+
   /** we have the memory size; let's create the plugin */
   plugin_t *plugin = plugin_memory_init(memory_needed);
+  plugin->uid = uid;
   plugin->entry_points = smartlist_new();
   plugin->pname = tor_strdup(filename);
   entry_info_t einfo;
@@ -269,12 +297,13 @@ const char *plugin_caller_id_to_string(caller_id_t caller) {
     case RELAY_PROCESS_EDGE_UNKNOWN: return "host-code unknown new protocol feature";
     case RELAY_RECEIVED_CONNECTED_CELL: return "plugin call when the Tor client received a Connected Cell";
     case RELAY_SENDME_CIRCUIT_DATA_RECEIVED: return "plugin called in the control-flow algs when circuit has received data";
+    case RELAY_CIRCUIT_UNRECOGNIZED_DATA_RECEIVED: return "plugin called before passing a unrecognized cell the next hop";
     case CIRCPAD_PROTOCOL_INIT: return "initializing global circpad machines";
     case CIRCPAD_PROTOCOL_MACHINEINFO_SETUP: return "calling a plugin while setting up a machine to a circuit";
     case CIRCPAD_EVENT_CIRC_HAS_BUILT: return "calling a plugin in the circpad module when a circuit has built";
     case CIRCPAD_EVENT_CIRC_HAS_OPENED: return "calling a plugin in the circpad module when a circuit has opened";
+    case CIRCPAD_SEND_PADDING_CALLBACK: return "replace the function send_padding_callback in the circpad framework";
     case CONNECTION_EDGE_ADD_TO_SENDING_BEGIN: return "calling a plugin after sending a begin_cell";
-      
     default:
       return "unsupported";
   }

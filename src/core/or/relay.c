@@ -296,8 +296,6 @@ circuit_receive_relay_cell(cell_t *cell, circuit_t *circ,
     return 0;
   }
 
-  /* not recognized. inform circpad and pass it on. */
-  circpad_deliver_unrecognized_cell_events(circ, cell_direction);
 
   if (cell_direction == CELL_DIRECTION_OUT) {
     cell->circ_id = circ->n_circ_id; /* switch it */
@@ -343,14 +341,32 @@ circuit_receive_relay_cell(cell_t *cell, circuit_t *circ,
            "Didn't recognize cell, but circ stops here! Closing circ.");
     return -END_CIRC_REASON_TORPROTOCOL;
   }
+  /**
+   * Hook here to do anything before appending the cell to the circuit queue
+   */
+  entry_point_map_t pmap;
+  memset(&pmap, 0, sizeof(pmap));
+  pmap.ptype = PLUGIN_DEV;
+  pmap.putype = PLUGIN_CODE_HIJACK;
+  pmap.pfamily = PLUGIN_PROTOCOL_RELAY;
+  pmap.entry_name = (char *) "circuit_unrecognized_data_received";
+  caller_id_t caller = RELAY_CIRCUIT_UNRECOGNIZED_DATA_RECEIVED;
+  relay_process_edge_t args;
+  args.circ = circ;
+  args.cell = cell;
+  if (invoke_plugin_operation_or_default(&pmap, caller, (void*) &args) == PLUGIN_RUN_DEFAULT) {
 
-  log_debug(LD_OR,"Passing on unrecognized cell.");
+    /* not recognized. inform circpad and pass it on. */
+    circpad_deliver_unrecognized_cell_events(circ, cell_direction);
 
-  ++stats_n_relay_cells_relayed; /* XXXX no longer quite accurate {cells}
-                                  * we might kill the circ before we relay
-                                  * the cells. */
+    log_debug(LD_OR,"Passing on unrecognized cell.");
 
-  append_cell_to_circuit_queue(circ, chan, cell, cell_direction, 0);
+    ++stats_n_relay_cells_relayed; /* XXXX no longer quite accurate {cells}
+                                    * we might kill the circ before we relay
+                                    * the cells. */
+
+    append_cell_to_circuit_queue(circ, chan, cell, cell_direction, 0);
+  }
   return 0;
 }
 
@@ -531,6 +547,7 @@ relay_command_to_string(uint8_t command)
     case RELAY_COMMAND_EXTENDED2: return "EXTENDED2";
     case RELAY_COMMAND_PADDING_NEGOTIATE: return "PADDING_NEGOTIATE";
     case RELAY_COMMAND_PADDING_NEGOTIATED: return "PADDING_NEGOTIATED";
+    case RELAY_COMMAND_PLUG: return "PLUGIN_PROTOCOL_EXTENSION";
     default:
       tor_snprintf(buf, sizeof(buf), "Unrecognized relay command %u",
                    (unsigned)command);

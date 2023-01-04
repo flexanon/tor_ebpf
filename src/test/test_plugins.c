@@ -63,9 +63,9 @@ test_plugin_helper_find_all_and_init(void *args) {
   const char* plugin_fname_2 = "test_2.plugin";
   const char* plugin_fname_3 = "test_3.plugin";
 
-  const char* str_test_1 = "memory 256\ntest_1 protocol_relay replace test_1.o";
-  const char* str_test_2 = "memory 256\ntest_2 protocol_relay param 42 add test_2.o\nother_test_2 protocol_relay replace other_test_2.o";
-  const char* str_test_3 = "memory 256\ntest_3 protocol_circpad replace test_3.o";
+  const char* str_test_1 = "memory 256\nuid 42\ntest_1 protocol_relay replace test_1.o";
+  const char* str_test_2 = "memory 256\nuid 42\ntest_2 protocol_relay param 42 add test_2.o\nother_test_2 protocol_relay replace other_test_2.o";
+  const char* str_test_3 = "memory 256\nuid 42\ntest_3 protocol_circpad replace test_3.o";
 
   ret = write_to_plugin_subdir(plugin_dir_1, plugin_fname_1, str_test_1, NULL);
   tt_int_op(ret, OP_EQ, 0);
@@ -101,6 +101,9 @@ test_plugin_helper_find_all_and_init(void *args) {
   tt_int_op(plugin1->memory_size, OP_EQ, 256);
   tt_int_op(plugin2->memory_size, OP_EQ, 256);
   tt_int_op(plugin3->memory_size, OP_EQ, 256);
+  tt_int_op(plugin1->uid, OP_EQ, 42);
+  tt_int_op(plugin2->uid, OP_EQ, 42);
+  tt_int_op(plugin3->uid, OP_EQ, 42);
   /** Let's find entry points in our map */
   entry_point_map_t emap;
   memset(&emap, 0, sizeof(emap));

@@ -118,6 +118,13 @@ typedef struct relay_process_edge_t {
   cell_t *cell;
 } relay_process_edge_t;
 
+
+typedef struct relay_process_t {
+  plugin_t *plugin;
+  circuit_t *circ;
+  cell_t *cell;
+} relay_process_t;
+
 uint64_t relay_get(int key, va_list *arguments);
 
 void relay_set(int key, va_list *arguments);

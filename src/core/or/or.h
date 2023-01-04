@@ -209,6 +209,7 @@ struct curve25519_public_key_t;
 
 #define RELAY_COMMAND_PADDING_NEGOTIATE 41
 #define RELAY_COMMAND_PADDING_NEGOTIATED 42
+#define RELAY_COMMAND_PLUG 43
 
 /* Reasons why an OR connection is closed. */
 #define END_OR_CONN_REASON_DONE           1
@@ -1142,6 +1143,7 @@ typedef struct plugin {
   char *memory;
   size_t memory_size;
   smartlist_t *entry_points;
+  uint64_t uid;
   /**
    * plugin ctx shared by the entry points -- should be initialized by the main
    * entry point if needed

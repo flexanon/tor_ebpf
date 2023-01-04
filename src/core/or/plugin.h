@@ -68,6 +68,9 @@ typedef enum {
   RELAY_RECEIVED_CONNECTED_CELL,
   /** we received some data -- let's tell the sendme alg */
   RELAY_SENDME_CIRCUIT_DATA_RECEIVED,
+  /** we received some data that we don't recognized and would pass to the next
+   * hop */
+  RELAY_CIRCUIT_UNRECOGNIZED_DATA_RECEIVED,
   /** We have one or several circpad machines to globally add to all circuits */
   CIRCPAD_PROTOCOL_INIT,
   CIRCPAD_PROTOCOL_MACHINEINFO_SETUP,
