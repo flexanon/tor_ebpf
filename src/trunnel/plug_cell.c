@@ -57,6 +57,17 @@ plugin_part_free(plugin_part_t *obj)
   trunnel_free_(obj);
 }
 
+uint64_t
+plugin_part_get_total_len(const plugin_part_t *inp)
+{
+  return inp->total_len;
+}
+int
+plugin_part_set_total_len(plugin_part_t *inp, uint64_t val)
+{
+  inp->total_len = val;
+  return 0;
+}
 uint16_t
 plugin_part_get_data_len(const plugin_part_t *inp)
 {
@@ -167,6 +178,9 @@ plugin_part_encoded_len(const plugin_part_t *obj)
      return -1;
 
 
+  /* Length of u64 total_len */
+  result += 8;
+
   /* Length of u16 data_len */
   result += 2;
 
@@ -201,6 +215,13 @@ plugin_part_encode(uint8_t *output, const size_t avail, const plugin_part_t *obj
 #ifdef TRUNNEL_CHECK_ENCODED_LEN
   trunnel_assert(encoded_len >= 0);
 #endif
+
+  /* Encode u64 total_len */
+  trunnel_assert(written <= avail);
+  if (avail - written < 8)
+    goto truncated;
+  trunnel_set_uint64(ptr, trunnel_htonll(obj->total_len));
+  written += 8; ptr += 8;
 
   /* Encode u16 data_len */
   trunnel_assert(written <= avail);
@@ -261,6 +282,11 @@ plugin_part_parse_into(plugin_part_t *obj, const uint8_t *input, const size_t le
   size_t remaining = len_in;
   ssize_t result = 0;
   (void)result;
+
+  /* Parse u64 total_len */
+  CHECK_REMAINING(8, truncated);
+  obj->total_len = trunnel_ntohll(trunnel_get_uint64(ptr));
+  remaining -= 8; ptr += 8;
 
   /* Parse u16 data_len */
   CHECK_REMAINING(2, truncated);

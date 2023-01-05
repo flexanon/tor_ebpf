@@ -10,11 +10,15 @@
 
 #if !defined(TRUNNEL_OPAQUE) && !defined(TRUNNEL_OPAQUE_PLUGIN_PART)
 struct plugin_part_st {
+  /** length of the whole buffer */
+  uint64_t total_len;
   /** length of the payload within this cell */
   uint16_t data_len;
   /**
      * offset is the index of this plugin_data_part's beginning position within the whole
      * plugin_data, which might be greater than one cell payload size
+     *
+     * 0 <= offset < total_len
      */
   uint64_t offset;
   TRUNNEL_DYNARRAY_HEAD(, uint8_t) plugin_data_part;
@@ -67,6 +71,15 @@ const char *plugin_part_check(const plugin_part_t *obj);
  * functions. Return true iff errors were cleared.
  */
 int plugin_part_clear_errors(plugin_part_t *obj);
+/** Return the value of the total_len field of the plugin_part_t in
+ * 'inp'
+ */
+uint64_t plugin_part_get_total_len(const plugin_part_t *inp);
+/** Set the value of the total_len field of the plugin_part_t in 'inp'
+ * to 'val'. Return 0 on success; return -1 and set the error code on
+ * 'inp' on failure.
+ */
+int plugin_part_set_total_len(plugin_part_t *inp, uint64_t val);
 /** Return the value of the data_len field of the plugin_part_t in
  * 'inp'
  */

@@ -1,10 +1,14 @@
 
 struct plugin_part {
+  /** length of the whole buffer */
+  u64 total_len;
   /** length of the payload within this cell */
   u16 data_len;
   /**
    * offset is the index of this plugin_data_part's beginning position within the whole
    * plugin_data, which might be greater than one cell payload size
+   *
+   * 0 <= offset < total_len
    */
   u64 offset;
   u8 plugin_data_part[data_len];
