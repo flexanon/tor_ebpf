@@ -3,8 +3,8 @@
  * You probably shouldn't edit this file.
  */
 #ifndef TRUNNEL_PLUG_CELL_H
-#define TRUNNEL_PLUG_CELL_H
 
+#define TRUNNEL_PLUG_CELL_H
 #include <stdint.h>
 #include "trunnel.h"
 

@@ -10,11 +10,15 @@
 #include "core/or/connection_edge.h"
 #include "core/or/circuit_st.h"
 #include "core/or/circuitlist.h"
+#include "core/or/crypt_path.h"
+#include "core/or/origin_circuit_st.h"
+#include "core/or/or_circuit_st.h"
 #include "core/or/plugin.h"
 #include "core/or/plugin_helper.h"
 #include "core/or/relay.h"
 #include "feature/relay/routermode.h"
 #include "ubpf/vm/inc/ubpf.h"
+#include "trunnel/plug_cell.h"
 #include <time.h>
 /**
  * Hashtable containing plugin information 
@@ -167,6 +171,71 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
     return PLUGIN_RUN_DEFAULT;
   }
 }
+
+/**
+ * Build a simplistic plug_cell_t that would just ask the peer to plug
+ * a plugin with a given uid. We assume the peer to already hold said plugin.
+ *
+ * Ideally we should add a cell to reply and confirm or deny the demand. But we
+ * don't need this engineering for this simple prototype. E.g., this could be
+ * useful to actually send the plugin to the peer if they don't already have it
+ * in a cache.
+ *
+ * This would require more protocol logic (easily set up with trunnel), and
+ * also some bufferization logic to receive the plugin within multiple cells. This
+ * is more complex, and could involve more research, like adding padding to
+ * hide what plugin is sent to the peer.
+ */
+
+STATIC inline ssize_t build_plug_cell_v0(uint64_t uid, uint8_t *payload) {
+  plug_cell_t *cell = NULL;
+  ssize_t len = -1;
+
+  cell = plug_cell_new();
+ 
+  plug_cell_set_version(cell, 0);
+
+  plug_cell_set_uid(cell, uid);
+
+  plug_cell_set_length(cell, 0);
+  /** Ok we can encode the structure within the RELAY cell payload */
+  len = plug_cell_encode(payload, RELAY_PAYLOAD_SIZE, cell);
+  // this is damn ugly. This trunnel thing requires heap allocation, copy and
+  // free. But at least I don't have to write all of package/unpackage. This is pbly
+  // not suitable right to send large plugins (KBytes) encoded in many v1 cell.
+  plug_cell_free(cell);
+
+  return len;
+}
+
+int send_plug_cell_v0_to_hop(origin_circuit_t *circ, uint64_t uid,
+    uint8_t hopnum) {
+  crypt_path_t *target_hop = circuit_get_cpath_hop(circ, hopnum);
+  uint8_t payload[RELAY_PAYLOAD_SIZE];
+  ssize_t payload_len;
+
+  /* Let's ensure we have it */ 
+  if (!target_hop) {
+    log_debug(LD_PLUGIN, "Circuit %u has %d hops, not %d. Why are we sending a plug cell?",
+        circ->global_identifier, circuit_get_cpath_len(circ), hopnum);
+    return -1;
+  }
+  
+  /* only send the plug cell if open? */
+  if (target_hop->state != CPATH_STATE_OPEN) {
+    log_debug(LD_PLUGIN, "Circuit %u has %d hops, not %d. Why are we sending a plug cell?",
+        circ->global_identifier, circuit_get_cpath_opened_len(circ), hopnum);
+    return -1;
+  }
+  
+  payload_len = build_plug_cell_v0(uid, payload);
+
+  /*Let's send it */
+  return relay_send_command_from_edge(0, TO_CIRCUIT(circ), RELAY_COMMAND_PLUG,
+      (char *) payload, payload_len, target_hop);
+
+}
+
 
 static uint64_t util_get(int key, va_list *arguments) {
   

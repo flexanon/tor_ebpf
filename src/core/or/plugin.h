@@ -202,6 +202,8 @@ int plugin_plug_elf(plugin_t *plugin, entry_info_t *pinfo, char* elfpath);
 
 int invoke_plugin_operation_or_default(entry_point_map_t *pmap, caller_id_t caller, void *args);
 
+int send_plug_cell_v0_to_hop(origin_circuit_t *circ, uint64_t uid, uint8_t hopnum);
+
 /**
  * Execute the loaded and compiled plugin code
  */
