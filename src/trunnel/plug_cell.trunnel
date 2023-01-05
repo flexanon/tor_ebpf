@@ -1,0 +1,22 @@
+
+struct plugin_part {
+  /** length of the payload within this cell */
+  u16 data_len;
+  /**
+   * offset is the index of this plugin_data_part's beginning position within the whole
+   * plugin_data, which might be greater than one cell payload size
+   */
+  u64 offset;
+  u8 plugin_data_part[data_len];
+}
+
+struct send_cell {
+  /* version field */
+  u8 version IN [0x00, 0x01];
+  u64 uid;
+  u16 length;
+  union data[version] with length length {
+    0x00: ignore;
+    0x01: struct plugin_part ppart;
+  };
+}
