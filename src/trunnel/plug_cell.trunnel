@@ -14,7 +14,7 @@ struct plugin_part {
   u8 plugin_data_part[data_len];
 }
 
-struct send_cell {
+struct plug_cell {
   /* version field */
   u8 version IN [0x00, 0x01];
   u64 uid;

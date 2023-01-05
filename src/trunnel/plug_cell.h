@@ -26,8 +26,8 @@ struct plugin_part_st {
 };
 #endif
 typedef struct plugin_part_st plugin_part_t;
-#if !defined(TRUNNEL_OPAQUE) && !defined(TRUNNEL_OPAQUE_SEND_CELL)
-struct send_cell_st {
+#if !defined(TRUNNEL_OPAQUE) && !defined(TRUNNEL_OPAQUE_PLUG_CELL)
+struct plug_cell_st {
   uint8_t version;
   uint64_t uid;
   uint16_t length;
@@ -35,7 +35,7 @@ struct send_cell_st {
   uint8_t trunnel_error_code_;
 };
 #endif
-typedef struct send_cell_st send_cell_t;
+typedef struct plug_cell_st plug_cell_t;
 /** Return a newly allocated plugin_part with all elements set to
  * zero.
  */
@@ -132,80 +132,80 @@ const uint8_t  * plugin_part_getconstarray_plugin_data_part(const plugin_part_t 
  * failure.
  */
 int plugin_part_setlen_plugin_data_part(plugin_part_t *inp, size_t newlen);
-/** Return a newly allocated send_cell with all elements set to zero.
+/** Return a newly allocated plug_cell with all elements set to zero.
  */
-send_cell_t *send_cell_new(void);
-/** Release all storage held by the send_cell in 'victim'. (Do nothing
+plug_cell_t *plug_cell_new(void);
+/** Release all storage held by the plug_cell in 'victim'. (Do nothing
  * if 'victim' is NULL.)
  */
-void send_cell_free(send_cell_t *victim);
-/** Try to parse a send_cell from the buffer in 'input', using up to
+void plug_cell_free(plug_cell_t *victim);
+/** Try to parse a plug_cell from the buffer in 'input', using up to
  * 'len_in' bytes from the input buffer. On success, return the number
  * of bytes consumed and set *output to the newly allocated
- * send_cell_t. On failure, return -2 if the input appears truncated,
+ * plug_cell_t. On failure, return -2 if the input appears truncated,
  * and -1 if the input is otherwise invalid.
  */
-ssize_t send_cell_parse(send_cell_t **output, const uint8_t *input, const size_t len_in);
+ssize_t plug_cell_parse(plug_cell_t **output, const uint8_t *input, const size_t len_in);
 /** Return the number of bytes we expect to need to encode the
- * send_cell in 'obj'. On failure, return a negative value. Note that
+ * plug_cell in 'obj'. On failure, return a negative value. Note that
  * this value may be an overestimate, and can even be an underestimate
  * for certain unencodeable objects.
  */
-ssize_t send_cell_encoded_len(const send_cell_t *obj);
-/** Try to encode the send_cell from 'input' into the buffer at
+ssize_t plug_cell_encoded_len(const plug_cell_t *obj);
+/** Try to encode the plug_cell from 'input' into the buffer at
  * 'output', using up to 'avail' bytes of the output buffer. On
  * success, return the number of bytes used. On failure, return -2 if
  * the buffer was not long enough, and -1 if the input was invalid.
  */
-ssize_t send_cell_encode(uint8_t *output, size_t avail, const send_cell_t *input);
-/** Check whether the internal state of the send_cell in 'obj' is
+ssize_t plug_cell_encode(uint8_t *output, size_t avail, const plug_cell_t *input);
+/** Check whether the internal state of the plug_cell in 'obj' is
  * consistent. Return NULL if it is, and a short message if it is not.
  */
-const char *send_cell_check(const send_cell_t *obj);
+const char *plug_cell_check(const plug_cell_t *obj);
 /** Clear any errors that were set on the object 'obj' by its setter
  * functions. Return true iff errors were cleared.
  */
-int send_cell_clear_errors(send_cell_t *obj);
-/** Return the value of the version field of the send_cell_t in 'inp'
+int plug_cell_clear_errors(plug_cell_t *obj);
+/** Return the value of the version field of the plug_cell_t in 'inp'
  */
-uint8_t send_cell_get_version(const send_cell_t *inp);
-/** Set the value of the version field of the send_cell_t in 'inp' to
+uint8_t plug_cell_get_version(const plug_cell_t *inp);
+/** Set the value of the version field of the plug_cell_t in 'inp' to
  * 'val'. Return 0 on success; return -1 and set the error code on
  * 'inp' on failure.
  */
-int send_cell_set_version(send_cell_t *inp, uint8_t val);
-/** Return the value of the uid field of the send_cell_t in 'inp'
+int plug_cell_set_version(plug_cell_t *inp, uint8_t val);
+/** Return the value of the uid field of the plug_cell_t in 'inp'
  */
-uint64_t send_cell_get_uid(const send_cell_t *inp);
-/** Set the value of the uid field of the send_cell_t in 'inp' to
+uint64_t plug_cell_get_uid(const plug_cell_t *inp);
+/** Set the value of the uid field of the plug_cell_t in 'inp' to
  * 'val'. Return 0 on success; return -1 and set the error code on
  * 'inp' on failure.
  */
-int send_cell_set_uid(send_cell_t *inp, uint64_t val);
-/** Return the value of the length field of the send_cell_t in 'inp'
+int plug_cell_set_uid(plug_cell_t *inp, uint64_t val);
+/** Return the value of the length field of the plug_cell_t in 'inp'
  */
-uint16_t send_cell_get_length(const send_cell_t *inp);
-/** Set the value of the length field of the send_cell_t in 'inp' to
+uint16_t plug_cell_get_length(const plug_cell_t *inp);
+/** Set the value of the length field of the plug_cell_t in 'inp' to
  * 'val'. Return 0 on success; return -1 and set the error code on
  * 'inp' on failure.
  */
-int send_cell_set_length(send_cell_t *inp, uint16_t val);
-/** Return the value of the data_ppart field of the send_cell_t in
+int plug_cell_set_length(plug_cell_t *inp, uint16_t val);
+/** Return the value of the data_ppart field of the plug_cell_t in
  * 'inp'
  */
-struct plugin_part_st * send_cell_get_data_ppart(send_cell_t *inp);
-/** As send_cell_get_data_ppart, but take and return a const pointer
+struct plugin_part_st * plug_cell_get_data_ppart(plug_cell_t *inp);
+/** As plug_cell_get_data_ppart, but take and return a const pointer
  */
-const struct plugin_part_st * send_cell_getconst_data_ppart(const send_cell_t *inp);
-/** Set the value of the data_ppart field of the send_cell_t in 'inp'
+const struct plugin_part_st * plug_cell_getconst_data_ppart(const plug_cell_t *inp);
+/** Set the value of the data_ppart field of the plug_cell_t in 'inp'
  * to 'val'. Free the old value if any. Steals the referenceto
  * 'val'.Return 0 on success; return -1 and set the error code on
  * 'inp' on failure.
  */
-int send_cell_set_data_ppart(send_cell_t *inp, struct plugin_part_st *val);
-/** As send_cell_set_data_ppart, but does not free the previous value.
+int plug_cell_set_data_ppart(plug_cell_t *inp, struct plugin_part_st *val);
+/** As plug_cell_set_data_ppart, but does not free the previous value.
  */
-int send_cell_set0_data_ppart(send_cell_t *inp, struct plugin_part_st *val);
+int plug_cell_set0_data_ppart(plug_cell_t *inp, struct plugin_part_st *val);
 
 
 #endif

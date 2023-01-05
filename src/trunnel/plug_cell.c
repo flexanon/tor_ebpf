@@ -328,10 +328,10 @@ plugin_part_parse(plugin_part_t **output, const uint8_t *input, const size_t len
   }
   return result;
 }
-send_cell_t *
-send_cell_new(void)
+plug_cell_t *
+plug_cell_new(void)
 {
-  send_cell_t *val = trunnel_calloc(1, sizeof(send_cell_t));
+  plug_cell_t *val = trunnel_calloc(1, sizeof(plug_cell_t));
   if (NULL == val)
     return NULL;
   return val;
@@ -340,7 +340,7 @@ send_cell_new(void)
 /** Release all storage held inside 'obj', but do not free 'obj'.
  */
 static void
-send_cell_clear(send_cell_t *obj)
+plug_cell_clear(plug_cell_t *obj)
 {
   (void) obj;
   plugin_part_free(obj->data_ppart);
@@ -348,22 +348,22 @@ send_cell_clear(send_cell_t *obj)
 }
 
 void
-send_cell_free(send_cell_t *obj)
+plug_cell_free(plug_cell_t *obj)
 {
   if (obj == NULL)
     return;
-  send_cell_clear(obj);
-  trunnel_memwipe(obj, sizeof(send_cell_t));
+  plug_cell_clear(obj);
+  trunnel_memwipe(obj, sizeof(plug_cell_t));
   trunnel_free_(obj);
 }
 
 uint8_t
-send_cell_get_version(const send_cell_t *inp)
+plug_cell_get_version(const plug_cell_t *inp)
 {
   return inp->version;
 }
 int
-send_cell_set_version(send_cell_t *inp, uint8_t val)
+plug_cell_set_version(plug_cell_t *inp, uint8_t val)
 {
   if (! ((val == 0 || val == 1))) {
      TRUNNEL_SET_ERROR_CODE(inp);
@@ -373,52 +373,52 @@ send_cell_set_version(send_cell_t *inp, uint8_t val)
   return 0;
 }
 uint64_t
-send_cell_get_uid(const send_cell_t *inp)
+plug_cell_get_uid(const plug_cell_t *inp)
 {
   return inp->uid;
 }
 int
-send_cell_set_uid(send_cell_t *inp, uint64_t val)
+plug_cell_set_uid(plug_cell_t *inp, uint64_t val)
 {
   inp->uid = val;
   return 0;
 }
 uint16_t
-send_cell_get_length(const send_cell_t *inp)
+plug_cell_get_length(const plug_cell_t *inp)
 {
   return inp->length;
 }
 int
-send_cell_set_length(send_cell_t *inp, uint16_t val)
+plug_cell_set_length(plug_cell_t *inp, uint16_t val)
 {
   inp->length = val;
   return 0;
 }
 struct plugin_part_st *
-send_cell_get_data_ppart(send_cell_t *inp)
+plug_cell_get_data_ppart(plug_cell_t *inp)
 {
   return inp->data_ppart;
 }
 const struct plugin_part_st *
-send_cell_getconst_data_ppart(const send_cell_t *inp)
+plug_cell_getconst_data_ppart(const plug_cell_t *inp)
 {
-  return send_cell_get_data_ppart((send_cell_t*) inp);
+  return plug_cell_get_data_ppart((plug_cell_t*) inp);
 }
 int
-send_cell_set_data_ppart(send_cell_t *inp, struct plugin_part_st *val)
+plug_cell_set_data_ppart(plug_cell_t *inp, struct plugin_part_st *val)
 {
   if (inp->data_ppart && inp->data_ppart != val)
     plugin_part_free(inp->data_ppart);
-  return send_cell_set0_data_ppart(inp, val);
+  return plug_cell_set0_data_ppart(inp, val);
 }
 int
-send_cell_set0_data_ppart(send_cell_t *inp, struct plugin_part_st *val)
+plug_cell_set0_data_ppart(plug_cell_t *inp, struct plugin_part_st *val)
 {
   inp->data_ppart = val;
   return 0;
 }
 const char *
-send_cell_check(const send_cell_t *obj)
+plug_cell_check(const plug_cell_t *obj)
 {
   if (obj == NULL)
     return "Object was NULL";
@@ -447,11 +447,11 @@ send_cell_check(const send_cell_t *obj)
 }
 
 ssize_t
-send_cell_encoded_len(const send_cell_t *obj)
+plug_cell_encoded_len(const plug_cell_t *obj)
 {
   ssize_t result = 0;
 
-  if (NULL != send_cell_check(obj))
+  if (NULL != plug_cell_check(obj))
      return -1;
 
 
@@ -481,26 +481,26 @@ send_cell_encoded_len(const send_cell_t *obj)
   return result;
 }
 int
-send_cell_clear_errors(send_cell_t *obj)
+plug_cell_clear_errors(plug_cell_t *obj)
 {
   int r = obj->trunnel_error_code_;
   obj->trunnel_error_code_ = 0;
   return r;
 }
 ssize_t
-send_cell_encode(uint8_t *output, const size_t avail, const send_cell_t *obj)
+plug_cell_encode(uint8_t *output, const size_t avail, const plug_cell_t *obj)
 {
   ssize_t result = 0;
   size_t written = 0;
   uint8_t *ptr = output;
   const char *msg;
 #ifdef TRUNNEL_CHECK_ENCODED_LEN
-  const ssize_t encoded_len = send_cell_encoded_len(obj);
+  const ssize_t encoded_len = plug_cell_encoded_len(obj);
 #endif
 
   uint8_t *backptr_length = NULL;
 
-  if (NULL != (msg = send_cell_check(obj)))
+  if (NULL != (msg = plug_cell_check(obj)))
     goto check_failed;
 
 #ifdef TRUNNEL_CHECK_ENCODED_LEN
@@ -585,10 +585,10 @@ send_cell_encode(uint8_t *output, const size_t avail, const send_cell_t *obj)
   return result;
 }
 
-/** As send_cell_parse(), but do not allocate the output object.
+/** As plug_cell_parse(), but do not allocate the output object.
  */
 static ssize_t
-send_cell_parse_into(send_cell_t *obj, const uint8_t *input, const size_t len_in)
+plug_cell_parse_into(plug_cell_t *obj, const uint8_t *input, const size_t len_in)
 {
   const uint8_t *ptr = input;
   size_t remaining = len_in;
@@ -654,15 +654,15 @@ send_cell_parse_into(send_cell_t *obj, const uint8_t *input, const size_t len_in
 }
 
 ssize_t
-send_cell_parse(send_cell_t **output, const uint8_t *input, const size_t len_in)
+plug_cell_parse(plug_cell_t **output, const uint8_t *input, const size_t len_in)
 {
   ssize_t result;
-  *output = send_cell_new();
+  *output = plug_cell_new();
   if (NULL == *output)
     return -1;
-  result = send_cell_parse_into(*output, input, len_in);
+  result = plug_cell_parse_into(*output, input, len_in);
   if (result < 0) {
-    send_cell_free(*output);
+    plug_cell_free(*output);
     *output = NULL;
   }
   return result;
