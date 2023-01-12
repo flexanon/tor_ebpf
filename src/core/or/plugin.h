@@ -204,6 +204,9 @@ int invoke_plugin_operation_or_default(entry_point_map_t *pmap, caller_id_t call
 
 int send_plug_cell_v0_to_hop(origin_circuit_t *circ, uint64_t uid, uint8_t hopnum);
 
+int plugin_process_plug_cell(circuit_t *circ, const uint8_t *cell_payload,
+    uint16_t cell_payload_len);
+
 /**
  * Execute the loaded and compiled plugin code
  */

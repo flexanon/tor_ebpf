@@ -215,12 +215,16 @@ plugin_t* plugin_insert_transaction(const char *plugin_filepath, const char *fil
   return ok ? plugin : NULL;
 }
 
+
+plugin_t* plugin_helper_find_from_uid(uint64_t uid) {
+
+}
+
+
 /**
  * Just look into the directory plugin and initialize
  * all of them 
- */
-
-/**
+ *
  * TODO Make it Win32 compatible
  */
 smartlist_t* plugin_helper_find_all_and_init(void) {

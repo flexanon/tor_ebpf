@@ -184,7 +184,8 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
  * This would require more protocol logic (easily set up with trunnel), and
  * also some bufferization logic to receive the plugin within multiple cells. This
  * is more complex, and could involve more research, like adding padding to
- * hide what plugin is sent to the peer.
+ * hide what plugin is sent to the peer from any network observer who is
+ * counting cells.
  */
 
 STATIC inline ssize_t build_plug_cell_v0(uint64_t uid, uint8_t *payload) {
@@ -200,13 +201,16 @@ STATIC inline ssize_t build_plug_cell_v0(uint64_t uid, uint8_t *payload) {
   plug_cell_set_length(cell, 0);
   /** Ok we can encode the structure within the RELAY cell payload */
   len = plug_cell_encode(payload, RELAY_PAYLOAD_SIZE, cell);
-  // this is damn ugly. This trunnel thing requires heap allocation, copy and
-  // free. But at least I don't have to write all of package/unpackage. This is pbly
-  // not suitable right to send large plugins (KBytes) encoded in many v1 cell.
+
   plug_cell_free(cell);
 
   return len;
 }
+
+/**
+ * Sending a RELAY_COMMAND_PLUG -- Currently only supports this from
+ * the client.
+ */
 
 int send_plug_cell_v0_to_hop(origin_circuit_t *circ, uint64_t uid,
     uint8_t hopnum) {
@@ -234,6 +238,33 @@ int send_plug_cell_v0_to_hop(origin_circuit_t *circ, uint64_t uid,
   return relay_send_command_from_edge(0, TO_CIRCUIT(circ), RELAY_COMMAND_PLUG,
       (char *) payload, payload_len, target_hop);
 
+}
+
+int plugin_process_plug_cell(circuit_t *circ, const uint8_t *cell_payload,
+    uint16_t cell_payload_len) {
+
+  plug_cell_t *cell = NULL;
+
+  if (CIRCUIT_IS_ORIGIN(circ)) {
+    /* Not supported for this proto */
+    log_debug(LD_PLUGIN, "NOT SUPPORTED YET");
+    return -END_CIRC_REASON_TORPROTOCOL;
+  }
+  
+  if (plug_cell_parse(&cell, cell_payload, cell_payload_len) < 0) {
+    log_debug(LD_PLUGIN, "The plug_cell_t seems invalid");
+    return -END_CIRC_REASON_TORPROTOCOL;
+  }
+  uint8_t version = plug_cell_get_version(cell);
+  /** Currently we only support plugin a uid that we already have */
+  tor_assert(!version);
+  uint64_t uid = plug_cell_get_uid(cell);
+  
+  /** let's find this uid and plug it on this circ*/
+  (void) uid;
+
+  plug_cell_free(cell);
+  return 0;
 }
 
 
