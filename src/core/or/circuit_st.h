@@ -245,6 +245,9 @@ struct circuit_t {
    * and not a previous one. */
   uint32_t padding_machine_ctr;
 
+  /** plugins attached to this circuit!*/
+  smartlist_t *plugins;
+
   /**
    * PLUGIN_XXX
    *

@@ -63,8 +63,8 @@ test_plugin_helper_find_all_and_init(void *args) {
   const char* plugin_fname_2 = "test_2.plugin";
   const char* plugin_fname_3 = "test_3.plugin";
 
-  const char* str_test_1 = "memory 256\nuid 42\ntest_1 protocol_relay replace test_1.o";
-  const char* str_test_2 = "memory 256\nuid 42\ntest_2 protocol_relay param 42 add test_2.o\nother_test_2 protocol_relay replace other_test_2.o";
+  const char* str_test_1 = "memory 256\nuid 42\nsystem-wide\ntest_1 protocol_relay replace test_1.o";
+  const char* str_test_2 = "memory 256\nuid 42\nsystem-wide\ntest_2 protocol_relay param 42 add test_2.o\nother_test_2 protocol_relay replace other_test_2.o";
   const char* str_test_3 = "memory 256\nuid 42\ntest_3 protocol_circpad replace test_3.o";
 
   ret = write_to_plugin_subdir(plugin_dir_1, plugin_fname_1, str_test_1, NULL);
@@ -81,15 +81,14 @@ test_plugin_helper_find_all_and_init(void *args) {
   tt_int_op(ret, OP_EQ, 0);
 
   /** Try to initialize and load plugins */
-  list_plugins = smartlist_new();
   MOCK(load_elf_file, dummy_load_elf_file);
-  list_plugins = plugin_helper_find_all_and_init();
+  list_plugins = plugin_helper_find_all_and_init(NULL, 0);
   UNMOCK(load_elf_file);
   tt_assert(list_plugins);
   tt_int_op(smartlist_len(list_plugins), OP_EQ, 3);
-  plugin_t *plugin3 = (plugin_t*)smartlist_get(list_plugins, 0);
+  plugin_t *plugin1 = (plugin_t*)smartlist_get(list_plugins, 0);
   plugin_t *plugin2 = (plugin_t*)smartlist_get(list_plugins, 1);
-  plugin_t *plugin1 = (plugin_t*)smartlist_get(list_plugins, 2);
+  plugin_t *plugin3 = (plugin_t*)smartlist_get(list_plugins, 2);
   tt_int_op(strcmp(plugin1->pname, "test_1.plugin"), OP_EQ, 0);
   tt_int_op(strcmp(plugin2->pname, "test_2.plugin"), OP_EQ, 0);
   tt_int_op(strcmp(plugin3->pname, "test_3.plugin"), OP_EQ, 0);

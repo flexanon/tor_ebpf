@@ -1144,6 +1144,7 @@ typedef struct plugin {
   size_t memory_size;
   smartlist_t *entry_points;
   uint64_t uid;
+  uint8_t is_system_wide;
   /**
    * plugin ctx shared by the entry points -- should be initialized by the main
    * entry point if needed

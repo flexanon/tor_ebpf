@@ -55,44 +55,47 @@ HT_GENERATE2(plugin_map_ht, entry_point_map_t, node,
 /****************************************************************/
 
 int plugin_plug_elf(plugin_t *plugin, entry_info_t *einfo, char *elfpath) {
-  entry_point_map_t search;
-  entry_point_map_t *found;
-  search.entry_name = tor_strdup(einfo->entry_name);
-  search.ptype = einfo->ptype;
-  search.putype = einfo->putype;
-  search.pfamily = einfo->pfamily;
-  search.param = einfo->param;
-  found = HT_FIND(plugin_map_ht, &plugin_map_ht, &search);
-  if (found) {
-    /** XXX What shoud we do?*/
-    log_debug(LD_PLUGIN, "A plugin with these characteristics:\
-        name: %s\
-        ptype: %d\
-        putype: %d\
-        pfamily: %d\
-        param: %d\
-        is already part of our map", search.entry_name, search.ptype, search.putype,
-        search.pfamily, search.param);
-    return 0;
-  }
-  else {
-    plugin_entry_point_t *entry_point = tor_malloc_zero(sizeof(*entry_point));
-    int ret;
-    clock_t start, end;
-    double cpu_time_used;
-    start = clock();
-    ret = load_elf_file(elfpath,  plugin, entry_point);
-    end = clock();
-    cpu_time_used =  ((double) (end - start)) / CLOCKS_PER_SEC;
-    log_info(LD_PLUGIN, "Loading Plugin entry_point %s took %f sec", search.entry_name, cpu_time_used);
-    if (ret < 0) {
-      log_debug(LD_PLUGIN, "Failed to load plugin at elfpath %s, with heap of size %lu bytes", elfpath,
-          plugin->memory_size);
-      tor_free(entry_point);
-      return -1;
+  entry_point_map_t *found = NULL;
+  if (plugin->is_system_wide) {
+    /** Check whether we already loaded it */
+    entry_point_map_t search;
+    search.entry_name = tor_strdup(einfo->entry_name);
+    search.ptype = einfo->ptype;
+    search.putype = einfo->putype;
+    search.pfamily = einfo->pfamily;
+    search.param = einfo->param;
+    found = HT_FIND(plugin_map_ht, &plugin_map_ht, &search);
+    if (found) {
+      /** XXX What shoud we do?*/
+      log_debug(LD_PLUGIN, "A plugin with these characteristics:\
+          name: %s\
+          ptype: %d\
+          putype: %d\
+          pfamily: %d\
+          param: %d\
+          is already part of our map", search.entry_name, search.ptype, search.putype,
+          search.pfamily, search.param);
+      return 0;
     }
-    entry_point->entry_name = tor_strdup(einfo->entry_name);
-    smartlist_add(plugin->entry_points, entry_point);
+  }
+  plugin_entry_point_t *entry_point = tor_malloc_zero(sizeof(*entry_point));
+  int ret;
+  /*clock_t start, end;*/
+  /*double cpu_time_used;*/
+  /*start = clock();*/
+  ret = load_elf_file(elfpath,  plugin, entry_point);
+  /*end = clock();*/
+  /*cpu_time_used =  ((double) (end - start)) / CLOCKS_PER_SEC;*/
+  /*log_info(LD_PLUGIN, "Loading Plugin entry_point %s took %f sec", search.entry_name, cpu_time_used);*/
+  if (ret < 0) {
+    log_debug(LD_PLUGIN, "Failed to load plugin at elfpath %s, with heap of size %lu bytes", elfpath,
+        plugin->memory_size);
+    tor_free(entry_point);
+    return -1;
+  }
+  entry_point->entry_name = tor_strdup(einfo->entry_name);
+  smartlist_add(plugin->entry_points, entry_point);
+  if (plugin->is_system_wide) {
     found = tor_malloc_zero(sizeof(entry_point_map_t));
     found->plugin = plugin;
     found->entry_point = entry_point;
@@ -105,9 +108,9 @@ int plugin_plug_elf(plugin_t *plugin, entry_info_t *einfo, char *elfpath) {
     found->param = einfo->param;
     HT_INSERT(plugin_map_ht, &plugin_map_ht, found);
     log_debug(LD_PLUGIN, "Inserted plugin name:%s; putype:%d, ptype: %d,\
-        pfamily:%d, param:%d in map", found->entry_name, found->putype,
-        found->ptype, found->pfamily, found->param);
-  }
+          pfamily:%d, param:%d in map", found->entry_name, found->putype,
+          found->ptype, found->pfamily, found->param);
+    }
   return 0;
 }
 
@@ -122,7 +125,7 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
     log_debug(LD_PLUGIN, "Plugins not enabled; defaulting to existing code");
     return PLUGIN_RUN_DEFAULT;
   }
-  entry_point_map_t *found;
+  entry_point_map_t *found = NULL;
   found = HT_FIND(plugin_map_ht, &plugin_map_ht, key);
   if (found) {
     log_debug(LD_PLUGIN, "Plugin found for caller %s",
@@ -143,12 +146,16 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
       case CIRCPAD_PROTOCOL_INIT:
       case CIRCPAD_PROTOCOL_MACHINEINFO_SETUP:
       case CIRCPAD_EVENT_CIRC_HAS_BUILT:
-      case CIRCPAD_SEND_PADDING_CALLBACK:
       case CIRCPAD_EVENT_CIRC_HAS_OPENED:
         {
           circpad_plugin_args_t *ctx = (circpad_plugin_args_t *) args;
           ctx->plugin = found->plugin;
           return plugin_run(found->entry_point, ctx, sizeof(circpad_plugin_args_t*));
+        }
+      case CIRCPAD_SEND_PADDING_CALLBACK:
+        {
+          // Look for plugin within this circuit connection context TODO
+          return PLUGIN_RUN_DEFAULT;
         }
       case CONNECTION_EDGE_ADD_TO_SENDING_BEGIN:
       case RELAY_RECEIVED_CONNECTED_CELL:
@@ -260,9 +267,23 @@ int plugin_process_plug_cell(circuit_t *circ, const uint8_t *cell_payload,
   tor_assert(!version);
   uint64_t uid = plug_cell_get_uid(cell);
   
-  /** let's find this uid and plug it on this circ*/
-  (void) uid;
+  /**check that this plugin already
+   * exists for this circ */
+  SMARTLIST_FOREACH_BEGIN(circ->plugins, plugin_t*, plugin) {
+    if (plugin->uid == uid) {
+      log_debug(LD_PLUGIN, "Looks like we already have a plugin with %lu", plugin->uid);
+      goto cleanup;
+    }
+  } SMARTLIST_FOREACH_END(plugin);
 
+  /** let's find this uid and plug it on this circ
+   * This is a connection-specific plugin that has j
+   * just been instantiatied*/
+  plugin_t *plugin = plugin_helper_find_from_uid(uid);
+  tor_assert(plugin);
+  /** add the plugin to the circ */
+  smartlist_add(circ->plugins, plugin);
+cleanup:
   plug_cell_free(cell);
   return 0;
 }

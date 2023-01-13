@@ -634,7 +634,7 @@ tor_init(int argc, char *argv[])
 
   if (get_options()->EnablePlugins) {
     log_debug(LD_PLUGIN, "Init of plugins...");
-    plugin_helper_find_all_and_init();
+    plugin_helper_find_all_and_init(NULL, 0);
   }
 
   /* Initialize channelpadding and circpad parameters to defaults

@@ -87,6 +87,7 @@
 #include "core/crypto/onion_fast.h"
 #include "core/or/policies.h"
 #include "core/or/plugin.h"
+#include "core/or/plugin_helper.h"
 #include "core/or/relay.h"
 #include "core/crypto/relay_crypto.h"
 #include "feature/rend/rendclient.h"
@@ -1005,6 +1006,7 @@ init_circuit_base(circuit_t *circ)
 
   smartlist_add(circuit_get_global_list(), circ);
   circ->global_circuitlist_idx = smartlist_len(circuit_get_global_list()) - 1;
+  circ->plugins = smartlist_new();
 }
 
 /** If we haven't yet decided on a good timeout value for circuit
@@ -1247,6 +1249,12 @@ circuit_free_(circuit_t *circ)
   if (circ->sendme_last_digests) {
     SMARTLIST_FOREACH(circ->sendme_last_digests, uint8_t *, d, tor_free(d));
     smartlist_free(circ->sendme_last_digests);
+  }
+
+  /** Cleanup plugins */
+  if (circ->plugins) {
+    SMARTLIST_FOREACH(circ->plugins, plugin_t *, plugin, plugin_unplug(plugin));
+    smartlist_free(circ->plugins);
   }
 
   log_info(LD_CIRC, "Circuit %u (id: %" PRIu32 ") has been freed.",

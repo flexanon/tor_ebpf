@@ -116,7 +116,8 @@ static int insert_plugin_from_transaction_line(char *line, char *plugin_dirname,
  * Read the .plugin file and load all .o objects 
  */
 
-plugin_t* plugin_insert_transaction(const char *plugin_filepath, const char *filename) {
+plugin_t* plugin_insert_transaction(const char *plugin_filepath, const char
+    *filename, uint64_t looking_for) {
   FILE *file = fopen(plugin_filepath, "r");
 
   if (!file) {
@@ -139,6 +140,7 @@ plugin_t* plugin_insert_transaction(const char *plugin_filepath, const char *fil
     if (!token) {
       log_debug(LD_PLUGIN, "No token for memory extracted?");
       ok = false;
+      goto cleanup;
     }
     if (strncmp(token, "memory", 6) == 0) {
       token = strsep(&line2, "\n");
@@ -148,15 +150,18 @@ plugin_t* plugin_insert_transaction(const char *plugin_filepath, const char *fil
       if (errmsg != NULL && strncmp(errmsg, "", 1) != 0) {
         log_debug(LD_PLUGIN, "Invalid parameter %s, val is %d. Errmsg: %s", token, memory_needed, errmsg);
         ok = false;
+        goto cleanup;
       }
     }
     else {
       log_debug(LD_PLUGIN, "Expected 'memory' token, got %s", token);
       ok = false;
+      goto cleanup;
     }
   }
   else {
     ok = false;
+    goto cleanup;
   }
   /** Parse the uid  -- copy/past above code in an ugly way.*/
   uint64_t uid = 0;
@@ -166,23 +171,32 @@ plugin_t* plugin_insert_transaction(const char *plugin_filepath, const char *fil
     if (!token) {
       log_debug(LD_PLUGIN, "No token for uid extracted?");
       ok = false;
+      goto cleanup;
     }
     if (strncmp(token, "uid", 3) == 0) {
       token = strsep(&line2, "\n");
       char * errmsg = NULL;
       uid = (uint64_t) strtoul(token, &errmsg, 0);
+      /* We're looking for a particular uid  -- and we didn't find it here*/
+      if (looking_for != 0 && looking_for != uid) {
+        ok = false;
+        goto cleanup;
+      }
       if (errmsg != NULL && strncmp(errmsg, "", 1) != 0) {
         log_debug(LD_PLUGIN, "Invalid parameter %s, val is %ld. Errmsg: %s", token, uid, errmsg);
         ok = false;
+        goto cleanup;
       }
     }
     else {
       log_debug(LD_PLUGIN, "Expected 'uid' token, got %s", token);
       ok = false;
+      goto cleanup;
     }
   }
   else {
     ok = false;
+    goto cleanup;
   }
 
   /** we have the memory size; let's create the plugin */
@@ -196,6 +210,11 @@ plugin_t* plugin_insert_transaction(const char *plugin_filepath, const char *fil
     if (len <= 1) {
       continue;
     }
+    if (strncmp(line, "system-wide", 11) == 0) {
+      plugin->is_system_wide = 1;
+      /** skip it */
+      continue;
+    }
     memset(&einfo, 0, sizeof(einfo));
     /* insert_plugin_from_transaction return -1 on issue */
     if (insert_plugin_from_transaction_line(line, plugin_dirname, &einfo, plugin))
@@ -205,19 +224,29 @@ plugin_t* plugin_insert_transaction(const char *plugin_filepath, const char *fil
   if (!ok) {
     /* Unplug previously plugged code */
     plugin_unplug(plugin);
+    goto cleanup;
   }
+cleanup:
   if (line) {
     tor_free(line);
   }
-
   fclose(file);
-
   return ok ? plugin : NULL;
 }
 
 
-plugin_t* plugin_helper_find_from_uid(uint64_t uid) {
 
+plugin_t* plugin_helper_find_from_uid(uint64_t uid) {
+  smartlist_t *plugins = NULL;
+
+  plugins = plugin_helper_find_all_and_init(&uid, 1);
+  if (smartlist_len(plugins) == 1) {
+    return smartlist_get(plugins, 0);
+  }
+  else {
+    log_debug(LD_PLUGIN, "We found %u plugins matching %lu", smartlist_len(plugins), uid);
+    return NULL;
+  }
 }
 
 
@@ -227,7 +256,7 @@ plugin_t* plugin_helper_find_from_uid(uint64_t uid) {
  *
  * TODO Make it Win32 compatible
  */
-smartlist_t* plugin_helper_find_all_and_init(void) {
+smartlist_t* plugin_helper_find_all_and_init(uint64_t *uids, uint16_t uids_len) {
   tor_assert(get_options()->PluginsDirectory);
 
   /** Look inside all plugin directories */
@@ -261,7 +290,15 @@ smartlist_t* plugin_helper_find_all_and_init(void) {
         tor_asprintf(&filepath, "%s"PATH_SEPARATOR"%s",
             plugin_dir, de2->d_name);
         /* reading .plugin files and loader .o files */
-        plugin = plugin_insert_transaction(filepath, de2->d_name);
+        if (uids_len) {
+          tor_assert(uids);
+          for (int i = 0; i < uids_len && !plugin; i++) {
+            plugin = plugin_insert_transaction(filepath, de2->d_name, uids[i]);
+          }
+        }
+        else {
+          plugin = plugin_insert_transaction(filepath, de2->d_name, 0);
+        }
         if (plugin) {
           smartlist_add(all_plugins, plugin);
         }
