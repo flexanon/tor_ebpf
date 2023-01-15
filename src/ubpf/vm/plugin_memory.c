@@ -270,3 +270,14 @@ plugin_t *plugin_memory_init(size_t memory_size){
   /*plugin->entry_points = smartlist_new();*/
   return plugin;
 }
+
+void plugin_memory_free(plugin_t *plugin) {
+  if (!plugin)
+    return;
+  if (plugin->memory_pool)
+    tor_free(plugin->memory_pool);
+  if (plugin->memory)
+    tor_free(plugin->memory);
+  tor_free(plugin);
+}
+

@@ -12,50 +12,6 @@
 
 #define PLUGIN_RUN_DEFAULT -2147483648
 /**
- * Define the type of usage the plugin is intended to.
- * We may want to replace a functionality to perform a same action
- * We may want to simply remove a functionality
- * We may want to add a new functionality to existing code
- */
-typedef enum {
-  PLUGIN_CODE_HIJACK,
-  PLUGIN_CODE_ADD,
-  PLUGIN_CODE_DEL
-} plugin_usage_type_t;
-
-typedef enum {
-  PLUGIN_DEV,
-  PLUGIN_USER
-} plugin_type_t;
-
-/**
- * Various type of Protocols that can be hijacked, where functions can be added
- * or removed.
- *
- * Note, this is still very early prototyping, we do not support much things yet
- *
- * PLUGIN_PROTOCOL_CORE is expected to refer to the core framework that can only
- * be hijacked be the main developers. Hijacking PROTOCOL_CORE would allow the
- * devs to re-write basically anything.
- */
-
-typedef enum {
-  PLUGIN_PROTOCOL_CORE,
-  PLUGIN_PROTOCOL_RELAY,
-  PLUGIN_PROTOCOL_CIRCPAD,
-  PLUGIN_PROTOCOL_CONN_EDGE
-} plugin_family_t;
-
-typedef struct entry_info_t {
-  char *entry_name;
-  plugin_type_t ptype;
-  plugin_usage_type_t putype;
-  plugin_family_t pfamily;
-  plugin_t *plugin;
-  int param;
-} entry_info_t;
-
-/**
  * Who's calling us? Will be used to prepare plugin_run()
  */
 typedef enum {
@@ -212,9 +168,10 @@ int plugin_process_plug_cell(circuit_t *circ, const uint8_t *cell_payload,
 /**
  * Execute the loaded and compiled plugin code
  */
-uint64_t plugin_run(plugin_entry_point_t *plugin, void *args, size_t size);
+uint64_t plugin_run(plugin_entry_point_t *ep, void *args, size_t size);
 
 entry_point_map_t *plugin_get(entry_point_map_t *key);
+void plugin_map_entrypoint_remove(plugin_entry_point_t *ep);
 
 /**********************************PLUGIN API***************************/
 

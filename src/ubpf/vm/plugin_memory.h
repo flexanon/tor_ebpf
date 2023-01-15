@@ -23,7 +23,7 @@ void *my_plugin_memcpy(void *dest, const void *src, size_t count);
 void *my_plugin_memset(void *dest, int c, size_t count);
 
 plugin_t *plugin_memory_init(size_t memory_size);
-
+void plugin_memory_free(plugin_t *plugin);
 
 
 void my_plugin_free_in_core(plugin_t *p, void *ptr);

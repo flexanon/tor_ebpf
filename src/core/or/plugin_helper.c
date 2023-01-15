@@ -254,7 +254,7 @@ plugin_t* plugin_helper_find_from_uid_and_init(uint64_t uid) {
 
 /**
  * Just look into the directory plugin and initialize
- * all of them 
+ * all of them
  *
  * TODO Make it Win32 compatible
  */
@@ -322,14 +322,24 @@ smartlist_t* plugin_helper_find_all_and_init(uint64_t *uids, uint16_t uids_len) 
 
 /**
  * Unplug the plugin -- i.e., free the map, destroy the ebpf vm and free the
+ * memory.
  *
- * Note:
- * That's critical to write as soon as we enable per-connection plugins. Right
- * now we only have global plugins that would need to be unplugged on error or
- * when Tor closes anyway.
  */
-
 void plugin_unplug(plugin_t *plugin) {
+  if (!plugin)
+    return;
+  SMARTLIST_FOREACH_BEGIN(plugin->entry_points, plugin_entry_point_t*, ep) {
+      if (ep->vm)
+        ubpf_destroy(ep->vm);
+      // Remove the plugin from the hashmap
+      if (plugin->is_system_wide) {
+        plugin_map_entrypoint_remove(ep);
+      }
+      tor_free(ep->entry_name);
+      tor_free(ep);
+  } SMARTLIST_FOREACH_END(ep);
+  /** free everything related to the plugin's memory */
+  plugin_memory_free(plugin);
 }
 
 

@@ -119,11 +119,12 @@ int plugin_plug_elf(plugin_t *plugin, entry_info_t *einfo, char *elfpath) {
     found->ptype = einfo->ptype;
     /** Register the plugin; do it for each family*/
     found->param = einfo->param;
+    memcpy(&entry_point->info, einfo, sizeof(entry_point->info));
     HT_INSERT(plugin_map_ht, &plugin_map_ht, found);
     log_debug(LD_PLUGIN, "Inserted plugin name:%s; putype:%d, ptype: %d,\
           pfamily:%d, param:%d in map", found->entry_name, found->putype,
           found->ptype, found->pfamily, found->param);
-    }
+  }
   return 0;
 }
 
@@ -477,6 +478,20 @@ entry_point_map_t *plugin_get(entry_point_map_t *key) {
   entry_point_map_t *found;
   found = HT_FIND(plugin_map_ht, &plugin_map_ht, key);
   return found;
+}
+
+void plugin_map_entrypoint_remove(plugin_entry_point_t *ep) {
+  entry_point_map_t *found = NULL;
+  entry_point_map_t search;
+  search.entry_name = tor_strdup(ep->entry_name);
+  search.ptype = ep->info.ptype;
+  search.putype = ep->info.putype;
+  search.pfamily = ep->info.pfamily;
+  search.param = ep->info.param;
+  found = HT_REMOVE(plugin_map_ht, &plugin_map_ht, &search);
+  if (!found) {
+    log_debug(LD_PLUGIN, "NOT FOUND: Trying to remove a plugin from the hashmap %s", search.entry_name);
+  }
 }
 
 uint64_t plugin_run(plugin_entry_point_t *entry_point, void *args, size_t args_size) {
