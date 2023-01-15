@@ -16,7 +16,7 @@ smartlist_t* plugin_helper_find_all_and_init(uint64_t* uids, uint16_t uids_len);
 
 const char *plugin_caller_id_to_string(caller_id_t  caller);
 
-plugin_t* plugin_helper_find_from_uid(uint64_t uid);
+plugin_t* plugin_helper_find_from_uid_and_init(uint64_t uid);
 
 void plugin_unplug(plugin_t *plugin);
 #endif

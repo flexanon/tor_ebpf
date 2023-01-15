@@ -236,12 +236,14 @@ cleanup:
 
 
 
-plugin_t* plugin_helper_find_from_uid(uint64_t uid) {
+plugin_t* plugin_helper_find_from_uid_and_init(uint64_t uid) {
   smartlist_t *plugins = NULL;
 
   plugins = plugin_helper_find_all_and_init(&uid, 1);
   if (smartlist_len(plugins) == 1) {
-    return smartlist_get(plugins, 0);
+    plugin_t *plugin = smartlist_get(plugins, 0);
+    smartlist_free(plugins);
+    return plugin;
   }
   else {
     log_debug(LD_PLUGIN, "We found %u plugins matching %lu", smartlist_len(plugins), uid);

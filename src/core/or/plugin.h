@@ -190,6 +190,8 @@ typedef struct entry_point_map_t {
 
 #define TIMER_KEYFUNC_MAX 300
 
+STATIC int plugins_compare_by_uid_(const void **a_, const void **b_);
+
 /**
  * Authentify and load plugins from $(data_directory)/plugins
  * @elf_name plugin name 

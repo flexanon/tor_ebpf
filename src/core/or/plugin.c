@@ -52,6 +52,19 @@ HT_GENERATE2(plugin_map_ht, entry_point_map_t, node,
              plugin_entry_hash_, plugin_entries_eq_, 0.6,
              tor_reallocarray_, tor_free_);
 
+STATIC int plugins_compare_by_uid_(const void **a_, const void **b_) {
+  const plugin_t *a = *a_;
+  const plugin_t *b = *b_;
+  uint64_t uid_a = a->uid;
+  uint64_t uid_b = b->uid;
+  if (uid_a < uid_b)
+    return 1;
+  else if (uid_a == uid_b)
+    return 0;
+  else
+    return 1;
+}
+
 /****************************************************************/
 
 int plugin_plug_elf(plugin_t *plugin, entry_info_t *einfo, char *elfpath) {
@@ -279,7 +292,7 @@ int plugin_process_plug_cell(circuit_t *circ, const uint8_t *cell_payload,
   /** let's find this uid and plug it on this circ
    * This is a connection-specific plugin that has j
    * just been instantiatied*/
-  plugin_t *plugin = plugin_helper_find_from_uid(uid);
+  plugin_t *plugin = plugin_helper_find_from_uid_and_init(uid);
   tor_assert(plugin);
   /** add the plugin to the circ */
   smartlist_add(circ->plugins, plugin);
@@ -287,6 +300,7 @@ cleanup:
   plug_cell_free(cell);
   return 0;
 }
+
 
 
 static uint64_t util_get(int key, va_list *arguments) {
