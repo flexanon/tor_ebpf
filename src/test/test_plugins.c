@@ -1,4 +1,4 @@
-
+#define PLUGIN_PRIVATE
 #include "core/or/or.h"
 #include "core/or/plugin_helper.h"
 #include "ubpf/vm/inc/ubpf.h"

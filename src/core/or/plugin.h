@@ -13,6 +13,9 @@
 #define PLUGIN_RUN_DEFAULT -2147483648
 /**
  * Who's calling us? Will be used to prepare plugin_run()
+ *
+ * XXX They should probably be all assigned and refer to
+ * the plugin uid if there is a single function?
  */
 typedef enum {
   /** Replace circuit_sendme logic */
@@ -32,9 +35,12 @@ typedef enum {
   CIRCPAD_PROTOCOL_MACHINEINFO_SETUP,
   CIRCPAD_EVENT_CIRC_HAS_BUILT,
   CIRCPAD_EVENT_CIRC_HAS_OPENED,
-  CIRCPAD_SEND_PADDING_CALLBACK,
+  /** This is a connection-specific hook -- assgning an ID*/
+  CIRCPAD_SEND_PADDING_CALLBACK = 42,
   /**Conn edge stuffs */
   CONNECTION_EDGE_ADD_TO_SENDING_BEGIN,
+
+  PLUGIN_HOUSEKEEPING_CLEANUP_CALLED,
 } caller_id_t;
 
 typedef struct entry_point_map_t {
@@ -123,6 +129,9 @@ typedef struct entry_point_map_t {
 #define CIRCUIT_N_CIRC_ID 5003
 
 #define CIRCUIT_MAX 6000
+
+#define PLUGIN_HOUSEKEEPING_CLEANUP 6001
+#define PLUGIN_MAX 7000
 /*** KEYFUNC */
 
 #define RELAY_SEND_COMMAND_FROM_EDGE 1
@@ -146,7 +155,15 @@ typedef struct entry_point_map_t {
 
 #define TIMER_KEYFUNC_MAX 300
 
-STATIC int plugins_compare_by_uid_(const void **a_, const void **b_);
+#define PLUGIN_CLEANUP_CIRC 301
+#define PLUGIN_KEYFUNC_MAX 400
+
+/** What type of argument do we give to pluginized function
+ *  in the plugin module? */
+typedef struct plugin_plugin_args_t {
+  circuit_t *circ;
+  plugin_t *plugin;
+} plugin_plugin_args_t;
 
 /**
  * Authentify and load plugins from $(data_directory)/plugins
@@ -165,6 +182,7 @@ int send_plug_cell_v0_to_hop(origin_circuit_t *circ, uint64_t uid, uint8_t hopnu
 int plugin_process_plug_cell(circuit_t *circ, const uint8_t *cell_payload,
     uint16_t cell_payload_len);
 
+plugin_entry_point_t *plugin_get_entry_point_by_entry_name(plugin_t *plugin, char *entry_name);
 /**
  * Execute the loaded and compiled plugin code
  */
@@ -172,6 +190,9 @@ uint64_t plugin_run(plugin_entry_point_t *ep, void *args, size_t size);
 
 entry_point_map_t *plugin_get(entry_point_map_t *key);
 void plugin_map_entrypoint_remove(plugin_entry_point_t *ep);
+
+/** Cleanup any connection plugin with given uid */
+void plugin_cleanup_conn(circuit_t *circ, uint64_t uid);
 
 /**********************************PLUGIN API***************************/
 
@@ -189,4 +210,9 @@ void set(int key, int arglen, ...);
  * -- UBPF limitation-- */
 int call_host_func(int key, int size, ...);
 
+/** private definitions */
+
+#ifdef PLUGIN_PRIVATE
+STATIC int plugins_compare_by_uid_(const void **a_, const void **b_);
+#endif /* defined(PLUGIN_PRIVATE) */
 #endif

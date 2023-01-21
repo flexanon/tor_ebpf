@@ -1,9 +1,9 @@
-/*y
+/*
  * \file plugin.c
  * \brief Handle plugin main operations, implement the API definition to
  * interact with plugins
  **/
-
+#define PLUGIN_PRIVATE
 #include "core/or/or.h"
 #include "app/config/config.h"
 #include "core/or/circuitpadding.h"
@@ -20,11 +20,11 @@
 #include "ubpf/vm/inc/ubpf.h"
 #include "trunnel/plug_cell.h"
 #include <time.h>
+
+static int plugin_is_caller_id_system_wide(caller_id_t caller);
 /**
  * Hashtable containing plugin information 
  */
-
-
 static inline int
 plugin_entries_eq_(entry_point_map_t *a, entry_point_map_t *b) {
   return !strcmp(a->entry_name, b->entry_name) && a->param == b->param &&
@@ -140,10 +140,14 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
     return PLUGIN_RUN_DEFAULT;
   }
   entry_point_map_t *found = NULL;
-  found = HT_FIND(plugin_map_ht, &plugin_map_ht, key);
-  if (found) {
-    log_debug(LD_PLUGIN, "Plugin found for caller %s",
-              plugin_caller_id_to_string(caller));
+  int is_system_wide = plugin_is_caller_id_system_wide(caller);
+  if (key && is_system_wide) {
+    found = HT_FIND(plugin_map_ht, &plugin_map_ht, key);
+    if (found)
+      log_debug(LD_PLUGIN, "Plugin found for caller %s",
+                plugin_caller_id_to_string(caller));
+  }
+  if (found || !is_system_wide) {
     switch (caller) {
       case RELAY_CIRCUIT_UNRECOGNIZED_DATA_RECEIVED:
       case RELAY_PROCESS_EDGE_UNKNOWN:
@@ -169,7 +173,25 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
       case CIRCPAD_SEND_PADDING_CALLBACK:
         {
           // Look for plugin within this circuit connection context TODO
-          return PLUGIN_RUN_DEFAULT;
+          circpad_plugin_args_t *ctx = (circpad_plugin_args_t *) args;
+          /** This is a hook static value for connection specific plugins 
+           *  Ideally this value should be CIRCPAD_SEND_PADDING_CALLBACK*/
+          uint64_t uid = (uint64_t) CIRCPAD_SEND_PADDING_CALLBACK;
+          tor_assert(ctx->circ);
+          plugin_t *foundp = circuit_plugin_get(ctx->circ, uid);
+          if (!foundp) {
+            log_debug(LD_PLUGIN, "We didn't find a plugin with uid %lu in circuit state %s",
+                uid, circuit_state_to_string(ctx->circ->state));
+            return PLUGIN_RUN_DEFAULT;
+          }
+          ctx->plugin = foundp;
+          plugin_entry_point_t *ep = plugin_get_entry_point_by_entry_name(foundp, key->entry_name);
+          if (!ep) {
+            log_debug(LD_PLUGIN, "We didn't find entry point name %s over plugin uid %lu",
+                key->entry_name, uid);
+            return PLUGIN_RUN_DEFAULT;
+          }
+          return plugin_run(ep, ctx, sizeof(circpad_plugin_args_t*));
         }
       case CONNECTION_EDGE_ADD_TO_SENDING_BEGIN:
       case RELAY_RECEIVED_CONNECTED_CELL:
@@ -178,6 +200,23 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
           ctx->plugin = found->plugin;
           ctx->param = found->param;
           return plugin_run(found->entry_point, ctx, sizeof(conn_edge_plugin_args_t *));
+        }
+      case PLUGIN_HOUSEKEEPING_CLEANUP_CALLED:
+        {
+          plugin_plugin_args_t *ctx = (plugin_plugin_args_t*) args;
+          if (ctx->plugin) {
+            plugin_entry_point_t *ep = plugin_get_entry_point_by_entry_name(ctx->plugin, key->entry_name);
+            if (!ep) {
+              log_debug(LD_PLUGIN, "We didn't find entry point name %s over plugin uid %lu",
+                  key->entry_name, ctx->plugin->uid);
+              return PLUGIN_RUN_DEFAULT;
+            }
+            return plugin_run(ep, ctx, sizeof(plugin_plugin_args_t*));
+          }
+          else {
+            log_debug(LD_PLUGIN, "Plugin missing from ctx");
+            return PLUGIN_RUN_DEFAULT;
+          }
         }
       default:
         log_debug(LD_PLUGIN, "Caller not found! %d:%s", caller,
@@ -303,6 +342,15 @@ cleanup:
 }
 
 
+static int plugin_is_caller_id_system_wide(caller_id_t caller) {
+  switch((uint16_t)caller) {
+    case PLUGIN_HOUSEKEEPING_CLEANUP:
+    case CIRCPAD_SEND_PADDING_CALLBACK:
+      return 0;
+    default:
+      return 1;
+  }
+}
 
 static uint64_t util_get(int key, va_list *arguments) {
   
@@ -468,6 +516,14 @@ int call_host_func(int keyfunc, int size, ...) {
       {
         tor_timer_t *timer = va_arg(arguments, tor_timer_t*);
         timer_disable(timer);
+        break;
+      }
+    case PLUGIN_CLEANUP_CIRC:
+      {
+        circuit_t *circ  = va_arg(arguments, circuit_t *);
+        uint64_t uid = va_arg(arguments, uint64_t);
+        plugin_cleanup_conn(circ, uid);
+        break;
       }
   }
   va_end(arguments);
@@ -478,6 +534,15 @@ entry_point_map_t *plugin_get(entry_point_map_t *key) {
   entry_point_map_t *found;
   found = HT_FIND(plugin_map_ht, &plugin_map_ht, key);
   return found;
+}
+
+plugin_entry_point_t *plugin_get_entry_point_by_entry_name(plugin_t *plugin, char
+    *entry_name) {
+  SMARTLIST_FOREACH_BEGIN(plugin->entry_points, plugin_entry_point_t *, ep) {
+    if (!strcmp(ep->entry_name, entry_name))
+      return ep;
+  } SMARTLIST_FOREACH_END(ep);
+  return NULL;
 }
 
 void plugin_map_entrypoint_remove(plugin_entry_point_t *ep) {
@@ -492,6 +557,19 @@ void plugin_map_entrypoint_remove(plugin_entry_point_t *ep) {
   if (!found) {
     log_debug(LD_PLUGIN, "NOT FOUND: Trying to remove a plugin from the hashmap %s", search.entry_name);
   }
+}
+
+void plugin_cleanup_conn(circuit_t *circ, uint64_t uid) {
+  caller_id_t caller = PLUGIN_HOUSEKEEPING_CLEANUP;
+  plugin_plugin_args_t args;
+  memset(&args, 0, sizeof(args));
+  args.circ = circ;
+  log_debug(LD_PLUGIN, "Cleaning up connection plugin. Invoking plugin's housekeeping code");
+  plugin_t *plugin = circuit_plugin_get(circ, uid);
+  args.plugin = plugin;
+  invoke_plugin_operation_or_default(NULL, caller, (void*) &args);
+  smartlist_remove(circ->plugins, plugin);
+  plugin_unplug(plugin);
 }
 
 uint64_t plugin_run(plugin_entry_point_t *entry_point, void *args, size_t args_size) {

@@ -2849,6 +2849,21 @@ assert_circuit_ok,(const circuit_t *c))
   }
 }
 
+/** Get any plugin with uid attached to this circuit
+ *  or returns NULL otherwise
+ *
+ *  XXX it is a list because we don't expect
+ *  attaching many plugins to a given circuit.
+ *  O(n) over small list is better than a hasmap
+ */
+plugin_t* circuit_plugin_get(circuit_t *circuit, uint64_t uid) {
+  SMARTLIST_FOREACH_BEGIN(circuit->plugins, plugin_t*, plugin) {
+    if (plugin->uid == uid)
+      return plugin;
+  } SMARTLIST_FOREACH_END(plugin);
+  return NULL;
+}
+
 uint64_t circuit_get(int key, va_list *arguments) {
   switch (key) {
     case CIRCUIT_MARKED_FOR_CLOSE:

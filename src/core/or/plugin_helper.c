@@ -323,7 +323,6 @@ smartlist_t* plugin_helper_find_all_and_init(uint64_t *uids, uint16_t uids_len) 
 /**
  * Unplug the plugin -- i.e., free the map, destroy the ebpf vm and free the
  * memory.
- *
  */
 void plugin_unplug(plugin_t *plugin) {
   if (!plugin)
@@ -357,6 +356,7 @@ const char *plugin_caller_id_to_string(caller_id_t caller) {
     case CIRCPAD_EVENT_CIRC_HAS_OPENED: return "calling a plugin in the circpad module when a circuit has opened";
     case CIRCPAD_SEND_PADDING_CALLBACK: return "replace the function send_padding_callback in the circpad framework";
     case CONNECTION_EDGE_ADD_TO_SENDING_BEGIN: return "calling a plugin after sending a begin_cell";
+    case PLUGIN_HOUSEKEEPING_CLEANUP_CALLED: return "calling a plugin's housekeeping routine when the plugin is asked to be cleaned from host's memory";                                          
     default:
       return "unsupported";
   }
