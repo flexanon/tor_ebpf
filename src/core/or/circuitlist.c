@@ -2863,6 +2863,20 @@ plugin_t* circuit_plugin_get(circuit_t *circuit, uint64_t uid) {
   } SMARTLIST_FOREACH_END(plugin);
   return NULL;
 }
+/*** This function could be O(1) with a tabular per defined hook. This tabular
+ * could be dynamic too if new hooks are defined by plugins.
+ * 
+ * */
+
+plugin_entry_point_t *circuit_plugin_entry_point_get(circuit_t *circuit, char *entry_name) {
+  plugin_entry_point_t *ep = NULL;
+  SMARTLIST_FOREACH_BEGIN(circuit->plugins, plugin_t *, plugin) {
+    ep = plugin_get_entry_point_by_entry_name(plugin, entry_name);
+    if (ep)
+      return ep;
+  } SMARTLIST_FOREACH_END(plugin);
+  return ep;
+}
 
 uint64_t circuit_get(int key, va_list *arguments) {
   switch (key) {

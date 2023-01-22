@@ -150,6 +150,15 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
   if (found || !is_system_wide) {
     switch (caller) {
       case RELAY_CIRCUIT_UNRECOGNIZED_DATA_RECEIVED:
+        {
+          struct relay_process_edge_t *ctx = (relay_process_edge_t *) args;
+          plugin_entry_point_t *ep = circuit_plugin_entry_point_get(ctx->circ, key->entry_name);
+          if (!ep) {
+            log_debug(LD_PLUGIN, "No conn plugin on RELAY_CIRCUIT_UNREGCOGNIZED_DATA_RECEIVED");
+            return PLUGIN_RUN_DEFAULT;
+          }
+          return plugin_run(ep, ctx, sizeof(relay_process_edge_t*));
+        }
       case RELAY_PROCESS_EDGE_UNKNOWN:
       case RELAY_REPLACE_PROCESS_EDGE_SENDME:
       case RELAY_REPLACE_STREAM_DATA_RECEIVED:
