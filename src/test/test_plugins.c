@@ -129,7 +129,7 @@ test_plugin_helper_find_all_and_init(void *args) {
   tt_int_op(strcmp(((plugin_entry_point_t*)smartlist_get(plugin3->entry_points, 0))->entry_name, "test_3"), OP_EQ, 0);
 done:
   if(list_plugins)
-    tor_free(list_plugins);
+    smartlist_free(list_plugins);
 }
 
 static void

@@ -58,7 +58,7 @@ STATIC int plugins_compare_by_uid_(const void **a_, const void **b_) {
   uint64_t uid_a = a->uid;
   uint64_t uid_b = b->uid;
   if (uid_a < uid_b)
-    return 1;
+    return -1;
   else if (uid_a == uid_b)
     return 0;
   else
@@ -108,6 +108,7 @@ int plugin_plug_elf(plugin_t *plugin, entry_info_t *einfo, char *elfpath) {
     return -1;
   }
   entry_point->entry_name = tor_strdup(einfo->entry_name);
+  /*tor_free(einfo->entry_name);*/
   smartlist_add(plugin->entry_points, entry_point);
   if (plugin->is_system_wide) {
     found = tor_malloc_zero(sizeof(entry_point_map_t));
