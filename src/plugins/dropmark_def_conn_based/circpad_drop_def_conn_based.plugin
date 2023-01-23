@@ -1,3 +1,6 @@
 memory 16777216
 uid 42
+plugin_init protocol_plugin add plugin_init_add.o
+circuit_unrecognized_data_received protocol_relay hijack circuit_receive_relay_cell_hijack.o
 circpad_send_padding_cell_for_callback_replace protocol_circpad replace circpad_dropmark_send_padding_cell.o
+plugin_cleanup protocol_plugin add plugin_cleanup_add.o

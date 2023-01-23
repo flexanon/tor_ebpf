@@ -41,6 +41,7 @@ typedef enum {
   CONNECTION_EDGE_ADD_TO_SENDING_BEGIN,
 
   PLUGIN_HOUSEKEEPING_CLEANUP_CALLED,
+  PLUGIN_HOUSEKEEPING_INIT,
 } caller_id_t;
 
 typedef struct entry_point_map_t {
@@ -55,10 +56,9 @@ typedef struct entry_point_map_t {
   plugin_t *plugin;
 } entry_point_map_t;
 
-#define PLUGIN_CTX 1
-  /**
-   * Access main objects of process_edge
-   */
+/**
+ * Access main objects of process_edge
+ */
 /** get circuit_t* */
 #define RELAY_ARG_CIRCUIT_T 10
 /*  get crypt_path_t*  */
@@ -130,7 +130,7 @@ typedef struct entry_point_map_t {
 
 #define CIRCUIT_MAX 6000
 
-#define PLUGIN_HOUSEKEEPING_CLEANUP 6001
+#define PLUGIN_CTX 6001
 #define PLUGIN_MAX 7000
 /*** KEYFUNC */
 

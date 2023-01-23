@@ -11,7 +11,6 @@
 #include "ext/trunnel/trunnel-impl.h"
 #include <assert.h>
 #include <stdlib.h>
-#include "util/container.c"
 
 
 /**

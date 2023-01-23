@@ -90,6 +90,7 @@ int plugin_plug_elf(plugin_t *plugin, entry_info_t *einfo, char *elfpath) {
           search.pfamily, search.param);
       return 0;
     }
+    tor_free(search.entry_name);
   }
   plugin_entry_point_t *entry_point = tor_malloc_zero(sizeof(*entry_point));
   int ret;
@@ -154,9 +155,10 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
           struct relay_process_edge_t *ctx = (relay_process_edge_t *) args;
           plugin_entry_point_t *ep = circuit_plugin_entry_point_get(ctx->circ, key->entry_name);
           if (!ep) {
-            log_debug(LD_PLUGIN, "No conn plugin on RELAY_CIRCUIT_UNREGCOGNIZED_DATA_RECEIVED");
+            log_debug(LD_PLUGIN, "No conn plugin on RELAY_CIRCUIT_UNRECOGNIZED_DATA_RECEIVED");
             return PLUGIN_RUN_DEFAULT;
           }
+          log_debug(LD_PLUGIN, "Running plugin entry point %s", key->entry_name);
           return plugin_run(ep, ctx, sizeof(relay_process_edge_t*));
         }
       case RELAY_PROCESS_EDGE_UNKNOWN:
@@ -210,6 +212,7 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
           ctx->param = found->param;
           return plugin_run(found->entry_point, ctx, sizeof(conn_edge_plugin_args_t *));
         }
+      case PLUGIN_HOUSEKEEPING_INIT:
       case PLUGIN_HOUSEKEEPING_CLEANUP_CALLED:
         {
           plugin_plugin_args_t *ctx = (plugin_plugin_args_t*) args;
@@ -220,6 +223,7 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
                   key->entry_name, ctx->plugin->uid);
               return PLUGIN_RUN_DEFAULT;
             }
+            log_debug(LD_PLUGIN, "Running plugin entry point %s", key->entry_name);
             return plugin_run(ep, ctx, sizeof(plugin_plugin_args_t*));
           }
           else {
@@ -345,6 +349,15 @@ int plugin_process_plug_cell(circuit_t *circ, const uint8_t *cell_payload,
   tor_assert(plugin);
   /** add the plugin to the circ */
   smartlist_add(circ->plugins, plugin);
+  /** invoke init if any */
+  caller_id_t caller = PLUGIN_HOUSEKEEPING_INIT;
+  plugin_plugin_args_t args;
+  args.plugin = plugin;
+  args.circ = circ;
+  entry_point_map_t pmap;
+  memset(&pmap, 0, sizeof(pmap));
+  pmap.entry_name = (char*) "plugin_init";
+  invoke_plugin_operation_or_default(&pmap, caller, (void*) &args);
 cleanup:
   plug_cell_free(cell);
   return 0;
@@ -352,8 +365,9 @@ cleanup:
 
 
 static int plugin_is_caller_id_system_wide(caller_id_t caller) {
-  switch((uint16_t)caller) {
-    case PLUGIN_HOUSEKEEPING_CLEANUP:
+  switch(caller) {
+    case PLUGIN_HOUSEKEEPING_INIT:
+    case PLUGIN_HOUSEKEEPING_CLEANUP_CALLED:
     case CIRCPAD_SEND_PADDING_CALLBACK:
       return 0;
     default:
@@ -412,6 +426,18 @@ uint64_t get(int key, int arglen, ...) {
   return ret;
 }
 
+static void plugin_set(int key, va_list *arguments) {
+  switch (key) {
+    case PLUGIN_CTX:
+      {
+        plugin_plugin_args_t *args = va_arg(*arguments, plugin_plugin_args_t*);
+        uint64_t val = va_arg(*arguments, uint64_t);
+        args->plugin->ctx = (void *) val;
+        break;
+      }
+  }
+}
+
 void set(int key, int arglen, ...) {
   va_list arguments;
   va_start(arguments, arglen);
@@ -430,6 +456,9 @@ void set(int key, int arglen, ...) {
   }
   else if (key < CIRCUIT_MAX) {
     circuit_set(key, &arguments);
+  }
+  else if (key < PLUGIN_MAX) {
+    plugin_set(key, &arguments);
   }
   va_end(arguments);
 }
@@ -566,17 +595,21 @@ void plugin_map_entrypoint_remove(plugin_entry_point_t *ep) {
   if (!found) {
     log_debug(LD_PLUGIN, "NOT FOUND: Trying to remove a plugin from the hashmap %s", search.entry_name);
   }
+  tor_free(search.entry_name);
 }
 
 void plugin_cleanup_conn(circuit_t *circ, uint64_t uid) {
-  caller_id_t caller = PLUGIN_HOUSEKEEPING_CLEANUP;
+  caller_id_t caller = PLUGIN_HOUSEKEEPING_CLEANUP_CALLED;
   plugin_plugin_args_t args;
   memset(&args, 0, sizeof(args));
   args.circ = circ;
   log_debug(LD_PLUGIN, "Cleaning up connection plugin. Invoking plugin's housekeeping code");
   plugin_t *plugin = circuit_plugin_get(circ, uid);
   args.plugin = plugin;
-  invoke_plugin_operation_or_default(NULL, caller, (void*) &args);
+  entry_point_map_t pmap;
+  memset(&pmap, 0, sizeof(pmap));
+  pmap.entry_name = (char *) "plugin_cleanup";
+  invoke_plugin_operation_or_default(&pmap, caller, (void*) &args);
   smartlist_remove(circ->plugins, plugin);
   plugin_unplug(plugin);
 }

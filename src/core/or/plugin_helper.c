@@ -65,6 +65,10 @@ static int insert_plugin_from_transaction_line(char *line, char *plugin_dirname,
     einfo->pfamily = PLUGIN_PROTOCOL_CONN_EDGE;
     einfo->ptype = PLUGIN_DEV;
   }
+  else if (strncmp(token, "protocol_plugin", 15) == 0) {
+    einfo->pfamily = PLUGIN_PROTOCOL_PLUGIN;
+    einfo->ptype = PLUGIN_DEV;
+  }
   else {
     log_debug(LD_PLUGIN, "Plugin family unsupported %s", token);
   }
@@ -356,7 +360,8 @@ const char *plugin_caller_id_to_string(caller_id_t caller) {
     case CIRCPAD_EVENT_CIRC_HAS_OPENED: return "calling a plugin in the circpad module when a circuit has opened";
     case CIRCPAD_SEND_PADDING_CALLBACK: return "replace the function send_padding_callback in the circpad framework";
     case CONNECTION_EDGE_ADD_TO_SENDING_BEGIN: return "calling a plugin after sending a begin_cell";
-    case PLUGIN_HOUSEKEEPING_CLEANUP_CALLED: return "calling a plugin's housekeeping routine when the plugin is asked to be cleaned from host's memory";                                          
+    case PLUGIN_HOUSEKEEPING_CLEANUP_CALLED: return "calling a plugin's housekeeping routine when the plugin is asked to be cleaned from host's memory";
+    case PLUGIN_HOUSEKEEPING_INIT: return "Initialize the plugin when plugged";
     default:
       return "unsupported";
   }
