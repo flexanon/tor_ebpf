@@ -292,6 +292,8 @@ int send_plug_cell_v0_to_hop(origin_circuit_t *circ, uint64_t uid,
   uint8_t payload[RELAY_PAYLOAD_SIZE];
   ssize_t payload_len;
 
+  log_debug(LD_PLUGIN, "Sending plug cell containing uid %ld to hop num %d", uid, hopnum);
+
   /* Let's ensure we have it */ 
   if (!target_hop) {
     log_debug(LD_PLUGIN, "Circuit %u has %d hops, not %d. Why are we sending a plug cell?",
@@ -595,6 +597,15 @@ int call_host_func(int keyfunc, int size, ...) {
       {
         tor_timer_t *timer = va_arg(arguments, tor_timer_t*);
         timer_disable(timer);
+        break;
+      }
+    case PLUGIN_SEND_PLUG_CELL:
+      {
+        circuit_t *circ = va_arg(arguments, circuit_t *);
+        uint64_t uid = va_arg(arguments, uint64_t);
+        uint32_t hopnum = va_arg(arguments, uint32_t);
+        tor_assert(CIRCUIT_IS_ORIGIN(circ));
+        send_plug_cell_v0_to_hop(TO_ORIGIN_CIRCUIT(circ), uid, (uint8_t) hopnum);
         break;
       }
     case PLUGIN_CLEANUP_CIRC:

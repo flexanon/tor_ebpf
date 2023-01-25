@@ -1,2 +1,4 @@
 memory 0
+uid 2
+system-wide
 sendme_circuit_data_received protocol_relay replace sendme_circuit_data_received.o

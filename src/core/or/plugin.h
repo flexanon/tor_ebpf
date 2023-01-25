@@ -162,6 +162,7 @@ typedef struct entry_point_map_t {
 #define TIMER_KEYFUNC_MAX 300
 
 #define PLUGIN_CLEANUP_CIRC 301
+#define PLUGIN_SEND_PLUG_CELL 302
 #define PLUGIN_KEYFUNC_MAX 400
 
 /** What type of argument do we give to pluginized function
