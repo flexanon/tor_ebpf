@@ -76,6 +76,7 @@ typedef struct entry_point_map_t {
 #define RELAY_PLUGIN_CTX 16
 #define RELAY_ARG_PLUGIN_T 17
 #define RELAY_ARG_PARAM 18
+#define RELAY_ARG_CIRCUIT_CHAN_T 19
 
 #define RELAY_MAX 1000
 
@@ -140,6 +141,7 @@ typedef struct entry_point_map_t {
 
 #define RELAY_SEND_COMMAND_FROM_EDGE 1
 #define CIRCPAD_MACHINE_REGISTER 2
+#define RELAY_APPEND_CELL_TO_CIRCUIT_QUEUE 3
 
 #define RELAY_KEYFUNC_MAX 100
 

@@ -3,7 +3,7 @@
 #include "core/or/plugin.h"
 #include "ubpf/vm/plugin_memory.h"
 
-uint64_t plugin_init(plugin_plugin_args_t *args) {
+uint64_t plugin_init_fn(plugin_plugin_args_t *args) {
 
   plugin_t *plugin = (plugin_t *) get(PLUGIN_ARG_PLUGIN_T, 1, args);
   circuit_t *circ = (circuit_t *) get(PLUGIN_ARG_CIRCUIT_T, 1, args);
@@ -15,7 +15,7 @@ uint64_t plugin_init(plugin_plugin_args_t *args) {
         "Unable to malloc circpad_connbased_dropmark_t");
     return -1;
   }
-  ctx->cell_queue = queue_new(plugin, 32, sizeof(cell_t));
+  ctx->cell_queue = queue_new(plugin, 64, sizeof(cell_t*));
   if (!ctx->cell_queue) {
     log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__,
         "Unable to malloc cell_queue");

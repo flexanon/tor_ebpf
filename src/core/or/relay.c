@@ -354,6 +354,8 @@ circuit_receive_relay_cell(cell_t *cell, circuit_t *circ,
   relay_process_edge_t args;
   args.circ = circ;
   args.cell = cell;
+  args.cell_direction = cell_direction;
+  args.chan = chan;
   if (invoke_plugin_operation_or_default(&pmap, caller, (void*) &args) == PLUGIN_RUN_DEFAULT) {
 
     /* not recognized. inform circpad and pass it on. */
@@ -3418,6 +3420,11 @@ uint64_t relay_get(int key, va_list *arguments) {
       {
         relay_process_edge_t *pedge = va_arg(*arguments, relay_process_edge_t *);
         return (uint64_t) pedge->edgeconn->deliver_window;
+      }
+    case RELAY_ARG_CIRCUIT_CHAN_T:
+      {
+        relay_process_edge_t *pedge = va_arg(*arguments, relay_process_edge_t *);
+        return (uint64_t) pedge->chan;
       }
     default:
       return 0;

@@ -500,6 +500,21 @@ int call_host_func(int keyfunc, int size, ...) {
   int ret = 0;
   va_start(arguments, size);
   switch (keyfunc) {
+    case RELAY_APPEND_CELL_TO_CIRCUIT_QUEUE:
+      {
+        circuit_t *circ = va_arg(arguments, circuit_t *);
+        channel_t *chan = va_arg(arguments, channel_t *);
+        cell_t *cell = va_arg(arguments, cell_t*);
+        cell_direction_t direction;
+        if (!CIRCUIT_IS_ORIGIN(circ)) {
+          log_debug(LD_PLUGIN, "Marking direction in");
+          direction = CELL_DIRECTION_IN;
+        }
+        else
+          direction = CELL_DIRECTION_OUT;
+        append_cell_to_circuit_queue(circ, chan, cell, direction, 0);
+        break;
+      }
     case RELAY_SEND_COMMAND_FROM_EDGE:
       {
         circuit_t *circ = va_arg(arguments, circuit_t*);

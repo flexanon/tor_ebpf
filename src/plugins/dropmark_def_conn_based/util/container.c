@@ -48,7 +48,7 @@ queue_new(plugin_t *plugin, int max_num, int itemsize) {
  * return MEMORY_FULL, OK
  */
 static __attribute__((always_inline)) queue_ret_t
-tcpls_record_queue_push(fifo_t *fifo, void *data) { 
+queue_push(fifo_t *fifo, void *data) { 
   if (fifo->size == fifo->max_num)
     return MEMORY_FULL;
   my_plugin_memcpy(&fifo->queue[fifo->front_idx], data, fifo->itemsize);
@@ -106,3 +106,11 @@ fifo_free(plugin_t *plugin, fifo_t *fifo) {
   my_plugin_free(plugin, fifo->queue);
   my_plugin_free(plugin, fifo);
 }
+
+static __attribute__((always_inline)) int
+fifo_is_empty(fifo_t *fifo) {
+  if (!fifo)
+    return 1;
+  return fifo->size == 0;
+}
+
