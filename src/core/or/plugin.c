@@ -366,7 +366,8 @@ cleanup:
 
 
 static int plugin_is_caller_id_system_wide(caller_id_t caller) {
-  switch(caller) {
+  // ugly right.but caller_id_t should be < 2**16, and I am fed up with warnings
+  switch((uint16_t)caller) {
     case PLUGIN_HOUSEKEEPING_INIT:
     case PLUGIN_HOUSEKEEPING_CLEANUP_CALLED:
     case CIRCPAD_SEND_PADDING_CALLBACK:
@@ -390,10 +391,31 @@ static uint64_t util_get(int key, va_list *arguments) {
       {
         return server_mode(get_options());
       }
+    case UTIL_CONN_CTX:
+      {
+        circuit_t *circ = va_arg(*arguments, circuit_t*);
+        return (uint64_t) circ->p_conn_ctx;
+      }
     default:
       return 0;
   }
   return 0;
+}
+
+static uint64_t plugin_get_arg(int key, va_list *arguments) {
+  switch (key) {
+    case PLUGIN_ARG_PLUGIN_T:
+      {
+        plugin_plugin_args_t *args = va_arg(*arguments, plugin_plugin_args_t *);
+        return (uint64_t) args->plugin;
+      }
+    case PLUGIN_ARG_CIRCUIT_T:
+      {
+        plugin_plugin_args_t *args = va_arg(*arguments, plugin_plugin_args_t *);
+        return (uint64_t) args->circ;
+      }
+     default: return 0;
+  }
 }
 
 /**
@@ -422,6 +444,9 @@ uint64_t get(int key, int arglen, ...) {
   }
   else if (key < CIRCUIT_MAX) {
     ret = circuit_get(key, &arguments);
+  }
+  else if (key < PLUGIN_MAX) {
+    ret = plugin_get_arg(key, &arguments);
   }
   va_end(arguments);
   return ret;

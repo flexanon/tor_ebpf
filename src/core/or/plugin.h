@@ -121,6 +121,7 @@ typedef struct entry_point_map_t {
 
 #define UTIL_CIRCUIT_IS_ORIGIN 4001
 #define UTIL_IS_RELAY 4002
+#define UTIL_CONN_CTX 4003
 
 #define UTIL_MAX 5000
 
@@ -131,6 +132,9 @@ typedef struct entry_point_map_t {
 #define CIRCUIT_MAX 6000
 
 #define PLUGIN_CTX 6001
+#define PLUGIN_ARG_PLUGIN_T 6002
+#define PLUGIN_ARG_CIRCUIT_T 6003
+
 #define PLUGIN_MAX 7000
 /*** KEYFUNC */
 
