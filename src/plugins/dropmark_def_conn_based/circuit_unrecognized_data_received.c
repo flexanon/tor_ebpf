@@ -16,7 +16,7 @@ uint64_t circuit_unrecognized_data_received(relay_process_edge_t *args) {
   cell_t *cell = (cell_t *) get(RELAY_ARG_CELL_T, 1, args);
   cell_t *mycell = my_plugin_malloc(plugin, sizeof(*mycell));
   my_plugin_memcpy(mycell, cell, sizeof(*mycell));
-  queue_ret_t ret = queue_push(ctx->cell_queue, mycell);
+  queue_ret_t ret = queue_push(ctx->cell_queue, &mycell);
   if (ret != OK) {
     log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "queue_push returned value %d", ret);
     return -1;
