@@ -109,6 +109,7 @@ int plugin_plug_elf(plugin_t *plugin, entry_info_t *einfo, char *elfpath) {
     return -1;
   }
   entry_point->entry_name = tor_strdup(einfo->entry_name);
+  entry_point->plugin = plugin;
   /*tor_free(einfo->entry_name);*/
   smartlist_add(plugin->entry_points, entry_point);
   if (plugin->is_system_wide) {
@@ -155,7 +156,10 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
       case RELAY_CIRCUIT_UNRECOGNIZED_DATA_RECEIVED:
         {
           struct relay_process_edge_t *ctx = (relay_process_edge_t *) args;
+          // XXX ep should ideally have a pointer to its plugin
+          /*plugin_t *plugin = circuit_plugin_get(ctx->circ, 42);*/
           plugin_entry_point_t *ep = circuit_plugin_entry_point_get(ctx->circ, key->entry_name);
+          ctx->plugin = ep->plugin;
           if (!ep) {
             log_debug(LD_PLUGIN, "No conn plugin on RELAY_CIRCUIT_UNRECOGNIZED_DATA_RECEIVED");
             return PLUGIN_RUN_DEFAULT;
@@ -193,15 +197,15 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
           tor_assert(ctx->circ);
           plugin_t *foundp = circuit_plugin_get(ctx->circ, uid);
           if (!foundp) {
-            log_debug(LD_PLUGIN, "We didn't find a plugin with uid %lu in circuit state %s with global id %ld",
-                uid, circuit_state_to_string(ctx->circ->state), ctx->circ->n_chan->global_identifier);
+            log_debug(LD_PLUGIN, "We didn't find a plugin with uid %lu on circ (%p) in circuit state %s with global id %ld",
+                uid, ctx->circ, circuit_state_to_string(ctx->circ->state), ctx->circ->n_chan->global_identifier);
             return PLUGIN_RUN_DEFAULT;
           }
           ctx->plugin = foundp;
           plugin_entry_point_t *ep = plugin_get_entry_point_by_entry_name(foundp, key->entry_name);
           if (!ep) {
-            log_debug(LD_PLUGIN, "We didn't find entry point name %s over plugin uid %lu",
-                key->entry_name, uid);
+            log_debug(LD_PLUGIN, "We didn't find entry point name %s over plugin uid %lu for circ (%p)",
+                key->entry_name, uid, ctx->circ);
             return PLUGIN_RUN_DEFAULT;
           }
           log_debug(LD_PLUGIN, "Running plugin entry point %s", key->entry_name);

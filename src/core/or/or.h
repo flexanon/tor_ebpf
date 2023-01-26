@@ -1175,14 +1175,6 @@ typedef struct entry_info_t {
   int param;
 } entry_info_t;
 
-
-typedef struct plugin_entry_point {
-  void *vm;
-  char *entry_name;
-  ubpf_jit_fn fn;
-  entry_info_t info;
-} plugin_entry_point_t;
-
 typedef struct plugin {
   char *pname;
   memory_pool_t *memory_pool;
@@ -1197,5 +1189,13 @@ typedef struct plugin {
    * */
   void *ctx;
 } plugin_t;
+
+typedef struct plugin_entry_point {
+  void *vm;
+  char *entry_name;
+  ubpf_jit_fn fn;
+  entry_info_t info;
+  plugin_t *plugin;
+} plugin_entry_point_t;
 
 #endif /* !defined(TOR_OR_H) */

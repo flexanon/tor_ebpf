@@ -352,6 +352,7 @@ circuit_receive_relay_cell(cell_t *cell, circuit_t *circ,
   pmap.entry_name = (char *) "circuit_unrecognized_data_received";
   caller_id_t caller = RELAY_CIRCUIT_UNRECOGNIZED_DATA_RECEIVED;
   relay_process_edge_t args;
+  memset(&args, 0, sizeof(args));
   args.circ = circ;
   args.cell = cell;
   args.cell_direction = cell_direction;
