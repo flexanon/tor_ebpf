@@ -536,6 +536,8 @@ int call_host_func(int keyfunc, int size, ...) {
         }
         else
           direction = CELL_DIRECTION_OUT;
+        circpad_deliver_unrecognized_cell_events(circ, direction);
+        log_debug(LD_PLUGIN, "Plugin: Appending cell to circuit queue");
         append_cell_to_circuit_queue(circ, chan, cell, direction, 0);
         break;
       }
