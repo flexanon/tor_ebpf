@@ -159,11 +159,11 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
           // XXX ep should ideally have a pointer to its plugin
           /*plugin_t *plugin = circuit_plugin_get(ctx->circ, 42);*/
           plugin_entry_point_t *ep = circuit_plugin_entry_point_get(ctx->circ, key->entry_name);
-          ctx->plugin = ep->plugin;
           if (!ep) {
             log_debug(LD_PLUGIN, "No conn plugin on RELAY_CIRCUIT_UNRECOGNIZED_DATA_RECEIVED");
             return PLUGIN_RUN_DEFAULT;
           }
+          ctx->plugin = ep->plugin;
           log_debug(LD_PLUGIN, "Running plugin entry point %s", key->entry_name);
           return plugin_run(ep, ctx, sizeof(relay_process_edge_t*));
         }
