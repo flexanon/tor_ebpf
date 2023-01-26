@@ -203,6 +203,7 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
                 key->entry_name, uid);
             return PLUGIN_RUN_DEFAULT;
           }
+          log_debug(LD_PLUGIN, "Running plugin entry point %s", key->entry_name);
           return plugin_run(ep, ctx, sizeof(circpad_plugin_args_t*));
         }
       case CONNECTION_EDGE_ADD_TO_SENDING_BEGIN:
