@@ -9,6 +9,7 @@
 #include "core/or/circuitpadding.h"
 #include "core/or/connection_edge.h"
 #include "core/or/circuit_st.h"
+#include "core/or/channel.h"
 #include "core/or/circuitlist.h"
 #include "core/or/crypt_path.h"
 #include "core/or/origin_circuit_st.h"
@@ -192,8 +193,8 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
           tor_assert(ctx->circ);
           plugin_t *foundp = circuit_plugin_get(ctx->circ, uid);
           if (!foundp) {
-            log_debug(LD_PLUGIN, "We didn't find a plugin with uid %lu in circuit state %s",
-                uid, circuit_state_to_string(ctx->circ->state));
+            log_debug(LD_PLUGIN, "We didn't find a plugin with uid %lu in circuit state %s with global id %ld",
+                uid, circuit_state_to_string(ctx->circ->state), ctx->circ->n_chan->global_identifier);
             return PLUGIN_RUN_DEFAULT;
           }
           ctx->plugin = foundp;
@@ -361,7 +362,7 @@ int plugin_process_plug_cell(circuit_t *circ, const uint8_t *cell_payload,
   entry_point_map_t pmap;
   memset(&pmap, 0, sizeof(pmap));
   pmap.entry_name = (char*) "plugin_init";
-  log_debug(LD_PLUGIN, "loaded and added plugin %ld to the circ. Calling its init function", uid);
+  log_debug(LD_PLUGIN, "loaded and added plugin %ld to the circ. Calling its init function, to circ with global id %ld", uid, circ->n_chan->global_identifier);
   invoke_plugin_operation_or_default(&pmap, caller, (void*) &args);
 cleanup:
   plug_cell_free(cell);

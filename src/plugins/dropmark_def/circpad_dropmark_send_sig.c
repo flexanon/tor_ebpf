@@ -149,6 +149,8 @@ uint64_t circpad_dropmark_def_send_activate_sig(conn_edge_plugin_args_t *args) {
   }
   else if (param == CIRCPAD_EVENT_SHOULD_SIGPLUGIN_BE_SILENT)
     activate_sig.signal_type = ctx->CIRCPAD_EVENT_SIGPLUGIN_BE_SILENT;
+  else if (param == CIRCPAD_EVENT_SHOULD_SIGPLUGIN_CLOSE) 
+    activate_sig.signal_type = ctx->CIRCPAD_EVENT_SIGPLUGIN_CLOSE;
   else {
     log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__,
         "Unsupported param %d", param);

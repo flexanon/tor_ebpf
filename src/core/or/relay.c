@@ -1431,7 +1431,7 @@ connection_edge_process_relay_cell_not_open(
     pmap.putype = PLUGIN_CODE_ADD;
     pmap.pfamily = PLUGIN_PROTOCOL_CONN_EDGE;
     pmap.entry_name = (char *) "plugin_received_connected_cell";
-    pmap.param = 2;
+    pmap.param = 3; // send a close signal to close the machine on the middle relay
     caller_id_t caller = RELAY_RECEIVED_CONNECTED_CELL;
     conn_edge_plugin_args_t args;
     memset(&args, 0, sizeof(args));
