@@ -407,6 +407,17 @@ static uint64_t util_get(int key, va_list *arguments) {
   return 0;
 }
 
+static void util_set(int key, va_list *arguments) {
+  switch (key) {
+    case UTIL_CONN_CTX:
+      {
+        circuit_t *circ = va_arg(*arguments, circuit_t *);
+        void *ctx = va_arg(*arguments, void *);
+        circ->p_conn_ctx = ctx;
+      }
+  }
+}
+
 static uint64_t plugin_get_arg(int key, va_list *arguments) {
   switch (key) {
     case PLUGIN_ARG_PLUGIN_T:
@@ -484,6 +495,7 @@ void set(int key, int arglen, ...) {
   else if (key < OPTIONS_MAX) {
   }
   else if (key < UTIL_MAX) {
+    util_set(key, &arguments);
   }
   else if (key < CIRCUIT_MAX) {
     circuit_set(key, &arguments);

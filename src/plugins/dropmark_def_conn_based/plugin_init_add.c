@@ -21,7 +21,7 @@ uint64_t plugin_init_fn(plugin_plugin_args_t *args) {
         "Unable to malloc cell_queue");
     return -1;
   }
-  set(UTIL_CONN_CTX, 2, circ, ctx);
+  set(UTIL_CONN_CTX, 2, circ, (void *)ctx);
   return 0;
 }
 
