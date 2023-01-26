@@ -21,6 +21,6 @@ uint64_t circuit_unrecognized_data_received(relay_process_edge_t *args) {
     log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "queue_push returned value %d", ret);
     return -1;
   }
-  log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "Plugin: Adding a cell to the queue. It is now of size %ld", ctx->cell_queue->size);
+  log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "Plugin: Adding a cell to the queue. It is now of size %d", ctx->cell_queue->size);
   return 0;
 }
