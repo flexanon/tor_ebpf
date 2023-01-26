@@ -1,3 +1,4 @@
+#include "core/or/or.h"
 #include "circpad_drop_def_conn_based.h"
 #include "core/or/relay.h"
 #include "core/or/plugin.h"
@@ -15,10 +16,11 @@ uint64_t circuit_unrecognized_data_received(relay_process_edge_t *args) {
   cell_t *cell = (cell_t *) get(RELAY_ARG_CELL_T, 1, args);
   cell_t *mycell = my_plugin_malloc(plugin, sizeof(*mycell));
   my_plugin_memcpy(mycell, cell, sizeof(*mycell));
-  queue_ret_t ret = queue_push(ctx->cell_queue, cell);
+  queue_ret_t ret = queue_push(ctx->cell_queue, mycell);
   if (ret != OK) {
-    log_debug(LD_PLUGIN, "queue_push returned value %d", ret);
+    log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "queue_push returned value %d", ret);
     return -1;
   }
+  log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "Plugin: Adding a cell to the queue. It is now of size %ld", ctx->cell_queue->size);
   return 0;
 }
