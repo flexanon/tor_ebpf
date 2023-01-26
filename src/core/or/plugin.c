@@ -362,7 +362,9 @@ int plugin_process_plug_cell(circuit_t *circ, const uint8_t *cell_payload,
   entry_point_map_t pmap;
   memset(&pmap, 0, sizeof(pmap));
   pmap.entry_name = (char*) "plugin_init";
-  log_debug(LD_PLUGIN, "loaded and added plugin %ld to the circ. Calling its init function, to circ with global id %ld", uid, circ->n_chan->global_identifier);
+  log_debug(LD_PLUGIN, "loaded and added plugin %ld to the circ (%p)."
+                       " Calling its init function, to circ with global id %ld",
+                       uid, circ, circ->n_chan->global_identifier);
   invoke_plugin_operation_or_default(&pmap, caller, (void*) &args);
 cleanup:
   plug_cell_free(cell);
@@ -376,6 +378,7 @@ static int plugin_is_caller_id_system_wide(caller_id_t caller) {
     case PLUGIN_HOUSEKEEPING_INIT:
     case PLUGIN_HOUSEKEEPING_CLEANUP_CALLED:
     case CIRCPAD_SEND_PADDING_CALLBACK:
+    case RELAY_CIRCUIT_UNRECOGNIZED_DATA_RECEIVED:
       return 0;
     default:
       return 1;
