@@ -2037,6 +2037,10 @@ handle_relay_cell_command(cell_t *cell, circuit_t *circ,
                               rh->command, rh->length,
                               cell->payload+RELAY_HEADER_SIZE);
       return 0;
+    case RELAY_COMMAND_PLUG:
+      return plugin_process_plug_cell(circ,
+                        (const uint8_t*)cell->payload+RELAY_HEADER_SIZE,
+                        rh->length);
   }
   /**
    * Handling extension of the relay protocol only for developer plugins

@@ -360,6 +360,7 @@ int plugin_process_plug_cell(circuit_t *circ, const uint8_t *cell_payload,
   entry_point_map_t pmap;
   memset(&pmap, 0, sizeof(pmap));
   pmap.entry_name = (char*) "plugin_init";
+  log_debug(LD_PLUGIN, "loaded and added plugin %ld to the circ. Calling its init function", uid);
   invoke_plugin_operation_or_default(&pmap, caller, (void*) &args);
 cleanup:
   plug_cell_free(cell);
