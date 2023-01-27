@@ -1,4 +1,5 @@
 #include "ubpf/vm/plugin_memory.h"
+#include "core/or/cell_st.h"
 #include <stdlib.h>
 
 /** Ring buffer to keep ordered FIFO data in plugins when needed */
@@ -23,13 +24,14 @@ typedef struct st_fifo_t {
 
 
 static __attribute__((always_inline)) fifo_t *
-queue_new(plugin_t *plugin, int max_num, int itemsize) {
+queue_new(plugin_t *plugin, int max_num) {
   fifo_t *fifo = my_plugin_malloc(plugin, sizeof(*fifo));
+  fifo->itemsize = sizeof(uint64_t);
   my_plugin_memset(fifo, 0, sizeof(*fifo));
   if (fifo == NULL)
     return NULL;
-  fifo->queue = my_plugin_malloc(plugin, max_num*itemsize);
-  my_plugin_memset(fifo->queue, 0, max_num*itemsize);
+  fifo->queue = my_plugin_malloc(plugin, max_num*fifo->itemsize);
+  my_plugin_memset(fifo->queue, 0, max_num*fifo->itemsize);
   if (fifo->queue == NULL) {
     my_plugin_free(plugin, fifo);
     return NULL;
@@ -38,7 +40,6 @@ queue_new(plugin_t *plugin, int max_num, int itemsize) {
   fifo->front_idx = 0;
   fifo->back_idx = 0;
   fifo->max_num = max_num;
-  fifo->itemsize = itemsize;
   return fifo;
 }
 
@@ -48,7 +49,7 @@ queue_new(plugin_t *plugin, int max_num, int itemsize) {
  * return MEMORY_FULL, OK
  */
 static __attribute__((always_inline)) queue_ret_t
-queue_push(fifo_t *fifo, void *data) { 
+queue_push(fifo_t *fifo, cell_t **data) {
   if (fifo->size == fifo->max_num)
     return MEMORY_FULL;
   my_plugin_memcpy(&fifo->queue[fifo->front_idx], data, fifo->itemsize);
@@ -88,10 +89,10 @@ queue_del(fifo_t *fifo, int n) {
  */
 
 static __attribute__((always_inline)) queue_ret_t
-queue_pop(fifo_t *fifo, void *data) {
+queue_pop(fifo_t *fifo, cell_t **data) {
   if (fifo->size == 0)
     return EMPTY;
-  data = &fifo->queue[fifo->back_idx];
+  data = (cell_t**) &fifo->queue[fifo->back_idx];
   return queue_del(fifo, 1);
 }
 
