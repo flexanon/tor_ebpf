@@ -3248,7 +3248,7 @@ append_cell_to_circuit_queue(circuit_t *circ, channel_t *chan,
    * this function use the stack for the cell memory. */
   cell_queue_append_packed_copy(circ, queue, exitward, cell,
                                 chan->wide_circ_ids, 1);
-
+  log_debug(LD_PLUGIN, "Copied cell appended to queue");
   /* Check and run the OOM if needed. */
   if (PREDICT_UNLIKELY(cell_queues_check_size())) {
     /* We ran the OOM handler which might have closed this circuit. */
