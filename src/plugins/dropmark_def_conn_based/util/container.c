@@ -26,8 +26,8 @@ typedef struct st_fifo_t {
 static __attribute__((always_inline)) fifo_t *
 queue_new(plugin_t *plugin, int max_num) {
   fifo_t *fifo = my_plugin_malloc(plugin, sizeof(*fifo));
-  fifo->itemsize = sizeof(uint64_t);
   my_plugin_memset(fifo, 0, sizeof(*fifo));
+  fifo->itemsize = sizeof(uint64_t);
   if (fifo == NULL)
     return NULL;
   fifo->queue = my_plugin_malloc(plugin, max_num*fifo->itemsize);
