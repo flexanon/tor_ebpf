@@ -60,7 +60,7 @@ uint64_t circpad_dropmark_send_padding_for_callback(circpad_plugin_args_t *args)
         if (!fifo_is_empty(ctx->cell_queue)) {
           log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "flushing a delayed cell");
           cell_t *cell = NULL;
-          queue_ret_t ret = queue_pop(ctx->cell_queue, cell);
+          queue_ret_t ret = queue_pop(ctx->cell_queue, &cell);
           if (ret != OK) {
             log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__,
                 "Queue_pop somehow didn't return OK");

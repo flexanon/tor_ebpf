@@ -13,7 +13,7 @@ uint64_t plugin_cleanup(plugin_plugin_args_t *args) {
   queue_ret_t ret;
   if (ctx->cell_queue) {
     channel_t *chan = (channel_t *) get(RELAY_ARG_CIRCUIT_CHAN_T, 1, circ);
-    while ((ret = queue_pop(ctx->cell_queue, cell)) != EMPTY) {
+    while ((ret = queue_pop(ctx->cell_queue, &cell)) != EMPTY) {
       /** flush the cell then free it */
       // Do we signal a state event for the machine padding?*/
       call_host_func(RELAY_APPEND_CELL_TO_CIRCUIT_QUEUE, 3, circ, chan, cell);
