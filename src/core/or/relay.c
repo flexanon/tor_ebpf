@@ -3243,7 +3243,7 @@ append_cell_to_circuit_queue(circuit_t *circ, channel_t *chan,
     stats_n_circ_max_cell_reached++;
     return;
   }
-  log_debug(LD_PLUGIN, "Copying the cell");
+  log_debug(LD_PLUGIN, "Copying the cell with pointer %p", cell);
   /* Very important that we copy to the circuit queue because all calls to
    * this function use the stack for the cell memory. */
   cell_queue_append_packed_copy(circ, queue, exitward, cell,
