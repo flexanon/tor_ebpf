@@ -59,7 +59,7 @@ uint64_t circpad_dropmark_send_padding_for_callback(circpad_plugin_args_t *args)
         call_host_func(CIRCPAD_MACHINE_COUNT_PADDING_SENT, 1, mi);
         if (!fifo_is_empty(ctx->cell_queue)) {
           log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "flushing a delayed cell");
-          cell_t **cell = NULL;
+          cell_t *cell = NULL;
           queue_ret_t ret = queue_pop(ctx->cell_queue, cell);
           if (ret != OK) {
             log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__,
@@ -68,8 +68,8 @@ uint64_t circpad_dropmark_send_padding_for_callback(circpad_plugin_args_t *args)
           }
           log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__,
               "Plugin: Flushing a delayed cell!");
-          call_host_func(RELAY_APPEND_CELL_TO_CIRCUIT_QUEUE, 3, circ, chan, *cell);
-          my_plugin_free(plugin, *cell);
+          call_host_func(RELAY_APPEND_CELL_TO_CIRCUIT_QUEUE, 3, circ, chan, cell);
+          my_plugin_free(plugin, cell);
         }
         else {
           call_host_func(RELAY_SEND_COMMAND_FROM_EDGE, 3, circ, (uint32_t)

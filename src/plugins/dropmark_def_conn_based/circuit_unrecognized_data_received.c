@@ -25,9 +25,9 @@ uint64_t circuit_unrecognized_data_received(relay_process_edge_t *args) {
   queue_ret_t ret = queue_push(ctx->cell_queue, &mycell);
   log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "Queue content after push (%lu)", *(uint64_t*) &ctx->cell_queue->queue[0]);
 
-  cell_t **pop_cell = NULL;
+  cell_t *pop_cell = NULL;
   ret  = queue_pop(ctx->cell_queue, pop_cell);
-  log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "Plugin: Pop_cell is is (%p)", *pop_cell);
+  log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "Plugin: Pop_cell is  (%p)", pop_cell);
   log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "Plugin: data is in fifo (%p)", *(cell_t**) &ctx->cell_queue->queue[0]);
 
   ret = queue_push(ctx->cell_queue, &mycell);

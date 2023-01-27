@@ -89,10 +89,10 @@ queue_del(fifo_t *fifo, int n) {
  */
 
 static __attribute__((always_inline)) queue_ret_t
-queue_pop(fifo_t *fifo, cell_t **data) {
+queue_pop(fifo_t *fifo, cell_t *data) {
   if (fifo->size == 0)
     return EMPTY;
-  data = (cell_t**) &fifo->queue[fifo->back_idx];
+  data = *(cell_t**) &fifo->queue[fifo->back_idx];
   return queue_del(fifo, 1);
 }
 
