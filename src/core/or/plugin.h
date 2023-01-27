@@ -123,6 +123,7 @@ typedef struct entry_point_map_t {
 #define UTIL_CIRCUIT_IS_ORIGIN 4001
 #define UTIL_IS_RELAY 4002
 #define UTIL_CONN_CTX 4003
+#define UTIL_CELL_PAYLOAD 4004
 
 #define UTIL_MAX 5000
 

@@ -17,6 +17,7 @@
 #include "core/or/plugin.h"
 #include "core/or/plugin_helper.h"
 #include "core/or/relay.h"
+#include "core/or/cell_st.h"
 #include "feature/relay/routermode.h"
 #include "ubpf/vm/inc/ubpf.h"
 #include "trunnel/plug_cell.h"
@@ -392,6 +393,11 @@ static int plugin_is_caller_id_system_wide(caller_id_t caller) {
 static uint64_t util_get(int key, va_list *arguments) {
   
   switch (key) {
+    case UTIL_CELL_PAYLOAD:
+      {
+        cell_t *cell = va_arg(*arguments, cell_t *);
+        return (uint64_t) cell->payload;
+      }
     case UTIL_CIRCUIT_IS_ORIGIN:
       {
         circuit_t *circ = va_arg(*arguments, circuit_t*);
