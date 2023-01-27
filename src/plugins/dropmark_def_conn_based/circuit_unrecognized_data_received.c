@@ -18,6 +18,12 @@ uint64_t circuit_unrecognized_data_received(relay_process_edge_t *args) {
   my_plugin_memcpy(mycell, cell, sizeof(*mycell));
   log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "Plugin: Copied cell Pointer is (%p)", mycell);
   queue_ret_t ret = queue_push(ctx->cell_queue, &mycell);
+
+  cell_t **pop_cell = NULL;
+  ret  = queue_pop(ctx->cell_queue, pop_cell);
+  log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "Plugin: Pop_cell is is (%p)", *pop_cell);
+  ret = queue_push(ctx->cell_queue, &mycell);
+
   if (ret != OK) {
     log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "queue_push returned value %d", ret);
     return -1;
