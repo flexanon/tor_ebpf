@@ -15,9 +15,11 @@ uint64_t circuit_unrecognized_data_received(relay_process_edge_t *args) {
   circpad_connbased_dropmark_t *ctx = (circpad_connbased_dropmark_t*) get(UTIL_CONN_CTX, 1, circ);
   cell_t *cell = (cell_t *) get(RELAY_ARG_CELL_T, 1, args);
   cell_t *mycell = my_plugin_malloc(plugin, sizeof(*mycell));
+  log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "size of cell: %lu", sizeof(*mycell));
   mycell->command = cell->command;
   mycell->circ_id = cell->circ_id;
-  my_plugin_memcpy(mycell->payload, (uint8_t*) get(UTIL_CELL_PAYLOAD, 1, cell), CELL_PAYLOAD_SIZE);
+  uint8_t* payload = (uint8_t*) get(UTIL_CELL_PAYLOAD, 1, cell);
+  my_plugin_memcpy(mycell->payload, payload, CELL_PAYLOAD_SIZE);
   log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "Plugin: Copied cell Pointer is (%lu)", (uint64_t) mycell);
   log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "Plugin: Copied cell Pointer is (%p)",  mycell);
   log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "sizeof(cell_t*): %lu", sizeof(mycell));
