@@ -17,6 +17,7 @@ uint64_t circuit_unrecognized_data_received(relay_process_edge_t *args) {
   cell_t *mycell = my_plugin_malloc(plugin, sizeof(*mycell));
   my_plugin_memcpy(mycell, cell, sizeof(*mycell));
   log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "Plugin: Copied cell Pointer is (%lu)", (uint64_t) mycell);
+  log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "Plugin: Copied cell Pointer is (%p)",  mycell);
   log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "sizeof(cell_t*): %lu", sizeof(mycell));
   log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "fifo size: %u", ctx->cell_queue->itemsize);
   
@@ -26,10 +27,10 @@ uint64_t circuit_unrecognized_data_received(relay_process_edge_t *args) {
 
   cell_t **pop_cell = NULL;
   void *data;
-  ret  = queue_pop(ctx->cell_queue, data);
+  ret  = queue_pop(ctx->cell_queue, (cell_t **) data);
   pop_cell = (cell_t **) data;
   log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "Plugin: Pop_cell is is (%p)", *pop_cell);
-  log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "Plugin: data is (%p)", (cell_t*) *(uint64_t*)data);
+  log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "Plugin: data is (%p)", *(cell_t**)data);
   log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "Plugin: data is in fifo (%p)", *(cell_t**) &ctx->cell_queue->queue[0]);
 
   ret = queue_push(ctx->cell_queue, &mycell);
