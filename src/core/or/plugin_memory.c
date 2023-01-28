@@ -283,6 +283,7 @@ plugin_t *plugin_memory_init(size_t memory_size){
     log_debug(LD_PLUGIN, "Could not instantiate memory pool");
     return NULL;
   }
+  plugin->memory_pool->memory_start = (uint8_t *) plugin->memory;
   plugin->memory_pool->memory_current_end = (uint8_t *) plugin->memory;
   plugin->memory_size = memory_size;
   /*plugin->entry_points = smartlist_new();*/
