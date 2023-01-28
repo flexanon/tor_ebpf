@@ -145,6 +145,10 @@ TOR_INTERNAL_LIBS = \
 	src/lib/libtor-trace.a \
 	src/ubpf/vm/libubpf.a
 
+
+michelfralloc:
+	cd $(top_srcdir)/src/lib/michelfralloc && make
+
 libtor.a: $(TOR_INTERNAL_LIBS)
 	$(AM_V_AR) export AR="$(AR)"; \
 	export ARFLAGS="$(ARFLAGS)"; \
