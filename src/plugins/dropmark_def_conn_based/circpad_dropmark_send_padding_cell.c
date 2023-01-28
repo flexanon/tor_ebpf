@@ -68,6 +68,7 @@ uint64_t circpad_dropmark_send_padding_for_callback(circpad_plugin_args_t *args)
           }
           log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__,
               "Plugin: Flushing a delayed cell!");
+          cell = ctx->cell;
           call_host_func(RELAY_APPEND_CELL_TO_CIRCUIT_QUEUE, 3, circ, chan, cell);
           my_plugin_free(plugin, cell);
         }
