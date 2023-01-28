@@ -3434,6 +3434,19 @@ uint64_t relay_get(int key, va_list *arguments) {
         relay_process_edge_t *pedge = va_arg(*arguments, relay_process_edge_t *);
         return (uint64_t) pedge->chan;
       }
+    case RELAY_CIRCUIT_CHAN_T:
+      {
+        circuit_t *circ = (circuit_t *) va_arg(*arguments, circuit_t *);
+        cell_direction_t direction = (cell_direction_t) va_arg(*arguments, cell_direction_t);
+        if (direction == CELL_DIRECTION_IN) {
+          tor_assert(!CIRCUIT_IS_ORIGIN(circ));
+          return (uint64_t) TO_OR_CIRCUIT(circ)->p_chan;
+        }
+        else {
+          return (uint64_t) circ->n_chan;
+        }
+
+      }
     case RELAY_ARG_CELL_DIRECTION_T:
       {
         relay_process_edge_t *pedge = va_arg(*arguments, relay_process_edge_t *);

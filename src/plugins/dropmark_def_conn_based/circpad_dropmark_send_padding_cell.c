@@ -50,7 +50,7 @@ uint64_t circpad_dropmark_send_padding_for_callback(circpad_plugin_args_t *args)
     }
   }
   else {
-    channel_t *chan = (channel_t *) get(RELAY_ARG_CIRCUIT_CHAN_T, 1, circ);
+    channel_t *chan = (channel_t *) get(RELAY_CIRCUIT_CHAN_T, 2, circ, CELL_DIRECTION_IN);
     int circpad_max_circ_queued_cells = (int) get(CIRCPAD_MAX_CIRC_QUEUED_CELLS, 0);
     plugin_t *plugin = (plugin_t *) get(CIRCPAD_ARG_PLUGIN_T, 1, args);
     for (int i = 0; i < state_length; i++) {
@@ -68,7 +68,6 @@ uint64_t circpad_dropmark_send_padding_for_callback(circpad_plugin_args_t *args)
           }
           log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__,
               "Plugin: Flushing a delayed cell!");
-          cell = ctx->cell;
           call_host_func(RELAY_APPEND_CELL_TO_CIRCUIT_QUEUE, 3, circ, chan, cell);
           my_plugin_free(plugin, cell);
         }
