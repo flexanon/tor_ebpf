@@ -1,4 +1,4 @@
-#include "ubpf/vm/plugin_memory.h"
+#include "core/or/plugin_memory.h"
 #include "core/or/cell_st.h"
 #include <stdlib.h>
 

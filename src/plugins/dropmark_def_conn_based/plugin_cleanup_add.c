@@ -1,7 +1,7 @@
 #include "circpad_drop_def_conn_based.h"
 #include "core/or/or.h"
 #include "core/or/plugin.h"
-#include "ubpf/vm/plugin_memory.h"
+#include "core/or/plugin_memory.h"
 
 
 uint64_t plugin_cleanup(plugin_plugin_args_t *args) {

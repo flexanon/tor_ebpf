@@ -14,7 +14,7 @@
 #include <sys/types.h>
 #include "core/or/plugin.h"
 #include "core/or/circuitpadding.h"
-#include "ubpf/vm/plugin_memory.h"
+#include "core/or/plugin_memory.h"
 #include "core/or/relay.h"
 #include "lib/log/log.h"
 #include "ext/trunnel/trunnel-impl.h"

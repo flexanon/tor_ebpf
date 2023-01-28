@@ -12,7 +12,7 @@
 #include "core/or/plugin.h"
 #include "core/or/plugin_helper.h"
 #include "src/lib/string/printf.h"
-#include "ubpf/vm/plugin_memory.h"
+#include "core/or/plugin_memory.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>

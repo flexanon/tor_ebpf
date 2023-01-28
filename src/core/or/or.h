@@ -50,6 +50,7 @@
 #include "lib/log/ratelim.h"
 #include "lib/log/util_bug.h"
 #include "lib/malloc/malloc.h"
+#include "lib/michelfralloc/michelfralloc.h"
 #include "lib/net/address.h"
 #include "lib/net/inaddr.h"
 #include "lib/net/socket.h"
@@ -1177,7 +1178,7 @@ typedef struct entry_info_t {
 
 typedef struct plugin {
   char *pname;
-  memory_pool_t *memory_pool;
+  plugin_dynamic_memory_pool_t *memory_pool;
   char *memory;
   size_t memory_size;
   smartlist_t *entry_points;
