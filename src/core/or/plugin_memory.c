@@ -272,7 +272,7 @@ void * __attribute__((weak)) my_plugin_memset(void * dest, int c, size_t n)
 
 plugin_t *plugin_memory_init(size_t memory_size){
   plugin_t *plugin = tor_malloc_zero(sizeof(plugin_t));
-  plugin->memory = tor_malloc_zero(sizeof(char)*memory_size);
+  plugin->memory = tor_malloc_zero(memory_size);
   if (!plugin->memory){
     log_debug(LD_PLUGIN, "Could not instantiate the plugin's memory of %lu bytes", memory_size);
     return NULL;
@@ -285,6 +285,7 @@ plugin_t *plugin_memory_init(size_t memory_size){
   }
   plugin->memory_pool->memory_start = (uint8_t *) plugin->memory;
   plugin->memory_pool->memory_current_end = (uint8_t *) plugin->memory;
+  plugin->memory_pool->memory_max_size = memory_size;
   plugin->memory_size = memory_size;
   /*plugin->entry_points = smartlist_new();*/
   return plugin;
