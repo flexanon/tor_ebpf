@@ -3244,6 +3244,9 @@ append_cell_to_circuit_queue(circuit_t *circ, channel_t *chan,
     return;
   }
   log_debug(LD_PLUGIN, "Copying the cell with pointer %p", cell);
+  log_debug(LD_PLUGIN, "Accessing circ_id: %u", cell->circ_id);
+  log_debug(LD_PLUGIN, "Accessing command: %u", cell->command);
+  log_debug(LD_PLUGIN, "Accessing payload: %u", cell->payload[CELL_PAYLOAD_SIZE-1]);
   /* Very important that we copy to the circuit queue because all calls to
    * this function use the stack for the cell memory. */
   cell_queue_append_packed_copy(circ, queue, exitward, cell,
