@@ -27,7 +27,7 @@ static __attribute__((always_inline)) fifo_t *
 queue_new(plugin_t *plugin, int max_num) {
   fifo_t *fifo = my_plugin_malloc(plugin, sizeof(*fifo));
   my_plugin_memset(fifo, 0, sizeof(*fifo));
-  fifo->itemsize = sizeof(uint64_t);
+  fifo->itemsize = sizeof(cell_t *);
   if (fifo == NULL)
     return NULL;
   fifo->queue = my_plugin_malloc(plugin, max_num*fifo->itemsize);
@@ -92,7 +92,6 @@ static __attribute__((always_inline)) queue_ret_t
 queue_pop(fifo_t *fifo, cell_t **data) {
   if (fifo->size == 0)
     return EMPTY;
-  log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "Pop at index %u", fifo->back_idx);
   *data = *(cell_t**) &fifo->queue[fifo->back_idx];
   return queue_del(fifo, 1);
 }
