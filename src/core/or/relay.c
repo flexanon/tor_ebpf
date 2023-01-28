@@ -3434,6 +3434,11 @@ uint64_t relay_get(int key, va_list *arguments) {
         relay_process_edge_t *pedge = va_arg(*arguments, relay_process_edge_t *);
         return (uint64_t) pedge->chan;
       }
+    case RELAY_ARG_CELL_DIRECTION_T:
+      {
+        relay_process_edge_t *pedge = va_arg(*arguments, relay_process_edge_t *);
+        return (uint64_t) pedge->cell_direction;
+      }
     default:
       return 0;
   }

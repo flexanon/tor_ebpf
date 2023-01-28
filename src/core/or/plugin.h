@@ -77,6 +77,7 @@ typedef struct entry_point_map_t {
 #define RELAY_ARG_PLUGIN_T 17
 #define RELAY_ARG_PARAM 18
 #define RELAY_ARG_CIRCUIT_CHAN_T 19
+#define RELAY_ARG_CELL_DIRECTION_T 20
 
 #define RELAY_MAX 1000
 

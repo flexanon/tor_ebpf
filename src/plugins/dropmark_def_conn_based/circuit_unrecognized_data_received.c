@@ -12,6 +12,12 @@
 uint64_t circuit_unrecognized_data_received(relay_process_edge_t *args) {
   plugin_t * plugin = (plugin_t*) get(RELAY_ARG_PLUGIN_T, 1, args);
   circuit_t *circ = (circuit_t *) get(RELAY_ARG_CIRCUIT_T, 1, args);
+  cell_direction_t direction = (cell_direction_t) get(RELAY_ARG_CELL_DIRECTION_T, 1, args);
+  if (direction == CELL_DIRECTION_OUT) {
+    /** we're only interested in delaying inward cells */
+    log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "Caught a cell with direction out. Ignoring"); 
+    return PLUGIN_RUN_DEFAULT;
+  }
   circpad_connbased_dropmark_t *ctx = (circpad_connbased_dropmark_t*) get(UTIL_CONN_CTX, 1, circ);
   cell_t *cell = (cell_t *) get(RELAY_ARG_CELL_T, 1, args);
   cell_t *mycell = my_plugin_malloc(plugin, sizeof(*mycell));
