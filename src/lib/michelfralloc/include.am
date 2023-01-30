@@ -1,0 +1,45 @@
+
+#AM_CPPFLAGS += -I$(srcdir)/src/lib/michelfralloc/ptmalloc3/sysdeps/generic
+
+#noinst_LIBRARIES += \
+#  src/lib/libtor-ptmalloc3.a
+#if UNITTESTS_ENABLED
+#noinst_LIBRARIES += src/lib/libtor-ptmalloc3-testing.a
+#endif
+
+
+#LIBPTMALLOC3_A_SRC = \
+#   src/lib/michelfralloc/ptmalloc3/malloc.c
+
+#src_lib_libtor_ptmalloc3_a_SOURCES =  $(LIBPTMALLOC3_A_SRC)
+
+#PTMALLOC3HEADERS = \
+#  src/lib/michelfralloc/ptmalloc3/malloc-2.8.3.h \
+#  src/lib/michelfralloc/ptmalloc3/malloc-private.h 
+
+#noinst_HEADERS += $(PTMALLOC3HEADERS)
+
+noinst_LIBRARIES += \
+  src/lib/libtor-michelfralloc.a
+
+if UNITTESTS_ENABLED
+noinst_LIBRARIES += src/lib/libtor-michelfralloc-testing.a
+endif
+
+LIBMICHELFRALLOC_A_SRC = \
+  src/lib/michelfralloc/sbrk.c  \
+  src/lib/michelfralloc/michelfralloc.c
+
+src_lib_libtor_michelfralloc_a_SOURCES = $(LIBMICHELFRALLOC_A_SRC)
+
+src_lib_libtor_michelfralloc_testing_a_SOURCES = \
+  $(src_lib_libtor_michelfralloc_a_SOURCES)
+src_lib_libtor_michelfralloc_testing_a_CPPFLAGS = $(AM_CPPFLAGS) $(TEST_CPPFLAGS)
+src_lib_libtor_michelfralloc_testing_a_CFLAGS = $(AM_CFLAGS) $(TEST_CFLAGS)
+
+MICHELFRALLOCHEADERS = \
+  src/lib/michelfralloc/sbrk.h  \
+  src/lib/michelfralloc/sbrk-public.h  \
+  src/lib/michelfralloc/michelfralloc.h
+
+noinst_HEADERS += $(MICHELFRALLOCHEADERS)

@@ -1226,7 +1226,7 @@ circpad_send_command_to_hop,(origin_circuit_t *circ, uint8_t hopnum,
  */
 circpad_decision_t
 circpad_send_padding_cell_for_callback(circpad_machine_runtime_t *mi)
-{
+{ 
   circuit_t *circ = mi->on_circ;
   int machine_idx = mi->machine_index;
   mi->padding_scheduled_at_usec = 0;

@@ -251,6 +251,13 @@ struct circuit_t {
   uint32_t padding_machine_ctr;
   
   unsigned int signal_listen : 1;
+
+  /** plugins attached to this circuit!*/
+  smartlist_t *plugins;
+  /** A connection context attached to the plugin - the pointee
+   * is owned by the plugin -- don't free it! */
+  void *p_conn_ctx;
+
   /**
    * PLUGIN_XXX
    *

@@ -297,8 +297,6 @@ circuit_receive_relay_cell(cell_t *cell, circuit_t *circ,
     return 0;
   }
 
-  /* not recognized. inform circpad and pass it on. */
-  circpad_deliver_unrecognized_cell_events(circ, cell_direction);
 
   if (cell_direction == CELL_DIRECTION_OUT) {
     cell->circ_id = circ->n_circ_id; /* switch it */
@@ -344,9 +342,6 @@ circuit_receive_relay_cell(cell_t *cell, circuit_t *circ,
            "Didn't recognize cell, but circ stops here! Closing circ.");
     return -END_CIRC_REASON_TORPROTOCOL;
   }
-
-  log_debug(LD_OR,"Passing on unrecognized cell.");
-
   ++stats_n_relay_cells_relayed; /* XXXX no longer quite accurate {cells}
                                   * we might kill the circ before we relay
                                   * the cells. */
@@ -365,8 +360,35 @@ circuit_receive_relay_cell(cell_t *cell, circuit_t *circ,
       }
     }
   }
+  /**
+   * Hook here to do anything before appending the cell to the circuit queue
+   */
+  entry_point_map_t pmap;
+  memset(&pmap, 0, sizeof(pmap));
+  pmap.ptype = PLUGIN_DEV;
+  pmap.putype = PLUGIN_CODE_HIJACK;
+  pmap.pfamily = PLUGIN_PROTOCOL_RELAY;
+  pmap.entry_name = (char *) "circuit_unrecognized_data_received";
+  caller_id_t caller = RELAY_CIRCUIT_UNRECOGNIZED_DATA_RECEIVED;
+  relay_process_edge_t args;
+  memset(&args, 0, sizeof(args));
+  args.circ = circ;
+  args.cell = cell;
+  args.cell_direction = cell_direction;
+  args.chan = chan;
+  if (invoke_plugin_operation_or_default(&pmap, caller, (void*) &args) == PLUGIN_RUN_DEFAULT) {
 
-  append_cell_to_circuit_queue(circ, chan, cell, cell_direction, 0);
+    /* not recognized. inform circpad and pass it on. */
+    circpad_deliver_unrecognized_cell_events(circ, cell_direction);
+
+    log_debug(LD_OR,"Passing on unrecognized cell.");
+
+    ++stats_n_relay_cells_relayed; /* XXXX no longer quite accurate {cells}
+                                    * we might kill the circ before we relay
+                                    * the cells. */
+
+    append_cell_to_circuit_queue(circ, chan, cell, cell_direction, 0);
+  }
   return 0;
 }
 
@@ -547,6 +569,7 @@ relay_command_to_string(uint8_t command)
     case RELAY_COMMAND_EXTENDED2: return "EXTENDED2";
     case RELAY_COMMAND_PADDING_NEGOTIATE: return "PADDING_NEGOTIATE";
     case RELAY_COMMAND_PADDING_NEGOTIATED: return "PADDING_NEGOTIATED";
+    case RELAY_COMMAND_PLUG: return "PLUGIN_PROTOCOL_EXTENSION";
     default:
       tor_snprintf(buf, sizeof(buf), "Unrecognized relay command %u",
                    (unsigned)command);
@@ -1435,7 +1458,7 @@ connection_edge_process_relay_cell_not_open(
     pmap.putype = PLUGIN_CODE_ADD;
     pmap.pfamily = PLUGIN_PROTOCOL_CONN_EDGE;
     pmap.entry_name = (char *) "plugin_received_connected_cell";
-    pmap.param = 2;
+    pmap.param = 3; // send a close signal to close the machine on the middle relay
     caller_id_t caller = RELAY_RECEIVED_CONNECTED_CELL;
     conn_edge_plugin_args_t args;
     memset(&args, 0, sizeof(args));
@@ -2051,6 +2074,10 @@ handle_relay_cell_command(cell_t *cell, circuit_t *circ,
                               rh->command, rh->length,
                               cell->payload+RELAY_HEADER_SIZE);
       return 0;
+    case RELAY_COMMAND_PLUG:
+      return plugin_process_plug_cell(circ,
+                        (const uint8_t*)cell->payload+RELAY_HEADER_SIZE,
+                        rh->length);
   }
   /**
    * Handling extension of the relay protocol only for developer plugins
@@ -3252,12 +3279,15 @@ append_cell_to_circuit_queue(circuit_t *circ, channel_t *chan,
     stats_n_circ_max_cell_reached++;
     return;
   }
-
+  log_debug(LD_PLUGIN, "Copying the cell with pointer %p", cell);
+  log_debug(LD_PLUGIN, "Accessing circ_id: %u", cell->circ_id);
+  log_debug(LD_PLUGIN, "Accessing command: %u", cell->command);
+  log_debug(LD_PLUGIN, "Accessing payload: %u", cell->payload[CELL_PAYLOAD_SIZE-1]);
   /* Very important that we copy to the circuit queue because all calls to
    * this function use the stack for the cell memory. */
   cell_queue_append_packed_copy(circ, queue, exitward, cell,
                                 chan->wide_circ_ids, 1);
-
+  log_debug(LD_PLUGIN, "Copied cell appended to queue");
   /* Check and run the OOM if needed. */
   if (PREDICT_UNLIKELY(cell_queues_check_size())) {
     /* We ran the OOM handler which might have closed this circuit. */
@@ -3434,6 +3464,29 @@ uint64_t relay_get(int key, va_list *arguments) {
       {
         relay_process_edge_t *pedge = va_arg(*arguments, relay_process_edge_t *);
         return (uint64_t) pedge->edgeconn->deliver_window;
+      }
+    case RELAY_ARG_CIRCUIT_CHAN_T:
+      {
+        relay_process_edge_t *pedge = va_arg(*arguments, relay_process_edge_t *);
+        return (uint64_t) pedge->chan;
+      }
+    case RELAY_CIRCUIT_CHAN_T:
+      {
+        circuit_t *circ = (circuit_t *) va_arg(*arguments, circuit_t *);
+        cell_direction_t direction = (cell_direction_t) va_arg(*arguments, cell_direction_t);
+        if (direction == CELL_DIRECTION_IN) {
+          tor_assert(!CIRCUIT_IS_ORIGIN(circ));
+          return (uint64_t) TO_OR_CIRCUIT(circ)->p_chan;
+        }
+        else {
+          return (uint64_t) circ->n_chan;
+        }
+
+      }
+    case RELAY_ARG_CELL_DIRECTION_T:
+      {
+        relay_process_edge_t *pedge = va_arg(*arguments, relay_process_edge_t *);
+        return (uint64_t) pedge->cell_direction;
       }
     default:
       return 0;

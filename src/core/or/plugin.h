@@ -12,51 +12,10 @@
 
 #define PLUGIN_RUN_DEFAULT -2147483648
 /**
- * Define the type of usage the plugin is intended to.
- * We may want to replace a functionality to perform a same action
- * We may want to simply remove a functionality
- * We may want to add a new functionality to existing code
- */
-typedef enum {
-  PLUGIN_CODE_HIJACK,
-  PLUGIN_CODE_ADD,
-  PLUGIN_CODE_DEL
-} plugin_usage_type_t;
-
-typedef enum {
-  PLUGIN_DEV,
-  PLUGIN_USER
-} plugin_type_t;
-
-/**
- * Various type of Protocols that can be hijacked, where functions can be added
- * or removed.
- *
- * Note, this is still very early prototyping, we do not support much things yet
- *
- * PLUGIN_PROTOCOL_CORE is expected to refer to the core framework that can only
- * be hijacked be the main developers. Hijacking PROTOCOL_CORE would allow the
- * devs to re-write basically anything.
- */
-
-typedef enum {
-  PLUGIN_PROTOCOL_CORE,
-  PLUGIN_PROTOCOL_RELAY,
-  PLUGIN_PROTOCOL_CIRCPAD,
-  PLUGIN_PROTOCOL_CONN_EDGE
-} plugin_family_t;
-
-typedef struct entry_info_t {
-  char *entry_name;
-  plugin_type_t ptype;
-  plugin_usage_type_t putype;
-  plugin_family_t pfamily;
-  plugin_t *plugin;
-  int param;
-} entry_info_t;
-
-/**
  * Who's calling us? Will be used to prepare plugin_run()
+ *
+ * XXX They should probably be all assigned and refer to
+ * the plugin uid if there is a single function?
  */
 typedef enum {
   /** Replace circuit_sendme logic */
@@ -68,14 +27,21 @@ typedef enum {
   RELAY_RECEIVED_CONNECTED_CELL,
   /** we received some data -- let's tell the sendme alg */
   RELAY_SENDME_CIRCUIT_DATA_RECEIVED,
+  /** we received some data that we don't recognized and would pass to the next
+   * hop */
+  RELAY_CIRCUIT_UNRECOGNIZED_DATA_RECEIVED,
   /** We have one or several circpad machines to globally add to all circuits */
   CIRCPAD_PROTOCOL_INIT,
   CIRCPAD_PROTOCOL_MACHINEINFO_SETUP,
   CIRCPAD_EVENT_CIRC_HAS_BUILT,
   CIRCPAD_EVENT_CIRC_HAS_OPENED,
-  CIRCPAD_SEND_PADDING_CALLBACK,
+  /** This is a connection-specific hook -- assgning an ID*/
+  CIRCPAD_SEND_PADDING_CALLBACK = 42,
   /**Conn edge stuffs */
   CONNECTION_EDGE_ADD_TO_SENDING_BEGIN,
+
+  PLUGIN_HOUSEKEEPING_CLEANUP_CALLED,
+  PLUGIN_HOUSEKEEPING_INIT,
 } caller_id_t;
 
 typedef struct entry_point_map_t {
@@ -90,10 +56,9 @@ typedef struct entry_point_map_t {
   plugin_t *plugin;
 } entry_point_map_t;
 
-#define PLUGIN_CTX 1
-  /**
-   * Access main objects of process_edge
-   */
+/**
+ * Access main objects of process_edge
+ */
 /** get circuit_t* */
 #define RELAY_ARG_CIRCUIT_T 10
 /*  get crypt_path_t*  */
@@ -111,6 +76,9 @@ typedef struct entry_point_map_t {
 #define RELAY_PLUGIN_CTX 16
 #define RELAY_ARG_PLUGIN_T 17
 #define RELAY_ARG_PARAM 18
+#define RELAY_ARG_CIRCUIT_CHAN_T 19
+#define RELAY_ARG_CELL_DIRECTION_T 20
+#define RELAY_CIRCUIT_CHAN_T 21
 
 #define RELAY_MAX 1000
 
@@ -156,6 +124,8 @@ typedef struct entry_point_map_t {
 
 #define UTIL_CIRCUIT_IS_ORIGIN 4001
 #define UTIL_IS_RELAY 4002
+#define UTIL_CONN_CTX 4003
+#define UTIL_CELL_PAYLOAD 4004
 
 #define UTIL_MAX 5000
 
@@ -169,10 +139,17 @@ typedef struct entry_point_map_t {
 #define SIGNAL_LISTEN_TO_CIRCUIT 6001
 
 #define SIGNAL_MAX 7000
+
+#define PLUGIN_CTX 7001
+#define PLUGIN_ARG_PLUGIN_T 7002
+#define PLUGIN_ARG_CIRCUIT_T 7003
+
+#define PLUGIN_MAX 8000
 /*** KEYFUNC */
 
 #define RELAY_SEND_COMMAND_FROM_EDGE 1
 #define CIRCPAD_MACHINE_REGISTER 2
+#define RELAY_APPEND_CELL_TO_CIRCUIT_QUEUE 3
 
 #define RELAY_KEYFUNC_MAX 100
 
@@ -193,6 +170,17 @@ typedef struct entry_point_map_t {
 
 #define TIMER_KEYFUNC_MAX 300
 
+#define PLUGIN_CLEANUP_CIRC 301
+#define PLUGIN_SEND_PLUG_CELL 302
+#define PLUGIN_KEYFUNC_MAX 400
+
+/** What type of argument do we give to pluginized function
+ *  in the plugin module? */
+typedef struct plugin_plugin_args_t {
+  circuit_t *circ;
+  plugin_t *plugin;
+} plugin_plugin_args_t;
+
 /**
  * Authentify and load plugins from $(data_directory)/plugins
  * @elf_name plugin name 
@@ -205,9 +193,22 @@ int plugin_plug_elf(plugin_t *plugin, entry_info_t *pinfo, char* elfpath);
 
 int invoke_plugin_operation_or_default(entry_point_map_t *pmap, caller_id_t caller, void *args);
 
-uint64_t plugin_run(plugin_entry_point_t *plugin, void *args, size_t size);
+int send_plug_cell_v0_to_hop(origin_circuit_t *circ, uint64_t uid, uint8_t hopnum);
+
+int plugin_process_plug_cell(circuit_t *circ, const uint8_t *cell_payload,
+    uint16_t cell_payload_len);
+
+plugin_entry_point_t *plugin_get_entry_point_by_entry_name(plugin_t *plugin, char *entry_name);
+/**
+ * Execute the loaded and compiled plugin code
+ */
+uint64_t plugin_run(plugin_entry_point_t *ep, void *args, size_t size);
 
 entry_point_map_t *plugin_get(entry_point_map_t *key);
+void plugin_map_entrypoint_remove(plugin_entry_point_t *ep);
+
+/** Cleanup any connection plugin with given uid */
+void plugin_cleanup_conn(circuit_t *circ, uint64_t uid);
 
 /**********************************PLUGIN API***************************/
 
@@ -225,4 +226,9 @@ void set(int key, int arglen, ...);
  * -- UBPF limitation-- */
 int call_host_func(int key, int size, ...);
 
+/** private definitions */
+
+#ifdef PLUGIN_PRIVATE
+STATIC int plugins_compare_by_uid_(const void **a_, const void **b_);
+#endif /* defined(PLUGIN_PRIVATE) */
 #endif

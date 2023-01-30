@@ -51,7 +51,8 @@ bounds_check(struct bounds *bounds, uint64_t offset, uint64_t size)
 }
 
 int
-ubpf_load_elf(struct ubpf_vm *vm, const void *elf, size_t elf_size, char **errmsg, uint64_t memory_ptr, size_t memory_size)
+ubpf_load_elf(struct ubpf_vm *vm, const void *elf, size_t elf_size, char
+    **errmsg, uint64_t memory_ptr, size_t memory_size, uint64_t ctx_id)
 {
     struct bounds b = { .base=elf, .size=elf_size };
     void *text_copy = NULL;
@@ -154,7 +155,10 @@ ubpf_load_elf(struct ubpf_vm *vm, const void *elf, size_t elf_size, char **errms
     /* Process each relocation section */
     for (i = 0; i < ehdr->e_shnum; i++) {
         struct section *rel = &sections[i];
-        if (rel->shdr->sh_type != SHT_REL) {
+        if (rel->shdr->sh_type == SHT_RELA) {
+            fprintf(stderr, "Relocation with addend not supported !\n");
+            goto error;
+        } else if (rel->shdr->sh_type != SHT_REL) {
             continue;
         } else if (rel->shdr->sh_info != text_shndx) {
             continue;
@@ -204,7 +208,22 @@ ubpf_load_elf(struct ubpf_vm *vm, const void *elf, size_t elf_size, char **errms
                 const Elf64_Section ndx = sym->st_shndx;
                 const struct section *str_section = &sections[ndx];
                 const void *str_data = str_section->data;
-                const char *str_to_give = (char *) (str_data + sym->st_value);
+                
+                uint64_t offset;
+                if (ELF64_ST_TYPE(sym->st_info) == STT_SECTION) {
+                    /* clang 12 adds the offset of the section directly in the ebpf instruction */
+                    struct ebpf_inst *inst = (struct ebpf_inst *) (text_copy + r->r_offset);
+                    offset = inst->imm;
+                } else if (ELF64_ST_TYPE(sym->st_info) == STT_OBJECT) {
+                    /* while clang <= 10 puts the offsets in the symbol table */
+                    offset = sym->st_value;
+                } else {
+                    fprintf(stderr, "Bad st_info ! Expected %d or %d. Got %d\n",
+                            STT_SECTION, STT_OBJECT, ELF64_ST_TYPE(sym->st_info));
+                    goto error;
+                }
+
+                const char *str_to_give = (char *) (str_data + offset);
 
                 size_t size = strlen(str_to_give);
                 char *s = (char*)malloc((size + 1) * sizeof(char));
@@ -263,7 +282,8 @@ ubpf_load_elf(struct ubpf_vm *vm, const void *elf, size_t elf_size, char **errms
         }
     }
 
-    int rv = ubpf_load(vm, text_copy, sections[text_shndx].size, errmsg, memory_ptr, memory_size);
+    int rv = ubpf_load(vm, text_copy, sections[text_shndx].size, errmsg,
+        memory_ptr, memory_size, ctx_id);
     free(text_copy);
     return rv;
 

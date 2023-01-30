@@ -4,6 +4,13 @@
 #include "core/or/plugin_helper.h"
 #include "lib/log/ratelim.h"
 
+/**
+ * This function replaces the Tor core function
+ * "circpad_send_padding_for_callback"
+ *
+ *
+ */
+
 uint64_t circpad_dropmark_send_padding_for_callback(circpad_plugin_args_t *args) {
   circuit_t *circ = (circuit_t *) get(CIRCPAD_ARG_CIRCUIT_T, 1, args);
   circpad_machine_runtime_t *mi = (circpad_machine_runtime_t *) get(CIRCPAD_ARG_MACHINE_RUNTIME, 1, args);

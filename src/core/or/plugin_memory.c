@@ -7,7 +7,8 @@
  *
  */
 #include "core/or/or.h"
-#include "ubpf/vm/plugin_memory.h"
+#include "lib/michelfralloc/michelfralloc.h"
+#include "core/or/plugin_memory.h"
 
 #include "string.h"
 #include <stdint.h>
@@ -20,52 +21,58 @@
 #define MAGIC_NUMBER 0xa110ca7ab1e
 
 
-static uint8_t *addr_from_index(memory_pool_t *mp, uint64_t i) {
-	return mp->mem_start + (i * mp->size_of_each_block);
-}
+/*static uint8_t *addr_from_index(memory_pool_t *mp, uint64_t i) {*/
+	/*return mp->mem_start + (i * mp->size_of_each_block);*/
+/*}*/
 
-static uint64_t index_from_addr(memory_pool_t *mp, uint8_t *p) {
-	return ((uint64_t)(p - mp->mem_start)) / mp->size_of_each_block;
-}
+/*static uint64_t index_from_addr(memory_pool_t *mp, uint8_t *p) {*/
+	/*return ((uint64_t)(p - mp->mem_start)) / mp->size_of_each_block;*/
+/*}*/
 
 /**
-* Search for big enough free space on heap.
-* Split the free space slot if it is too big, else space will be wasted.
-* Return the pointer to this slot.
-* If no adequately large free slot is available, extend the heap and return the pointer.
-*/
+ *
+ * Search for big enough free space on heap; return NULL otherwise
+ */
 void *my_plugin_malloc(plugin_t *plugin, unsigned int size) {
   tor_assert(plugin);
-	memory_pool_t *mp = plugin->memory_pool;
-	if (size > mp->size_of_each_block - 8) {
-		log_debug(LD_PLUGIN, "Asking for %u bytes by slots up to %lu!\n",
-        size, mp->size_of_each_block - 8);
-		return NULL;
-	}
-	if (mp->num_initialized < mp->num_of_blocks) {
-		uint64_t *p = (uint64_t *) addr_from_index(mp, mp->num_initialized);
-		/* Very important for the mp->next computation */
-		*p = mp->num_initialized + 1;
-		mp->num_initialized++;
-	}
+	plugin_dynamic_memory_pool_t *mp = plugin->memory_pool;
 
-  //tor_assert_nonfatal(mp->num_free_blocks > 0);
-	void *ret = NULL;
-	if (mp->num_free_blocks > 0) {
-		ret = (void *) mp->next;
-		mp->num_free_blocks--;
-    if (mp->num_free_blocks > 0) {
-			mp->next = addr_from_index(mp, *((uint64_t *)mp->next));
-		} else {
-			mp->next = NULL;
-		}
-	} else {
-		log_debug(LD_PLUGIN, "Out of memory!");
-		mp->next = NULL;
-    return NULL;
-	}
-	*((uint64_t *)ret) = MAGIC_NUMBER;
-	return (uint64_t*) ret + 8;
+  tor_assert(mp);
+
+  void *ptr = michelfralloc((plugin_dynamic_memory_pool_t *) mp, size);
+  return ptr;
+
+  /*if (size > mp->size_of_each_block - 8) {*/
+    /*log_debug(LD_PLUGIN, "Asking for %u bytes by slots up to %" PRIu64 "!\n", size, mp->size_of_each_block - 8);*/
+    /*return NULL;*/
+  /*}*/
+  /*if (mp->num_initialized < mp->num_of_blocks) {*/
+    /*uint64_t *ptr = (uint64_t *) addr_from_index(mp, mp->num_initialized);*/
+    /*[> Very important for the mp->next computation <]*/
+    /**ptr = mp->num_initialized + 1;*/
+    /*mp->num_initialized++;*/
+  /*}*/
+
+  /*void *ret = NULL;*/
+  /*if (mp->num_free_blocks > 0) {*/
+    /*ret = (void *) mp->next;*/
+    /*mp->num_free_blocks--;*/
+    /*if (mp->num_free_blocks > 0) {*/
+      /*mp->next = addr_from_index(mp, *((uint64_t *)mp->next));*/
+    /*} else {*/
+      /*mp->next = NULL;*/
+    /*}*/
+  /*}*/
+
+  /*if (ret) {*/
+    /**((uint64_t *)ret) = MAGIC_NUMBER;*/
+    /*ret += 8;*/
+  /*} else {*/
+    /*printf("Out of memory!\n");*/
+  /*}*/
+
+	/*return ret;*/
+
 }
 
 void *my_plugin_malloc_dbg(plugin_t *plugin, unsigned int size, char *file, int line) {
@@ -74,27 +81,33 @@ void *my_plugin_malloc_dbg(plugin_t *plugin, unsigned int size, char *file, int 
     return p;
 }
 
-void my_plugin_free_in_core(plugin_t *p, void *ptr) {
-	ptr = (uint64_t*) ptr - 8;
-	if (*((uint64_t *) ptr) != MAGIC_NUMBER){
-		log_debug(LD_PLUGIN, "MEMORY CORRUPTION: BAD METADATA: 0x%lx, ORIGINAL PTR: %p\n", *((uint64_t *) ptr), (uint64_t*)ptr + 8);
-	}
-	memory_pool_t *mp = p->memory_pool;
-	if (mp->next != NULL) {
-		(*(uint64_t *) ptr) = index_from_addr(mp, mp->next);
-		if (!(mp->mem_start <= (uint8_t *) ptr && (uint8_t *) ptr < (mp->mem_start + (mp->num_of_blocks * mp->size_of_each_block)))) {
-      log_debug(LD_PLUGIN, "MEMORY CORRUPTION: FREEING MEMORY (%p) NOT BELONGING TO THE PLUGIN\n", (uint64_t *)ptr + 8);
-		}
-		mp->next = (uint8_t *) ptr;
-	}
-  else {
-		(*(uint64_t *) ptr) = mp->num_of_blocks;
-    if (!(mp->mem_start <= (uint8_t *) ptr && (uint8_t *) ptr < (mp->mem_start + (mp->num_of_blocks * mp->size_of_each_block)))) {
-      log_debug(LD_PLUGIN, "MEMORY CORRUPTION: FREEING MEMORY (%p) NOT BELONGING TO THE PLUGIN\n", (uint64_t *)ptr + 8);
-    }
-		mp->next = (uint8_t *) ptr;
-	}
-	mp->num_free_blocks++;
+void my_plugin_free_in_core(plugin_t *plugin, void *ptr) {
+  tor_assert(plugin);
+	plugin_dynamic_memory_pool_t *mp = plugin->memory_pool;
+
+  tor_assert(mp);
+
+  michelfree((plugin_dynamic_memory_pool_t *) mp, ptr);
+	/*ptr = (uint64_t*) ptr - 8;*/
+	/*if (*((uint64_t *) ptr) != MAGIC_NUMBER){*/
+		/*log_debug(LD_PLUGIN, "MEMORY CORRUPTION: BAD METADATA: 0x%lx, ORIGINAL PTR: %p\n", *((uint64_t *) ptr), (uint64_t*)ptr + 8);*/
+	/*}*/
+	/*memory_pool_t *mp = p->memory_pool;*/
+	/*if (mp->next != NULL) {*/
+		/*(*(uint64_t *) ptr) = index_from_addr(mp, mp->next);*/
+		/*if (!(mp->mem_start <= (uint8_t *) ptr && (uint8_t *) ptr < (mp->mem_start + (mp->num_of_blocks * mp->size_of_each_block)))) {*/
+      /*log_debug(LD_PLUGIN, "MEMORY CORRUPTION: FREEING MEMORY (%p) NOT BELONGING TO THE PLUGIN\n", (uint64_t *)ptr + 8);*/
+		/*}*/
+		/*mp->next = (uint8_t *) ptr;*/
+	/*}*/
+  /*else {*/
+		/*(*(uint64_t *) ptr) = mp->num_of_blocks;*/
+    /*if (!(mp->mem_start <= (uint8_t *) ptr && (uint8_t *) ptr < (mp->mem_start + (mp->num_of_blocks * mp->size_of_each_block)))) {*/
+      /*log_debug(LD_PLUGIN, "MEMORY CORRUPTION: FREEING MEMORY (%p) NOT BELONGING TO THE PLUGIN\n", (uint64_t *)ptr + 8);*/
+    /*}*/
+		/*mp->next = (uint8_t *) ptr;*/
+	/*}*/
+	/*mp->num_free_blocks++;*/
 }
 
 
@@ -124,13 +137,14 @@ void my_plugin_free_dbg(plugin_t *plugin, void *ptr, char *file, int line) {
  */
 void *my_plugin_realloc(plugin_t *plugin, void *ptr, unsigned int size) {
   tor_assert(plugin);
-	// we cannot change the size of the block: if the new size is above the maximum, print an error,
-	// otherwise, return the same pointer
-	if (size > plugin->memory_pool->size_of_each_block - 8) {
-		log_debug(LD_PLUGIN, "Asking for %u bytes by slots up to %lu!\n", size, plugin->memory_pool->size_of_each_block - 8);
-		return NULL;
-	}
-	return ptr;
+	plugin_dynamic_memory_pool_t *mp = plugin->memory_pool;
+
+  tor_assert(mp);
+	return michelfrealloc((plugin_dynamic_memory_pool_t *) mp, ptr, size);
+  /*if (size > plugin->memory_pool->size_of_each_block - 8) {*/
+		/*log_debug(LD_PLUGIN, "Asking for %u bytes by slots up to %lu!\n", size, plugin->memory_pool->size_of_each_block - 8);*/
+		/*return NULL;*/
+	/*}*/
 }
 
 /**
@@ -258,15 +272,32 @@ void * __attribute__((weak)) my_plugin_memset(void * dest, int c, size_t n)
 
 plugin_t *plugin_memory_init(size_t memory_size){
   plugin_t *plugin = tor_malloc_zero(sizeof(plugin_t));
-  plugin->memory = tor_malloc_zero(sizeof(char)*memory_size);
-  plugin->memory_pool = (memory_pool_t*) tor_malloc_zero(sizeof(memory_pool_t));
-  plugin->memory_pool->mem_start = (uint8_t *) plugin->memory;
-	plugin->memory_pool->size_of_each_block = 4096; /* TEST */
-	plugin->memory_pool->num_of_blocks = memory_size / 4096;
-	plugin->memory_pool->num_initialized = 0;
-	plugin->memory_pool->num_free_blocks = plugin->memory_pool->num_of_blocks;
-	plugin->memory_pool->next = plugin->memory_pool->mem_start;
+  plugin->memory = tor_malloc_zero(memory_size);
+  if (!plugin->memory){
+    log_debug(LD_PLUGIN, "Could not instantiate the plugin's memory of %lu bytes", memory_size);
+    return NULL;
+  }
+  plugin->memory_pool = (plugin_dynamic_memory_pool_t *) tor_calloc(1, sizeof(plugin_dynamic_memory_pool_t));
+  if (!plugin->memory_pool) {
+    tor_free(plugin->memory);
+    log_debug(LD_PLUGIN, "Could not instantiate memory pool");
+    return NULL;
+  }
+  plugin->memory_pool->memory_start = (uint8_t *) plugin->memory;
+  plugin->memory_pool->memory_current_end = (uint8_t *) plugin->memory;
+  plugin->memory_pool->memory_max_size = memory_size;
   plugin->memory_size = memory_size;
   /*plugin->entry_points = smartlist_new();*/
   return plugin;
 }
+
+void plugin_memory_free(plugin_t *plugin) {
+  if (!plugin)
+    return;
+  if (plugin->memory_pool)
+    tor_free(plugin->memory_pool);
+  if (plugin->memory)
+    tor_free(plugin->memory);
+  tor_free(plugin);
+}
+

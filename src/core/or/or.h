@@ -50,6 +50,7 @@
 #include "lib/log/ratelim.h"
 #include "lib/log/util_bug.h"
 #include "lib/malloc/malloc.h"
+#include "lib/michelfralloc/michelfralloc.h"
 #include "lib/net/address.h"
 #include "lib/net/inaddr.h"
 #include "lib/net/socket.h"
@@ -209,6 +210,7 @@ struct curve25519_public_key_t;
 
 #define RELAY_COMMAND_PADDING_NEGOTIATE 41
 #define RELAY_COMMAND_PADDING_NEGOTIATED 42
+#define RELAY_COMMAND_PLUG 43
 
 /* Reasons why an OR connection is closed. */
 #define END_OR_CONN_REASON_DONE           1
@@ -1129,24 +1131,72 @@ typedef struct memory_pool {
   uint8_t *mem_start;
   uint8_t *next;
 } memory_pool_t;
+/**
+ * Define the type of usage the plugin is intended to.
+ * We may want to replace a functionality to perform a same action
+ * We may want to simply remove a functionality
+ * We may want to add a new functionality to existing code
+ */
+typedef enum {
+  PLUGIN_CODE_HIJACK,
+  PLUGIN_CODE_ADD,
+  PLUGIN_CODE_DEL
+} plugin_usage_type_t;
 
-typedef struct plugin_entry_point {
-  void *vm;
+typedef enum {
+  PLUGIN_DEV,
+  PLUGIN_USER
+} plugin_type_t;
+
+/**
+ * Various type of Protocols that can be hijacked, where functions can be added
+ * or removed.
+ *
+ * Note, this is still very early prototyping, we do not support much things yet
+ *
+ * PLUGIN_PROTOCOL_CORE is expected to refer to the core framework that can only
+ * be hijacked be the main developers. Hijacking PROTOCOL_CORE would allow the
+ * devs to re-write basically anything.
+ */
+
+typedef enum {
+  PLUGIN_PROTOCOL_CORE,
+  PLUGIN_PROTOCOL_RELAY,
+  PLUGIN_PROTOCOL_CIRCPAD,
+  PLUGIN_PROTOCOL_CONN_EDGE,
+  PLUGIN_PROTOCOL_PLUGIN,
+} plugin_family_t;
+
+typedef struct entry_info_t {
   char *entry_name;
-  ubpf_jit_fn fn;
-} plugin_entry_point_t;
+  plugin_type_t ptype;
+  plugin_usage_type_t putype;
+  plugin_family_t pfamily;
+  //plugin_t *plugin;
+  int param;
+} entry_info_t;
 
 typedef struct plugin {
   char *pname;
-  memory_pool_t *memory_pool;
+  plugin_dynamic_memory_pool_t *memory_pool;
   char *memory;
   size_t memory_size;
   smartlist_t *entry_points;
+  uint64_t uid;
+  uint8_t is_system_wide;
   /**
    * plugin ctx shared by the entry points -- should be initialized by the main
    * entry point if needed
    * */
   void *ctx;
 } plugin_t;
+
+typedef struct plugin_entry_point {
+  void *vm;
+  char *entry_name;
+  ubpf_jit_fn fn;
+  entry_info_t info;
+  plugin_t *plugin;
+} plugin_entry_point_t;
 
 #endif /* !defined(TOR_OR_H) */

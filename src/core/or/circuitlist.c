@@ -87,6 +87,7 @@
 #include "core/crypto/onion_fast.h"
 #include "core/or/policies.h"
 #include "core/or/plugin.h"
+#include "core/or/plugin_helper.h"
 #include "core/or/relay.h"
 #include "core/crypto/relay_crypto.h"
 #include "feature/rend/rendclient.h"
@@ -1008,6 +1009,7 @@ init_circuit_base(circuit_t *circ)
   circ->global_circuitlist_idx = smartlist_len(circuit_get_global_list()) - 1;
 
   circ->timing_circ_id = 0;
+  circ->plugins = smartlist_new();
 }
 
 /** If we haven't yet decided on a good timeout value for circuit
@@ -1252,6 +1254,12 @@ circuit_free_(circuit_t *circ)
   if (circ->sendme_last_digests) {
     SMARTLIST_FOREACH(circ->sendme_last_digests, uint8_t *, d, tor_free(d));
     smartlist_free(circ->sendme_last_digests);
+  }
+
+  /** Cleanup plugins */
+  if (circ->plugins) {
+    SMARTLIST_FOREACH(circ->plugins, plugin_t *, plugin, plugin_unplug(plugin));
+    smartlist_free(circ->plugins);
   }
 
   log_info(LD_CIRC, "Circuit %u (id: %" PRIu32 ") has been freed.",
@@ -2848,6 +2856,35 @@ assert_circuit_ok,(const circuit_t *c))
   } else {
     tor_assert(!or_circ || !or_circ->rend_splice);
   }
+}
+
+/** Get any plugin with uid attached to this circuit
+ *  or returns NULL otherwise
+ *
+ *  XXX it is a list because we don't expect
+ *  attaching many plugins to a given circuit.
+ *  O(n) over small list is better than a hasmap
+ */
+plugin_t* circuit_plugin_get(circuit_t *circuit, uint64_t uid) {
+  SMARTLIST_FOREACH_BEGIN(circuit->plugins, plugin_t*, plugin) {
+    if (plugin->uid == uid)
+      return plugin;
+  } SMARTLIST_FOREACH_END(plugin);
+  return NULL;
+}
+/*** This function could be O(1) with a tabular per defined hook. This tabular
+ * could be dynamic too if new hooks are defined by plugins.
+ * 
+ * */
+
+plugin_entry_point_t *circuit_plugin_entry_point_get(circuit_t *circuit, char *entry_name) {
+  plugin_entry_point_t *ep = NULL;
+  SMARTLIST_FOREACH_BEGIN(circuit->plugins, plugin_t *, plugin) {
+    ep = plugin_get_entry_point_by_entry_name(plugin, entry_name);
+    if (ep)
+      return ep;
+  } SMARTLIST_FOREACH_END(plugin);
+  return ep;
 }
 
 uint64_t circuit_get(int key, va_list *arguments) {

@@ -12,7 +12,7 @@
 #include "core/or/plugin.h"
 #include "core/or/plugin_helper.h"
 #include "src/lib/string/printf.h"
-#include "ubpf/vm/plugin_memory.h"
+#include "core/or/plugin_memory.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -63,6 +63,10 @@ static int insert_plugin_from_transaction_line(char *line, char *plugin_dirname,
   }
   else if (strncmp(token, "protocol_conn_edge", 18) == 0) {
     einfo->pfamily = PLUGIN_PROTOCOL_CONN_EDGE;
+    einfo->ptype = PLUGIN_DEV;
+  }
+  else if (strncmp(token, "protocol_plugin", 15) == 0) {
+    einfo->pfamily = PLUGIN_PROTOCOL_PLUGIN;
     einfo->ptype = PLUGIN_DEV;
   }
   else {
@@ -116,7 +120,8 @@ static int insert_plugin_from_transaction_line(char *line, char *plugin_dirname,
  * Read the .plugin file and load all .o objects 
  */
 
-plugin_t* plugin_insert_transaction(const char *plugin_filepath, const char *filename) {
+plugin_t* plugin_insert_transaction(const char *plugin_filepath, const char
+    *filename, uint64_t looking_for) {
   FILE *file = fopen(plugin_filepath, "r");
 
   if (!file) {
@@ -137,8 +142,9 @@ plugin_t* plugin_insert_transaction(const char *plugin_filepath, const char *fil
     line2 = line;
     char *token = strsep(&line2, " ");
     if (!token) {
-      log_debug(LD_PLUGIN, "No token for memory instracted?");
+      log_debug(LD_PLUGIN, "No token for memory extracted?");
       ok = false;
+      goto cleanup;
     }
     if (strncmp(token, "memory", 6) == 0) {
       token = strsep(&line2, "\n");
@@ -148,24 +154,69 @@ plugin_t* plugin_insert_transaction(const char *plugin_filepath, const char *fil
       if (errmsg != NULL && strncmp(errmsg, "", 1) != 0) {
         log_debug(LD_PLUGIN, "Invalid parameter %s, val is %d. Errmsg: %s", token, memory_needed, errmsg);
         ok = false;
+        goto cleanup;
       }
     }
     else {
       log_debug(LD_PLUGIN, "Expected 'memory' token, got %s", token);
       ok = false;
+      goto cleanup;
     }
   }
   else {
     ok = false;
+    goto cleanup;
   }
+  /** Parse the uid  -- copy/past above code in an ugly way.*/
+  uint64_t uid = 0;
+  if ((ret = getline(&line, &len, file)) != -1) {
+    line2 = line;
+    char *token = strsep(&line2, " ");
+    if (!token) {
+      log_debug(LD_PLUGIN, "No token for uid extracted?");
+      ok = false;
+      goto cleanup;
+    }
+    if (strncmp(token, "uid", 3) == 0) {
+      token = strsep(&line2, "\n");
+      char * errmsg = NULL;
+      uid = (uint64_t) strtoul(token, &errmsg, 0);
+      /* We're looking for a particular uid  -- and we didn't find it here*/
+      if (looking_for != 0 && looking_for != uid) {
+        ok = false;
+        goto cleanup;
+      }
+      if (errmsg != NULL && strncmp(errmsg, "", 1) != 0) {
+        log_debug(LD_PLUGIN, "Invalid parameter %s, val is %ld. Errmsg: %s", token, uid, errmsg);
+        ok = false;
+        goto cleanup;
+      }
+    }
+    else {
+      log_debug(LD_PLUGIN, "Expected 'uid' token, got %s", token);
+      ok = false;
+      goto cleanup;
+    }
+  }
+  else {
+    ok = false;
+    goto cleanup;
+  }
+
   /** we have the memory size; let's create the plugin */
   plugin_t *plugin = plugin_memory_init(memory_needed);
+  plugin->uid = uid;
   plugin->entry_points = smartlist_new();
   plugin->pname = tor_strdup(filename);
   entry_info_t einfo;
   while (ok && (ret = getline(&line, &len, file)) != -1) {
     /* Skip blank lines */
     if (len <= 1) {
+      continue;
+    }
+    if (strncmp(line, "system-wide", 11) == 0) {
+      plugin->is_system_wide = 1;
+      /** skip it */
       continue;
     }
     memset(&einfo, 0, sizeof(einfo));
@@ -177,25 +228,41 @@ plugin_t* plugin_insert_transaction(const char *plugin_filepath, const char *fil
   if (!ok) {
     /* Unplug previously plugged code */
     plugin_unplug(plugin);
+    goto cleanup;
   }
+cleanup:
   if (line) {
     tor_free(line);
   }
-
   fclose(file);
-
   return ok ? plugin : NULL;
 }
 
-/**
- * Just look into the directory plugin and initialize
- * all of them 
- */
+
+
+plugin_t* plugin_helper_find_from_uid_and_init(uint64_t uid) {
+  smartlist_t *plugins = NULL;
+
+  plugins = plugin_helper_find_all_and_init(&uid, 1);
+  if (smartlist_len(plugins) == 1) {
+    plugin_t *plugin = smartlist_get(plugins, 0);
+    smartlist_free(plugins);
+    return plugin;
+  }
+  else {
+    log_debug(LD_PLUGIN, "We found %u plugins matching %lu", smartlist_len(plugins), uid);
+    return NULL;
+  }
+}
+
 
 /**
+ * Just look into the directory plugin and initialize
+ * all of them
+ *
  * TODO Make it Win32 compatible
  */
-smartlist_t* plugin_helper_find_all_and_init(void) {
+smartlist_t* plugin_helper_find_all_and_init(uint64_t *uids, uint16_t uids_len) {
   tor_assert(get_options()->PluginsDirectory);
 
   /** Look inside all plugin directories */
@@ -229,7 +296,15 @@ smartlist_t* plugin_helper_find_all_and_init(void) {
         tor_asprintf(&filepath, "%s"PATH_SEPARATOR"%s",
             plugin_dir, de2->d_name);
         /* reading .plugin files and loader .o files */
-        plugin = plugin_insert_transaction(filepath, de2->d_name);
+        if (uids_len) {
+          tor_assert(uids);
+          for (int i = 0; i < uids_len && !plugin; i++) {
+            plugin = plugin_insert_transaction(filepath, de2->d_name, uids[i]);
+          }
+        }
+        else {
+          plugin = plugin_insert_transaction(filepath, de2->d_name, 0);
+        }
         if (plugin) {
           smartlist_add(all_plugins, plugin);
         }
@@ -251,14 +326,23 @@ smartlist_t* plugin_helper_find_all_and_init(void) {
 
 /**
  * Unplug the plugin -- i.e., free the map, destroy the ebpf vm and free the
- *
- * Note:
- * That's critical to write as soon as we enable per-connection plugins. Right
- * now we only have global plugins that would need to be unplugged on error or
- * when Tor closes anyway.
+ * memory.
  */
-
 void plugin_unplug(plugin_t *plugin) {
+  if (!plugin)
+    return;
+  SMARTLIST_FOREACH_BEGIN(plugin->entry_points, plugin_entry_point_t*, ep) {
+      if (ep->vm)
+        ubpf_destroy(ep->vm);
+      // Remove the plugin from the hashmap
+      if (plugin->is_system_wide) {
+        plugin_map_entrypoint_remove(ep);
+      }
+      tor_free(ep->entry_name);
+      tor_free(ep);
+  } SMARTLIST_FOREACH_END(ep);
+  /** free everything related to the plugin's memory */
+  plugin_memory_free(plugin);
 }
 
 
@@ -269,12 +353,15 @@ const char *plugin_caller_id_to_string(caller_id_t caller) {
     case RELAY_PROCESS_EDGE_UNKNOWN: return "host-code unknown new protocol feature";
     case RELAY_RECEIVED_CONNECTED_CELL: return "plugin call when the Tor client received a Connected Cell";
     case RELAY_SENDME_CIRCUIT_DATA_RECEIVED: return "plugin called in the control-flow algs when circuit has received data";
+    case RELAY_CIRCUIT_UNRECOGNIZED_DATA_RECEIVED: return "plugin called before passing a unrecognized cell the next hop";
     case CIRCPAD_PROTOCOL_INIT: return "initializing global circpad machines";
     case CIRCPAD_PROTOCOL_MACHINEINFO_SETUP: return "calling a plugin while setting up a machine to a circuit";
     case CIRCPAD_EVENT_CIRC_HAS_BUILT: return "calling a plugin in the circpad module when a circuit has built";
     case CIRCPAD_EVENT_CIRC_HAS_OPENED: return "calling a plugin in the circpad module when a circuit has opened";
+    case CIRCPAD_SEND_PADDING_CALLBACK: return "replace the function send_padding_callback in the circpad framework";
     case CONNECTION_EDGE_ADD_TO_SENDING_BEGIN: return "calling a plugin after sending a begin_cell";
-      
+    case PLUGIN_HOUSEKEEPING_CLEANUP_CALLED: return "calling a plugin's housekeeping routine when the plugin is asked to be cleaned from host's memory";
+    case PLUGIN_HOUSEKEEPING_INIT: return "Initialize the plugin when plugged";
     default:
       return "unsupported";
   }

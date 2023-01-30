@@ -253,6 +253,8 @@ HANDLE_DECL(circuit, circuit_t, )
 // Plugin stuffs
 uint64_t circuit_get(int key, va_list *arguments);
 void circuit_set(int key, va_list *arguments);
+plugin_t *circuit_plugin_get(circuit_t *circ, uint64_t uid);
+plugin_entry_point_t *circuit_plugin_entry_point_get(circuit_t *circ, char *entry_point);
 
 #ifdef CIRCUITLIST_PRIVATE
 STATIC void circuit_free_(circuit_t *circ);

@@ -116,7 +116,10 @@ typedef struct relay_process_edge_t {
   int param;
   /** cell received */
   cell_t *cell;
+  cell_direction_t cell_direction;
+  channel_t *chan;
 } relay_process_edge_t;
+
 
 uint64_t relay_get(int key, va_list *arguments);
 

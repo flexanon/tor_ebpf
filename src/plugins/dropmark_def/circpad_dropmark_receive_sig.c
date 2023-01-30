@@ -7,7 +7,7 @@
 #include "core/or/relay.h"
 #include "plugins/dropmark_def/circpad_dropmark_def.h"
 #include "plugins/dropmark_def/parsing/circpad_dropmark_plugin.h"
-#include "ubpf/vm/plugin_memory.h"
+#include "core/or/plugin_memory.h"
 #include "ext/trunnel/trunnel-impl.h"
 #include <assert.h>
 #include <stdlib.h>
@@ -113,5 +113,12 @@ uint64_t circpad_dropmark_def_receive_sig(relay_process_edge_t *pedge) {
   }
 
   call_host_func(CIRCPAD_MACHINE_SPEC_TRANSITION, 2, mr, signal_transition.signal_type);
+  if (signal_transition.signal_type == ctx->CIRCPAD_EVENT_SIGPLUGIN_CLOSE) {
+    log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__,
+        "calling PLUGIN_CLEANUP_CIRC from the plugin");
+    /** We need to tell the host to clean-up any connection-based plugin linked to this circuit. */
+    uint64_t plugin_to_cleanup = 42;
+    call_host_func(PLUGIN_CLEANUP_CIRC, 2, circ, plugin_to_cleanup);
+  }
   return 0;
 }

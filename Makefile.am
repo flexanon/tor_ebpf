@@ -60,6 +60,8 @@ TOR_UTIL_LIBS = \
 	src/lib/libtor-memarea.a \
 	src/lib/libtor-math.a \
 	src/lib/libtor-meminfo.a \
+	src/lib/libtor-michelfralloc.a \
+	src/lib/michelfralloc/libptmalloc3.a \
 	src/lib/libtor-osinfo.a \
 	src/lib/libtor-log.a \
 	src/lib/libtor-lock.a \
@@ -96,6 +98,8 @@ TOR_UTIL_TESTING_LIBS = \
 	src/lib/libtor-memarea-testing.a \
 	src/lib/libtor-math-testing.a \
 	src/lib/libtor-meminfo-testing.a \
+	src/lib/libtor-michelfralloc-testing.a \
+	src/lib/michelfralloc/libptmalloc3.a \
 	src/lib/libtor-osinfo-testing.a \
 	src/lib/libtor-term-testing.a \
 	src/lib/libtor-log-testing.a \
@@ -140,6 +144,10 @@ TOR_INTERNAL_LIBS = \
 	src/trunnel/libor-trunnel.a \
 	src/lib/libtor-trace.a \
 	src/ubpf/vm/libubpf.a
+
+
+michelfralloc:
+	cd $(top_srcdir)/src/lib/michelfralloc && make
 
 libtor.a: $(TOR_INTERNAL_LIBS)
 	$(AM_V_AR) export AR="$(AR)"; \
