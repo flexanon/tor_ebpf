@@ -43,6 +43,20 @@ EnablePlugins 1
 PluginsDirectory path/to/plugins/directory
 ```
 
+# Experimenting with Shadow
+
+If you want to run large networks to test and play with this new
+capability, Shadow is the mvp. Shadow release 2.4.0 has been tested and
+work with our implementation (more or less some unsupported syscalls
+feof, and ferror. But that didn't created issues as far as I can tell).
+
+To run your simulation, you'd need to install Shadow 2.4.0, onionspace
+and tgen from the official github.com/shadow account. However, you'll
+need my https://github.com/frochet/tornettools to instantiate a Tor
+topology, due to a required extension to manage our Tor system-wide and
+connection plugins.
+
+
 # Limitations
 
 This code is experimental and should not, under any circumstance, run over
