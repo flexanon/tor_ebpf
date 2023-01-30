@@ -141,9 +141,9 @@ int load_elf(void *code, size_t code_len, plugin_t *plugin, plugin_entry_point_t
   char *errmsg;
   int rv;
   if (elf) {
-    rv = ubpf_load_elf(entry_point->vm, code, code_len, &errmsg, (uint64_t) plugin->memory, plugin->memory_size);
+    rv = ubpf_load_elf(entry_point->vm, code, code_len, &errmsg, (uint64_t) plugin->memory, plugin->memory_size, 0);
   } else {
-    rv = ubpf_load(entry_point->vm, code, code_len, &errmsg, (uint64_t) plugin->memory, plugin->memory_size);
+    rv = ubpf_load(entry_point->vm, code, code_len, &errmsg, (uint64_t) plugin->memory, plugin->memory_size, 0);
   }
 
   if (rv < 0) {
