@@ -68,13 +68,13 @@ static __attribute__((always_inline)) void register_relay_machine(plugin_t
   plugin_circpad_machine_states_init(plugin, relay_machine, 4);
 
 
-  /** We make send rand(1, 42) cells at uniformly random intervals  */
+  /** We make send rand(3, 4) cells at uniformly random intervals  */
   relay_machine->states[CIRCPAD_STATE_BURST].
     length_dist.type = CIRCPAD_DIST_UNIFORM;
   relay_machine->states[CIRCPAD_STATE_BURST].
     length_dist.param1 = 3;
   relay_machine->states[CIRCPAD_STATE_BURST].
-    length_dist.param2 = 9;
+    length_dist.param2 = 4;
 
   /* define the histogram  -- this should make the state chooses a timer between [1,
    * 100ms] uniformly before sending the padding, then circle back to this state*/
