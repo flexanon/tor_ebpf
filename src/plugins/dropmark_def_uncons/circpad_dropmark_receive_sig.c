@@ -7,7 +7,7 @@
 #include "core/or/relay.h"
 #include "plugins/dropmark_def/circpad_dropmark_def.h"
 #include "plugins/dropmark_def/parsing/circpad_dropmark_plugin.h"
-#include "ubpf/vm/plugin_memory.h"
+#include "core/or/plugin_memory.h"
 #include "ext/trunnel/trunnel-impl.h"
 #include <assert.h>
 #include <stdlib.h>

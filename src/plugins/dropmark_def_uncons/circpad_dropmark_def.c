@@ -4,7 +4,7 @@
 #include "core/or/plugin.h"
 #include "core/or/plugin_helper.h"
 #include "plugins/dropmark_def/circpad_dropmark_def.h"
-#include "ubpf/vm/plugin_memory.h"
+#include "core/or/plugin_memory.h"
 
 static int num_events = CIRCPAD_NUM_EVENTS + PLUGIN_NUM_EVENTS;
 

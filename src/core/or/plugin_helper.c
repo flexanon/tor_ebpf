@@ -235,6 +235,7 @@ cleanup:
     tor_free(line);
   }
   fclose(file);
+  tor_free(plugin_dirname);
   return ok ? plugin : NULL;
 }
 
@@ -269,7 +270,7 @@ smartlist_t* plugin_helper_find_all_and_init(uint64_t *uids, uint16_t uids_len) 
   struct dirent *de;
   struct dirent *de2;
   DIR *dr = opendir(get_options()->PluginsDirectory);
-  DIR *dr2;
+  DIR *dr2 = NULL;
   smartlist_t *all_plugins = smartlist_new();
   if (!dr) {
     log_debug(LD_PLUGIN, "PluginsDirectory option is null");
@@ -308,6 +309,7 @@ smartlist_t* plugin_helper_find_all_and_init(uint64_t *uids, uint16_t uids_len) 
         if (plugin) {
           smartlist_add(all_plugins, plugin);
         }
+        tor_free(filepath);
       }
 
       closedir(dr2);
@@ -317,10 +319,15 @@ smartlist_t* plugin_helper_find_all_and_init(uint64_t *uids, uint16_t uids_len) 
       if (ret == -1) {
         log_debug(LD_PLUGIN, "Stat returned -1: %s; d_type: %d DT_DIR %d\n",
             strerror(errno), de->d_type, DT_DIR);
+        if (dr2)
+          closedir(dr2);
+        tor_free(plugin_dir);
+        closedir(dr);
       }
     }
   }
   log_info(LD_PLUGIN, "Loaded all plugins");
+  closedir(dr);
   return all_plugins;
 }
 
@@ -331,18 +338,23 @@ smartlist_t* plugin_helper_find_all_and_init(uint64_t *uids, uint16_t uids_len) 
 void plugin_unplug(plugin_t *plugin) {
   if (!plugin)
     return;
+  if (plugin->pname)
+    tor_free(plugin->pname);
   SMARTLIST_FOREACH_BEGIN(plugin->entry_points, plugin_entry_point_t*, ep) {
       if (ep->vm)
         ubpf_destroy(ep->vm);
       // Remove the plugin from the hashmap
       if (plugin->is_system_wide) {
         plugin_map_entrypoint_remove(ep);
+        tor_free(ep->info.entry_name);
       }
       tor_free(ep->entry_name);
       tor_free(ep);
   } SMARTLIST_FOREACH_END(ep);
+  smartlist_free(plugin->entry_points);
   /** free everything related to the plugin's memory */
   plugin_memory_free(plugin);
+  tor_free(plugin);
 }
 
 
