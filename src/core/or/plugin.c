@@ -130,6 +130,7 @@ int plugin_plug_elf(plugin_t *plugin, entry_info_t *einfo, char *elfpath) {
     log_debug(LD_PLUGIN, "Inserted plugin name:%s; putype:%d, ptype: %d,\
           pfamily:%d, param:%d in map", found->entry_name, found->putype,
           found->ptype, found->pfamily, found->param);
+    /*tor_free(found);*/
   }
   return 0;
 }

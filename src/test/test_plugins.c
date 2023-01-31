@@ -128,6 +128,9 @@ test_plugin_helper_find_all_and_init(void *args) {
   tt_int_op(strcmp(((plugin_entry_point_t*)smartlist_get(plugin2->entry_points, 0))->entry_name, "test_2"), OP_EQ, 0);
   tt_int_op(strcmp(((plugin_entry_point_t*)smartlist_get(plugin3->entry_points, 0))->entry_name, "test_3"), OP_EQ, 0);
 done:
+  plugin_unplug(plugin1);
+  plugin_unplug(plugin2);
+  plugin_unplug(plugin3);
   if(list_plugins)
     smartlist_free(list_plugins);
 }
