@@ -296,8 +296,9 @@ void plugin_memory_free(plugin_t *plugin) {
     return;
   if (plugin->memory_pool)
     tor_free(plugin->memory_pool);
-  if (plugin->memory)
+  if (plugin->memory) {
+    log_debug(LD_PLUGIN, "Freeing plugin's memory");
     tor_free(plugin->memory);
-  tor_free(plugin);
+  }
 }
 
