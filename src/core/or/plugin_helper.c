@@ -331,6 +331,8 @@ smartlist_t* plugin_helper_find_all_and_init(uint64_t *uids, uint16_t uids_len) 
 void plugin_unplug(plugin_t *plugin) {
   if (!plugin)
     return;
+  if (plugin->pname)
+    tor_free(plugin->pname);
   SMARTLIST_FOREACH_BEGIN(plugin->entry_points, plugin_entry_point_t*, ep) {
       if (ep->vm)
         ubpf_destroy(ep->vm);
@@ -343,6 +345,7 @@ void plugin_unplug(plugin_t *plugin) {
   } SMARTLIST_FOREACH_END(ep);
   /** free everything related to the plugin's memory */
   plugin_memory_free(plugin);
+  tor_free(plugin);
 }
 
 

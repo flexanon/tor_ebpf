@@ -57,6 +57,10 @@ topology, due to a required extension to manage our Tor system-wide and
 connection plugins.
 
 
+
+%% tee */torrc < torrc
+
+
 # Limitations
 
 This code is experimental and should not, under any circumstance, run over

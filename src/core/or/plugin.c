@@ -709,8 +709,8 @@ void plugin_cleanup_conn(circuit_t *circ, uint64_t uid) {
   memset(&pmap, 0, sizeof(pmap));
   pmap.entry_name = (char *) "plugin_cleanup";
   invoke_plugin_operation_or_default(&pmap, caller, (void*) &args);
-  smartlist_remove(circ->plugins, plugin);
   plugin_unplug(plugin);
+  smartlist_remove(circ->plugins, plugin);
 }
 
 uint64_t plugin_run(plugin_entry_point_t *entry_point, void *args, size_t args_size) {

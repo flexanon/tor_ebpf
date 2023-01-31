@@ -40,7 +40,7 @@ uint64_t circpad_dropmark_activate_when_built(circpad_plugin_args_t *args) {
   pmap.param = CIRCPAD_EVENT_SHOULD_SIGPLUGIN_ACTIVATE;
   caller_id_t caller = CONNECTION_EDGE_ADD_TO_SENDING_BEGIN;
   conn_edge_plugin_args_t cargs;
-  memset(&args, 0, sizeof(cargs));
+  memset(&cargs, 0, sizeof(cargs));
   cargs.param = CIRCPAD_EVENT_SHOULD_SIGPLUGIN_ACTIVATE;
   cargs.on_circ = circ;
   invoke_plugin_operation_or_default(&pmap, caller, (void*)&cargs);
