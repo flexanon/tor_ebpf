@@ -346,6 +346,7 @@ void plugin_unplug(plugin_t *plugin) {
       // Remove the plugin from the hashmap
       if (plugin->is_system_wide) {
         plugin_map_entrypoint_remove(ep);
+        tor_free(ep->info.entry_name);
       }
       tor_free(ep->entry_name);
       tor_free(ep);

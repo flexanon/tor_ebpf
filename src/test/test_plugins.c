@@ -131,6 +131,9 @@ done:
   plugin_unplug(plugin1);
   plugin_unplug(plugin2);
   plugin_unplug(plugin3);
+  tor_free(subpath_1);
+  tor_free(subpath_2);
+  tor_free(subpath_3);
   if(list_plugins)
     smartlist_free(list_plugins);
 }
@@ -179,6 +182,8 @@ test_plugin_helper_find_from_uid(void *args) {
   tt_int_op(strcmp(plugin->pname, "test_2.plugin"), OP_EQ, 0);
   plugin_unplug(plugin);
   UNMOCK(load_elf_file);
+  tor_free(subpath_1);
+  tor_free(subpath_2);
 done:
   return;
 

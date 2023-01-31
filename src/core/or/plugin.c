@@ -83,6 +83,7 @@ int plugin_plug_elf(plugin_t *plugin, entry_info_t *einfo, char *elfpath) {
     found = HT_FIND(plugin_map_ht, &plugin_map_ht, &search);
     if (found) {
       /** XXX What shoud we do?*/
+      tor_free(einfo->entry_name);
       log_debug(LD_PLUGIN, "A plugin with these characteristics:\
           name: %s\
           ptype: %d\
@@ -119,7 +120,7 @@ int plugin_plug_elf(plugin_t *plugin, entry_info_t *einfo, char *elfpath) {
     found->plugin = plugin;
     found->entry_point = entry_point;
     /*take ownership */
-    found->entry_name = einfo->entry_name;
+    found->entry_name = tor_strdup(einfo->entry_name);
     found->putype = einfo->putype;
     found->pfamily = einfo->pfamily;
     found->ptype = einfo->ptype;
@@ -131,6 +132,9 @@ int plugin_plug_elf(plugin_t *plugin, entry_info_t *einfo, char *elfpath) {
           pfamily:%d, param:%d in map", found->entry_name, found->putype,
           found->ptype, found->pfamily, found->param);
     /*tor_free(found);*/
+  }
+  else {
+    tor_free(einfo->entry_name);
   }
   return 0;
 }
@@ -694,6 +698,10 @@ void plugin_map_entrypoint_remove(plugin_entry_point_t *ep) {
   found = HT_REMOVE(plugin_map_ht, &plugin_map_ht, &search);
   if (!found) {
     log_debug(LD_PLUGIN, "NOT FOUND: Trying to remove a plugin from the hashmap %s", search.entry_name);
+  }
+  else {
+    tor_free(found->entry_name);
+    tor_free(found);
   }
   tor_free(search.entry_name);
 }
