@@ -22,6 +22,7 @@
 struct hs_token_t;
 struct circpad_machine_spec_t;
 struct circpad_machine_runtime_t;
+struct signal_decode_t;
 
 /** Number of padding state machines on a circuit. */
 #define CIRCPAD_MAX_MACHINES (3)
@@ -251,6 +252,10 @@ struct circuit_t {
   uint32_t padding_machine_ctr;
   
   unsigned int signal_listen : 1;
+
+  int check_middle_node;
+
+  struct signal_decode_t *circ_timing;
 
   /** plugins attached to this circuit!*/
   smartlist_t *plugins;

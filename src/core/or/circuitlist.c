@@ -990,6 +990,8 @@ circuit_initial_package_window(void)
 
 /** Initialize the common elements in a circuit_t, and add it to the global
  * list. */
+static circid_t counter = 1;
+
 static void
 init_circuit_base(circuit_t *circ)
 {
@@ -1008,7 +1010,13 @@ init_circuit_base(circuit_t *circ)
   smartlist_add(circuit_get_global_list(), circ);
   circ->global_circuitlist_idx = smartlist_len(circuit_get_global_list()) - 1;
 
-  circ->timing_circ_id = 0;
+  circ->circ_timing = tor_malloc_zero(sizeof(signal_decode_t));
+  memset(circ->circ_timing, 0, sizeof(signal_decode_t));
+
+  circ->circ_timing->timespec_list = smartlist_new();
+  circ->timing_circ_id = counter;
+  circ->circ_timing->circid = counter++;
+  circ->check_middle_node = 1;
   circ->plugins = smartlist_new();
 }
 

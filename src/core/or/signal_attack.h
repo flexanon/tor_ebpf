@@ -44,8 +44,6 @@ void signal_send_delayed_destroy_cb(evutil_socket_t fd,
     short events, void *arg);
 
 #ifdef TOR_SIGNALATTACK_PRIVATE
-STATIC int signal_compare_signal_decode_(const void **a_, const void **b_);
-STATIC int signal_compare_key_to_entry_(const void *_key, const void **_member);
 STATIC void signal_minimize_blank_latency_cb(evutil_socket_t fd,
     short events, void *arg);
 STATIC int signal_minimize_blank_latency(char *address, circuit_t *circ);

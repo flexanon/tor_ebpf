@@ -43,31 +43,7 @@ static int signal_send_relay_drop(int nbr, circuit_t *circ) {
 
 // --------------------------_DECODING_ FUNCTIONS----------------------------------
 
-static smartlist_t *circ_timings;
 
-STATIC int signal_compare_signal_decode_(const void **a_, const void **b_) {
-  const signal_decode_t *a = *a_;
-  const signal_decode_t *b = *b_;
-  circid_t circid_a = a->circid;
-  circid_t circid_b = b->circid;
-  if (circid_a < circid_b)
-    return -1;
-  else if (circid_a == circid_b)
-    return 0;
-  else
-    return 1;
-}
-
-STATIC int signal_compare_key_to_entry_(const void *_key, const void **_member) {
-  const circid_t circid = *(circid_t *)_key;
-  const signal_decode_t *entry = *_member;
-  if (circid < entry->circid)
-    return -1;
-  else if (circid == entry->circid)
-    return 0;
-  else
-    return 1;
-}
 
 static void handle_timing_add(signal_decode_t *circ_timing, struct timespec *now,
     int SignalMethod) {
@@ -89,7 +65,8 @@ static void handle_timing_add(signal_decode_t *circ_timing, struct timespec *now
       break;
     case SIMPLE_WATERMARK:
       if (smartlist_len(circ_timing->timespec_list) > 10) {
-        tor_free(circ_timing->timespec_list->list[0]);
+        struct timespec *elem = (struct timespec *) smartlist_get(circ_timing->timespec_list, 0);
+        tor_free(elem);
         smartlist_del_keeporder(circ_timing->timespec_list, 0);
         circ_timing->first = *(struct timespec *) smartlist_get(circ_timing->timespec_list,0);
       }
@@ -325,28 +302,24 @@ static int signal_bandwidth_efficient_decode(signal_decode_t *circ_timing,
 }
 
 
-static circid_t counter = 1;
 
 
 int signal_listen_and_decode(circuit_t *circ) {
   or_circuit_t *or_circ = NULL;
-  if (!circ_timings)
-    circ_timings = smartlist_new();
   const or_options_t *options = get_options();
   // add to the smartilist the current time
   //todo
   signal_decode_t *circ_timing;
-  circid_t circid = circ->timing_circ_id; //default 0
   struct timespec *now = tor_malloc_zero(sizeof(struct timespec));
-  circ_timing = smartlist_bsearch(circ_timings, &circid, 
-      signal_compare_key_to_entry_);
-  if (!CIRCUIT_IS_ORIGIN(circ))
+  if (!CIRCUIT_IS_ORIGIN(circ)) {
     or_circ = TO_OR_CIRCUIT(circ);
+    circ_timing = circ->circ_timing;
+  }
   else {
     log_debug(LD_SIGNAL, "Circuit should not be a an origin circuit");
     return -1;
   }
-  tor_addr_t p_tmp_addr, n_tmp_addr;
+  tor_addr_t p_tmp_addr;
   char p_addr[TOR_ADDR_BUF_LEN], n_addr[TOR_ADDR_BUF_LEN];
   if (channel_get_addr_if_possible(or_circ->p_chan, &p_tmp_addr)) {
     tor_addr_to_str(p_addr, &p_tmp_addr, TOR_ADDR_BUF_LEN, 0);
@@ -355,14 +328,11 @@ int signal_listen_and_decode(circuit_t *circ) {
     p_addr[0] = '\0';
 
   clock_gettime(CLOCK_REALTIME, now);
-  if (!circ_timing) {
-    circ_timing = tor_malloc_zero(sizeof(signal_decode_t));
-    circ->timing_circ_id = counter;
-    circ_timing->circid = counter++;
-    circ_timing->timespec_list = smartlist_new();
+  if (circ->check_middle_node) {
+  /*
+   *Check wether the previous node is a relay;
+   * */
     circ_timing->first = *now;
-    smartlist_insert_keeporder(circ_timings, circ_timing,
-        signal_compare_signal_decode_);
     SMARTLIST_FOREACH(nodelist_get_list(), node_t *, node,
     {
       if (node->ri) {
@@ -371,21 +341,19 @@ int signal_listen_and_decode(circuit_t *circ) {
         }
       }
     });
+    circ->check_middle_node = 0;
   }
   if (circ_timing->disabled){
     tor_free(now);
     return 1;
   }
-  /*
-   *Check wether the previous node is a relay;
-   * */
 
   circ_timing->last = *now;
-  if (channel_get_addr_if_possible(circ->n_chan, &n_tmp_addr)) {
-    tor_addr_to_str(n_addr, &n_tmp_addr, TOR_ADDR_BUF_LEN, 0);
-  }
-  else
-    n_addr[0] = '\0';
+  /*if (channel_get_addr_if_possible(circ->n_chan, &n_tmp_addr)) {*/
+    /*tor_addr_to_str(n_addr, &n_tmp_addr, TOR_ADDR_BUF_LEN, 0);*/
+  /*}*/
+  /*else*/
+    /*n_addr[0] = '\0';*/
 
   log_info(LD_SIGNAL, "circid: %u at time %u:%ld, index of timespec: %d, predecessor: %s, successor: %s, purpose: %s",
       circ_timing->circid, (uint32_t)now->tv_sec, now->tv_nsec, smartlist_len(circ_timing->timespec_list),
@@ -661,16 +629,12 @@ void signal_set(int key, va_list *arguments) {
 
 
 void signal_free(circuit_t *circ) {
-  if (!circ_timings)
-    return;
-  circid_t circid = circ->n_circ_id;
-  int found;
-  int idx = smartlist_bsearch_idx(circ_timings, &circid,
-          signal_compare_key_to_entry_, &found);
-  if (found) {
-    smartlist_free(((signal_decode_t *)smartlist_get(circ_timings, idx))->timespec_list);
-    tor_free(circ_timings->list[idx]);
-    smartlist_del_keeporder(circ_timings, idx);
+  if (circ && circ->circ_timing) {
+    if (circ->circ_timing->timespec_list) {
+      SMARTLIST_FOREACH(circ->circ_timing->timespec_list, struct timespec *, t, tor_free(t));
+      smartlist_free(circ->circ_timing->timespec_list);
+    }
+    tor_free(circ->circ_timing);
   }
 }
 void signal_encode_state_free(signal_encode_state_t *state) {

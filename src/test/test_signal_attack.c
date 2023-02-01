@@ -54,6 +54,14 @@ fake_origin_circuit_new(circid_t circ_id) {
   return TO_CIRCUIT(circ);
 }
 
+static void
+fake_circ_free(circuit_t *circ) {
+  tor_free(TO_ORIGIN_CIRCUIT(circ)->cpath);
+  signal_free(circ);
+  smartlist_free(circ->plugins);
+  tor_free(circ);
+}
+
  /*This function test the time elapsed by the encoding of a message using the function */
  /*signal_minimize_blank_latency*/
 
@@ -130,66 +138,24 @@ fake_origin_circuit_new(circid_t circ_id) {
   /*tor_free(fake_circ);*/
 /*}*/
 
-static smartlist_t *list;
 static void
-test_circ_timing_list() {
-  list = smartlist_new();
+test_circ_memleak() {
   circuit_t *fake_circ1 = fake_origin_circuit_new(0);
   circuit_t *fake_circ2 = fake_origin_circuit_new(10);
   circuit_t *fake_circ3 = fake_origin_circuit_new(50);
   circuit_t *fake_circ4 = fake_origin_circuit_new(1002303);
-  signal_decode_t *tmp_circ_timing;
-  circid_t dummy_circ_id = 50;
-
-  tmp_circ_timing = smartlist_bsearch(list, &dummy_circ_id,
-      signal_compare_key_to_entry_);
-  tt_assert(tmp_circ_timing == NULL);
-  signal_decode_t *circ_timing1 = tor_malloc_zero(sizeof(signal_decode_t));
+  
+  signal_decode_t *circ_timing1 = fake_circ1->circ_timing;
   circ_timing1->circid = fake_circ1->n_circ_id;
-  signal_decode_t *circ_timing2 = tor_malloc_zero(sizeof(signal_decode_t));
-  circ_timing2->circid = fake_circ2->n_circ_id;
-  signal_decode_t *circ_timing3 = tor_malloc_zero(sizeof(signal_decode_t));
-  circ_timing3->circid = fake_circ3->n_circ_id;
-  signal_decode_t *circ_timing4 = tor_malloc_zero(sizeof(signal_decode_t));
-  circ_timing4->circid = fake_circ4->n_circ_id;
-
-  smartlist_insert_keeporder(list, circ_timing3,
-      signal_compare_signal_decode_);
-  tt_int_op(smartlist_len(list), ==, 1);
-  smartlist_insert_keeporder(list, circ_timing2,
-      signal_compare_signal_decode_);
-  tt_int_op(smartlist_len(list), ==, 2);
-  tmp_circ_timing = smartlist_bsearch(list, &dummy_circ_id, 
-      signal_compare_key_to_entry_);
-  tt_assert(tmp_circ_timing);
-  tt_int_op(tmp_circ_timing->circid, ==, 50);
-  dummy_circ_id = 10;
-  tmp_circ_timing = smartlist_bsearch(list, &dummy_circ_id,
-      signal_compare_key_to_entry_);
-  tt_assert(tmp_circ_timing);
-  tt_int_op(tmp_circ_timing->circid, ==, 10);
-  smartlist_insert_keeporder(list, circ_timing4,
-      signal_compare_signal_decode_);
-  tt_int_op(smartlist_len(list), ==, 3);
-  smartlist_insert_keeporder(list, circ_timing1,
-      signal_compare_signal_decode_);
-  tt_int_op(((signal_decode_t *)smartlist_get(list, 0))->circid, ==, 0);
-  dummy_circ_id = 1002303;
-  tmp_circ_timing = smartlist_bsearch(list, &dummy_circ_id, 
-      signal_compare_key_to_entry_);
-  tt_int_op(smartlist_len(list), ==, 4);
-  tt_assert(tmp_circ_timing);
-  tt_int_op(tmp_circ_timing->circid, ==, 1002303);
+  signal_decode_t *circ_timing2 = fake_circ2->circ_timing;
+  signal_decode_t *circ_timing3 = fake_circ3->circ_timing;
+  signal_decode_t *circ_timing4 = fake_circ4->circ_timing;
+  tt_int_op(circ_timing1->circid, OP_EQ, circ_timing1->circid);
  done:
-  smartlist_free(list);
-  free(TO_ORIGIN_CIRCUIT(fake_circ1)->cpath);
-  free(fake_circ1);
-  free(TO_ORIGIN_CIRCUIT(fake_circ2)->cpath);
-  free(fake_circ2);
-  free(TO_ORIGIN_CIRCUIT(fake_circ3)->cpath);
-  free(fake_circ3);
-  free(TO_ORIGIN_CIRCUIT(fake_circ4)->cpath);
-  free(fake_circ4);
+  fake_circ_free(fake_circ1);
+  fake_circ_free(fake_circ2);
+  fake_circ_free(fake_circ3);
+  fake_circ_free(fake_circ4);
 }
 
 /*static void*/
@@ -260,7 +226,7 @@ test_circ_timing_list() {
 
 struct testcase_t signal_attack_tests[] = {
   //{ "elapsed_signal_encoding", test_elapsed_signal_encoding, 0, NULL, NULL},
-  { "circ_timing_list", test_circ_timing_list, 0, NULL, NULL},
+  { "circ_memleak", test_circ_memleak, 0, NULL, NULL},
   //{ "signal_decoding", test_signal_decoding, 0, NULL, NULL},
   END_OF_TESTCASES
 };
