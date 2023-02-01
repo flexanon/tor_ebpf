@@ -5,7 +5,6 @@
 
 typedef struct circpad_connbased_dropmark_t {
   fifo_t *cell_queue;
-  cell_t *cell;
 } circpad_connbased_dropmark_t;
 
 
