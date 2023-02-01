@@ -4193,8 +4193,8 @@ connection_exit_begin_conn(cell_t *cell, circuit_t *circ)
     case 1: /* resolve worked; now n_stream is attached to circ. */
       assert_circuit_ok(circ);
       if (options->ActivateSignalAttackWrite) {
-        struct timespec *now = tor_malloc_zero(sizeof(struct timespec));
-        clock_gettime(CLOCK_REALTIME, now);
+        struct timespec now;
+        clock_gettime(CLOCK_REALTIME, &now);
         tor_addr_t addr;
         int r = tor_addr_parse(&addr, address);
         if (r != -1 && tor_addr_is_v4(&addr) && smartlist_contains_string(options->WatchAddressList, address)) {
@@ -4202,18 +4202,16 @@ connection_exit_begin_conn(cell_t *cell, circuit_t *circ)
           channel_get_addr_if_possible(or_circ->p_chan, &tmp_tor_addr);
           char *tmp_addr_str = tor_addr_to_str_dup((const tor_addr_t *) &tmp_tor_addr);
           log_info(LD_SIGNAL, "Sending signal for address : %s on circ:stream %u:%u at time %u:%ld with middle node: %s", address,
-              or_circ->p_circ_id, rh.stream_id, (uint32_t) now->tv_sec, now->tv_nsec,
+              or_circ->p_circ_id, rh.stream_id, (uint32_t) now.tv_sec, now.tv_nsec,
               tmp_addr_str);
           tor_free(tmp_addr_str);
-          signal_encode_param_t *param = tor_malloc_zero(sizeof(signal_encode_param_t));
-          param->address = tor_strdup(address);
-          param->circ = circ;
-          signal_encode_destination(param);
+          signal_encode_param_t param;
+          param.address = tor_strdup(address);
+          param.circ = circ;
+          signal_encode_destination(&param);
           /*signal_encode_destination(address, circ);*/
-          tor_free(param->address);
-          tor_free(param);
+          tor_free(param.address);
         }
-        tor_free(now);
       }
       /* send it off to the gethostbyname farm */
       log_debug(LD_EXIT,"about to call connection_exit_connect().");
