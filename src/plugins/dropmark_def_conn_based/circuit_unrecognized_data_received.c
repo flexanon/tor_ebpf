@@ -34,7 +34,11 @@ uint64_t circuit_unrecognized_data_received(relay_process_edge_t *args) {
     my_plugin_free(plugin, mycell);
     log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "queue_push returned value %d -- Maybe we should raise the size", ret);
     uint64_t plugin_to_cleanup = 42;
-    call_host_func(PLUGIN_CLEANUP_CIRC, 2, circ, plugin_to_cleanup);
+    caller_id_t caller = PLUGIN_HOUSEKEEPING_CLEANUP_CALLED;
+    entry_point_map_t pmap;
+    memset(&pmap, 0, sizeof(pmap));
+    pmap.entry_name = (char *) "plugin_cleanup";
+    invoke_plugin_operation_or_default(&pmap, caller, (void*) &args);
     return PLUGIN_RUN_DEFAULT;
   }
   return 0;

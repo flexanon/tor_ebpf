@@ -21,7 +21,8 @@ uint64_t plugin_cleanup(plugin_plugin_args_t *args) {
     }
     fifo_free(plugin, ctx->cell_queue);
     my_plugin_free(plugin, ctx);
-  log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__,
+    set(UTIL_CONN_CTX, 2, circ, NULL);
+    log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__,
       "Freed the conn plugin ctx");
   }
   return 0;
