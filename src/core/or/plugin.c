@@ -713,13 +713,15 @@ void plugin_cleanup_conn(circuit_t *circ, uint64_t uid) {
   args.circ = circ;
   log_debug(LD_PLUGIN, "Cleaning up connection plugin. Invoking plugin's housekeeping code");
   plugin_t *plugin = circuit_plugin_get(circ, uid);
-  args.plugin = plugin;
-  entry_point_map_t pmap;
-  memset(&pmap, 0, sizeof(pmap));
-  pmap.entry_name = (char *) "plugin_cleanup";
-  invoke_plugin_operation_or_default(&pmap, caller, (void*) &args);
-  plugin_unplug(plugin);
-  smartlist_remove(circ->plugins, plugin);
+  if (plugin) {
+    args.plugin = plugin;
+    entry_point_map_t pmap;
+    memset(&pmap, 0, sizeof(pmap));
+    pmap.entry_name = (char *) "plugin_cleanup";
+    invoke_plugin_operation_or_default(&pmap, caller, (void*) &args);
+    plugin_unplug(plugin);
+    smartlist_remove(circ->plugins, plugin);
+  }
 }
 
 uint64_t plugin_run(plugin_entry_point_t *entry_point, void *args, size_t args_size) {

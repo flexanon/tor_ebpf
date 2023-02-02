@@ -31,8 +31,11 @@ uint64_t circuit_unrecognized_data_received(relay_process_edge_t *args) {
   queue_ret_t ret = queue_push(ctx->cell_queue, &mycell);
 
   if (ret != OK) {
-    log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "queue_push returned value %d", ret);
-    return -1;
+    my_plugin_free(plugin, mycell);
+    log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "queue_push returned value %d -- Maybe we should raise the size", ret);
+    uint64_t plugin_to_cleanup = 42;
+    call_host_func(PLUGIN_CLEANUP_CIRC, 2, circ, plugin_to_cleanup);
+    return PLUGIN_RUN_DEFAULT;
   }
   return 0;
 }
