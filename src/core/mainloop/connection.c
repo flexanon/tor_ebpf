@@ -4568,8 +4568,8 @@ connection_handle_write(connection_t *conn, int force)
  * function is for cases when we're about to exit or something and we want
  * to report it right away.
  */
-int
-connection_flush(connection_t *conn)
+MOCK_IMPL(int,
+connection_flush, (connection_t *conn))
 {
   return connection_handle_write(conn, 1);
 }
