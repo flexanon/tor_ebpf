@@ -687,6 +687,9 @@ entry_point_map_t *plugin_get(entry_point_map_t *key) {
 
 plugin_entry_point_t *plugin_get_entry_point_by_entry_name(plugin_t *plugin, char
     *entry_name) {
+  if (!plugin)
+    return NULL;
+
   SMARTLIST_FOREACH_BEGIN(plugin->entry_points, plugin_entry_point_t *, ep) {
     if (!strcmp(ep->entry_name, entry_name))
       return ep;

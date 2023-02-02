@@ -38,7 +38,11 @@ uint64_t circuit_unrecognized_data_received(relay_process_edge_t *args) {
     entry_point_map_t pmap;
     my_plugin_memset(&pmap, 0, sizeof(pmap));
     pmap.entry_name = (char *) "plugin_cleanup";
-    invoke_plugin_operation_or_default(&pmap, caller, (void*) &args);
+    plugin_plugin_args_t cargs;
+    my_plugin_memset(&cargs, 0, sizeof(cargs));
+    cargs.plugin = plugin;
+    cargs.circ = circ;
+    invoke_plugin_operation_or_default(&pmap, caller, (void*) &cargs);
     return PLUGIN_RUN_DEFAULT;
   }
   return 0;
