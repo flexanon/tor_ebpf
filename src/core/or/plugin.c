@@ -172,7 +172,15 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
           }
           ctx->plugin = ep->plugin;
           log_debug(LD_PLUGIN, "Running plugin entry point %s", key->entry_name);
-          return plugin_run(ep, ctx, sizeof(relay_process_edge_t*));
+          int ret = plugin_run(ep, ctx, sizeof(relay_process_edge_t*));
+          if (ret == -1) {
+            // Memory issue, we need to unplug
+            tor_assert(ep->plugin);
+            plugin_unplug(ep->plugin);
+            smartlist_remove(ctx->circ->plugins, ep->plugin);
+            return PLUGIN_RUN_DEFAULT;
+          }
+          return ret;
         }
       case RELAY_PROCESS_EDGE_UNKNOWN:
       case RELAY_REPLACE_PROCESS_EDGE_SENDME:
