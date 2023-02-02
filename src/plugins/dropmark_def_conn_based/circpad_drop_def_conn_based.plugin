@@ -1,4 +1,4 @@
-memory 65536
+memory 262114
 uid 42
 plugin_init protocol_plugin add plugin_init_add.o
 circuit_unrecognized_data_received protocol_relay add circuit_unrecognized_data_received.o
