@@ -154,14 +154,14 @@ uint64_t circpad_dropmark_def_send_activate_sig(conn_edge_plugin_args_t *args) {
   else {
     log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__,
         "Unsupported param %d", param);
-    my_plugin_free(payload, cell);
+    my_plugin_free(plugin, cell);
     return PLUGIN_RUN_DEFAULT;
   }
   activate_sig.machine_ctr = machine_ctr;
   ssize_t len = circpad_plugin_transition_encode(cell->payload, CELL_PAYLOAD_SIZE, &activate_sig, ctx);
   if (len < 0) {
     log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "Some issue occured: %zd", len);
-    my_plugin_free(pluin, cell);
+    my_plugin_free(plugin, cell);
     return PLUGIN_RUN_DEFAULT;
   }
   log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__,
