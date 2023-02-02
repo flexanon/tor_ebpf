@@ -176,8 +176,8 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
           if (ret == PLUGIN_RUN_DEFAULT) {
             // Memory issue, we need to unplug
             tor_assert(ep->plugin);
-            plugin_unplug(ep->plugin);
             smartlist_remove(ctx->circ->plugins, ep->plugin);
+            plugin_unplug(ep->plugin);
           }
           return ret;
         }
@@ -726,8 +726,8 @@ void plugin_cleanup_conn(circuit_t *circ, uint64_t uid) {
     memset(&pmap, 0, sizeof(pmap));
     pmap.entry_name = (char *) "plugin_cleanup";
     invoke_plugin_operation_or_default(&pmap, caller, (void*) &args);
-    plugin_unplug(plugin);
     smartlist_remove(circ->plugins, plugin);
+    plugin_unplug(plugin);
   }
 }
 
