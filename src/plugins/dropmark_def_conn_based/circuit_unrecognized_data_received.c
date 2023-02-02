@@ -36,7 +36,7 @@ uint64_t circuit_unrecognized_data_received(relay_process_edge_t *args) {
     uint64_t plugin_to_cleanup = 42;
     caller_id_t caller = PLUGIN_HOUSEKEEPING_CLEANUP_CALLED;
     entry_point_map_t pmap;
-    memset(&pmap, 0, sizeof(pmap));
+    my_plugin_memset(&pmap, 0, sizeof(pmap));
     pmap.entry_name = (char *) "plugin_cleanup";
     invoke_plugin_operation_or_default(&pmap, caller, (void*) &args);
     return PLUGIN_RUN_DEFAULT;
