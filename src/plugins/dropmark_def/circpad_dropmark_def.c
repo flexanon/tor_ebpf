@@ -105,7 +105,7 @@ static __attribute__((always_inline)) void register_relay_machine(plugin_t
   relay_machine->states[CIRCPAD_STATE_GAP].
     histogram_edges[0] = 1000; // 1ms
   relay_machine->states[CIRCPAD_STATE_GAP].
-    histogram_edges[1] = 100000; // 100ms
+    histogram_edges[1] = 30000; // 30ms
 
   relay_machine->states[CIRCPAD_STATE_GAP].
     histogram[0] = 1000;
