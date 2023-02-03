@@ -58,7 +58,6 @@ uint64_t circpad_dropmark_send_padding_for_callback(circpad_plugin_args_t *args)
       if (n_cells_queued < circpad_max_circ_queued_cells) {
         call_host_func(CIRCPAD_MACHINE_COUNT_PADDING_SENT, 1, mi);
         if (!fifo_is_empty(ctx->cell_queue)) {
-          log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "flushing a delayed cell");
           cell_t *cell = NULL;
           queue_ret_t ret = queue_pop(ctx->cell_queue, &cell);
           if (ret != OK) {
