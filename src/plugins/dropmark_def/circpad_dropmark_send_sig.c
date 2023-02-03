@@ -165,7 +165,7 @@ uint64_t circpad_dropmark_def_send_activate_sig(conn_edge_plugin_args_t *args) {
     return PLUGIN_RUN_DEFAULT;
   }
   log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__,
-      "Our signal len is %zd and sending now.", len);
+      "Our signal type is %d and sending now.", activate_sig.signal_type);
   call_host_func(CIRCPAD_SEND_COMMAND_TO_MIDDLE_HOP, 3, circ,
       cell->payload, (ssize_t) len);
   my_plugin_free(plugin, cell);

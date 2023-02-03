@@ -173,7 +173,7 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
           ctx->plugin = ep->plugin;
           log_debug(LD_PLUGIN, "Running plugin entry point %s", key->entry_name);
           int ret = plugin_run(ep, ctx, sizeof(relay_process_edge_t*));
-          if (ret == PLUGIN_RUN_DEFAULT) {
+          if (ret == PLUGIN_ERROR) {
             // Memory issue, we need to unplug
             tor_assert(ep->plugin);
             smartlist_remove(ctx->circ->plugins, ep->plugin);

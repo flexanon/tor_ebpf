@@ -19,20 +19,17 @@ uint64_t circuit_unrecognized_data_received(relay_process_edge_t *args) {
     return PLUGIN_RUN_DEFAULT;
   }
   circpad_connbased_dropmark_t *ctx = (circpad_connbased_dropmark_t*) get(UTIL_CONN_CTX, 1, circ);
+  ctx->ctr_seen_cell++;
+
   cell_t *cell = (cell_t *) get(RELAY_ARG_CELL_T, 1, args);
   cell_t *mycell = my_plugin_malloc(plugin, sizeof(*mycell));
   my_plugin_memcpy(mycell, cell, sizeof(*mycell));
-  log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "Plugin: Deref payload at pos N-1: %d",  mycell->payload[CELL_PAYLOAD_SIZE-1]);
-
-  log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "Plugin: Copied cell Pointer is (%lu)", (uint64_t) mycell);
-  log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "Plugin: Copied cell Pointer is (%p)",  mycell);
-  log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "sizeof(cell_t*): %lu", sizeof(mycell));
-  log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "fifo size: %u", ctx->cell_queue->size);
   queue_ret_t ret = queue_push(ctx->cell_queue, &mycell);
 
   if (ret != OK) {
     my_plugin_free(plugin, mycell);
     log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "queue_push returned value %d -- Maybe we should raise the size", ret);
+    log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__, "We have seen %d cells; cleaning up", ctx->ctr_seen_cell);
     uint64_t plugin_to_cleanup = 42;
     caller_id_t caller = PLUGIN_HOUSEKEEPING_CLEANUP_CALLED;
     entry_point_map_t pmap;
@@ -43,7 +40,7 @@ uint64_t circuit_unrecognized_data_received(relay_process_edge_t *args) {
     cargs.plugin = plugin;
     cargs.circ = circ;
     invoke_plugin_operation_or_default(&pmap, caller, (void*) &cargs);
-    return PLUGIN_RUN_DEFAULT;
+    return PLUGIN_ERROR;
   }
   return 0;
 }

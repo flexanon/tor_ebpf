@@ -11,6 +11,7 @@
 #include <stdarg.h>
 
 #define PLUGIN_RUN_DEFAULT -2147483648
+#define PLUGIN_ERROR 1
 /**
  * Who's calling us? Will be used to prepare plugin_run()
  *
