@@ -178,6 +178,7 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
             tor_assert(ep->plugin);
             smartlist_remove(ctx->circ->plugins, ep->plugin);
             plugin_unplug(ep->plugin);
+            ret = PLUGIN_RUN_DEFAULT;
           }
           return ret;
         }
