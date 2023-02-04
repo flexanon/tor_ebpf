@@ -4,7 +4,7 @@
 #include "core/or/plugin.h"
 #include "core/or/plugin_helper.h"
 #include "plugins/dropmark_def/circpad_dropmark_def.h"
-#include "core/or/plugin_memory.h"
+#include "ubpf/vm/plugin_memory.h"
 
 static int num_events = CIRCPAD_NUM_EVENTS + PLUGIN_NUM_EVENTS;
 
@@ -68,13 +68,13 @@ static __attribute__((always_inline)) void register_relay_machine(plugin_t
   plugin_circpad_machine_states_init(plugin, relay_machine, 4);
 
 
-  /** We make send rand(3, 4) cells at uniformly random intervals  */
+  /** We make send rand(1, 42) cells at uniformly random intervals  */
   relay_machine->states[CIRCPAD_STATE_BURST].
     length_dist.type = CIRCPAD_DIST_UNIFORM;
   relay_machine->states[CIRCPAD_STATE_BURST].
     length_dist.param1 = 3;
   relay_machine->states[CIRCPAD_STATE_BURST].
-    length_dist.param2 = 4;
+    length_dist.param2 = 9;
 
   /* define the histogram  -- this should make the state chooses a timer between [1,
    * 100ms] uniformly before sending the padding, then circle back to this state*/
@@ -105,7 +105,7 @@ static __attribute__((always_inline)) void register_relay_machine(plugin_t
   relay_machine->states[CIRCPAD_STATE_GAP].
     histogram_edges[0] = 1000; // 1ms
   relay_machine->states[CIRCPAD_STATE_GAP].
-    histogram_edges[1] = 70000; // 30ms
+    histogram_edges[1] = 100000; // 100ms
 
   relay_machine->states[CIRCPAD_STATE_GAP].
     histogram[0] = 1000;
@@ -113,10 +113,10 @@ static __attribute__((always_inline)) void register_relay_machine(plugin_t
     histogram_total_tokens = relay_machine->states[CIRCPAD_STATE_GAP].
     histogram[0];
 
-  /** Activate the machine as soon as a non-padding cell is received */
-  relay_machine->states[CIRCPAD_STATE_START].
-    next_state[CIRCPAD_EVENT_NONPADDING_SENT] =
-    CIRCPAD_STATE_BURST;
+  /*[>* Activate the machine as soon as a non-padding cell is received <]*/
+  /*relay_machine->states[CIRCPAD_STATE_START].*/
+    /*next_state[CIRCPAD_EVENT_NONPADDING_SENT] =*/
+    /*CIRCPAD_STATE_BURST;*/
 
   /* Transition from the start state to burst state when the client
    * tells us to do so */
@@ -125,10 +125,10 @@ static __attribute__((always_inline)) void register_relay_machine(plugin_t
     next_state[ctx->CIRCPAD_EVENT_SIGPLUGIN_ACTIVATE] =
     CIRCPAD_STATE_BURST;
 
-  /** schedule more padding until state_length is 0 */
-  relay_machine->states[CIRCPAD_STATE_BURST].
-    next_state[CIRCPAD_EVENT_PADDING_SENT] =
-    CIRCPAD_STATE_BURST;
+  /*[>* schedule more padding until state_length is 0 <]*/
+  /*relay_machine->states[CIRCPAD_STATE_BURST].*/
+    /*next_state[CIRCPAD_EVENT_PADDING_SENT] =*/
+    /*CIRCPAD_STATE_BURST;*/
   
   /* transition to the GAP state when all the padding cells are sent -- we wait again some random
    * interval and then transition to the BURST state again */

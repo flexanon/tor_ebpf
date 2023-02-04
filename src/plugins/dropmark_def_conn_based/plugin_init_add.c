@@ -10,12 +10,13 @@ uint64_t plugin_init_fn(plugin_plugin_args_t *args) {
   /** create the plugin ctx */
   circpad_connbased_dropmark_t *ctx = my_plugin_malloc(plugin,
       sizeof(*ctx));
+  my_plugin_memset(ctx, 0, sizeof(*ctx));
   if (!ctx) {
     log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__,
         "Unable to malloc circpad_connbased_dropmark_t");
     return -1;
   }
-  ctx->cell_queue = queue_new(plugin, 64);
+  ctx->cell_queue = queue_new(plugin, 128);
   if (!ctx->cell_queue) {
     log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__,
         "Unable to malloc cell_queue");

@@ -4,9 +4,9 @@
 #include "core/or/circuitpadding.h"
 #include "core/or/plugin_helper.h"
 #include "core/or/cell_st.h"
-#include "plugins/dropmark_def/circpad_dropmark_def.h"
-#include "plugins/dropmark_def/parsing/circpad_dropmark_plugin.h"
-#include "core/or/plugin_memory.h"
+#include "plugins/signal/signal_def.h"
+#include "plugins/signal/parsing/circpad_dropmark_plugin.h"
+#include "ubpf/vm/plugin_memory.h"
 #include "ext/trunnel/trunnel-impl.h"
 #include "core/or/connection_edge.h"
 #include <assert.h>
@@ -117,16 +117,21 @@ circpad_plugin_transition_encode(uint8_t *output, const size_t avail, const circ
   return result;
 }
 
+/**
+ * Borrow circpad code for another signaling purpose (ugly ok, but fast)
+ */
+
 uint64_t circpad_dropmark_def_send_activate_sig(conn_edge_plugin_args_t *args) {
   circuit_t *circ = (circuit_t *) get(CONNEDGE_ARG_CIRCUIT_T, 1, args);
   plugin_t *plugin = (plugin_t *) get(CONNEDGE_ARG_PLUGIN_T, 1, args);
   circpad_dropmark_t *ctx = (circpad_dropmark_t *) get(CONNEDGE_PLUGIN_CTX, 1, args);
-  /* get padding machine  -- we may have multiple padding machines per circuit,
-   * but only one is the dropmark machine :)*/
-  int machine_ctr = (int) get(CIRCPAD_MACHINE_CTR, 3, circ, "client_dropmark_def", (int)19);
-  if (machine_ctr > CIRCPAD_MAX_MACHINES) {
-    log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__,
-        "Looks like machine 'client_dropmark_def' does not exist");
+  
+  // check whether the circuit is 3 hops
+
+  int pathlen = (int) get(CIRCUIT_PATH_LEN, 1, circ);
+  if (pathlen < 3) {
+    log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__,
+        "Looks like machine it isn't a 3 hop circuit");
     return PLUGIN_RUN_DEFAULT;
   }
   /** The bpf stack is only 512 bytes. We cannot stack alloc a cell :'
@@ -139,34 +144,17 @@ uint64_t circpad_dropmark_def_send_activate_sig(conn_edge_plugin_args_t *args) {
   circpad_plugin_transition_t activate_sig;
   my_plugin_memset(&activate_sig, 0, sizeof(activate_sig));
   activate_sig.command = CIRCPAD_COMMAND_SIGPLUGIN;
-  int param = (int) get(CONNEDGE_ARG_PARAM, 1, args);
-  if (param == CIRCPAD_EVENT_SHOULD_SIGPLUGIN_ACTIVATE) {
-    /** We should also tell the other side to plug in */
-    log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__,
-        "Calling to send a plug cell from the plugin");
-    call_host_func(PLUGIN_SEND_PLUG_CELL, 3, circ, 42, 2);
-    activate_sig.signal_type = ctx->CIRCPAD_EVENT_SIGPLUGIN_ACTIVATE;
-  }
-  else if (param == CIRCPAD_EVENT_SHOULD_SIGPLUGIN_BE_SILENT)
-    activate_sig.signal_type = ctx->CIRCPAD_EVENT_SIGPLUGIN_BE_SILENT;
-  else if (param == CIRCPAD_EVENT_SHOULD_SIGPLUGIN_CLOSE) 
-    activate_sig.signal_type = ctx->CIRCPAD_EVENT_SIGPLUGIN_CLOSE;
-  else {
-    log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__,
-        "Unsupported param %d", param);
-    my_plugin_free(plugin, cell);
-    return PLUGIN_RUN_DEFAULT;
-  }
-  activate_sig.machine_ctr = machine_ctr;
+  activate_sig.signal_type = ctx->CIRCPAD_EVENT_SIGPLUGIN_ACTIVATE;
+  // we don't care
+  activate_sig.machine_ctr = 0;
   ssize_t len = circpad_plugin_transition_encode(cell->payload, CELL_PAYLOAD_SIZE, &activate_sig, ctx);
   if (len < 0) {
     log_fn_(LOG_DEBUG, LD_PLUGIN, __FUNCTION__, "Some issue occured: %zd", len);
-    my_plugin_free(plugin, cell);
     return PLUGIN_RUN_DEFAULT;
   }
   log_fn_(LOG_INFO, LD_PLUGIN, __FUNCTION__,
-      "Our signal type is %d and sending now.", activate_sig.signal_type);
-  call_host_func(CIRCPAD_SEND_COMMAND_TO_MIDDLE_HOP, 3, circ,
+      "Our signal len is %zd and sending now.", len);
+  call_host_func(CIRCPAD_SEND_COMMAND_TO_GUARD, 3, circ,
       cell->payload, (ssize_t) len);
   my_plugin_free(plugin, cell);
   return 0;
