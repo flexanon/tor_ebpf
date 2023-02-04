@@ -11,6 +11,7 @@
 #include <stdarg.h>
 
 #define PLUGIN_RUN_DEFAULT -2147483648
+#define PLUGIN_ERROR 1
 /**
  * Who's calling us? Will be used to prepare plugin_run()
  *
@@ -157,6 +158,7 @@ typedef struct entry_point_map_t {
 #define CIRCPAD_SEND_COMMAND_DROP_TO_HOP 107
 #define CIRCPAD_CHECK_MACHINE_TOKEN_SUPPLY 108
 #define CIRCPAD_CELL_EVENT_PADDING_SENT 109
+#define CIRCPAD_SEND_COMMAND_TO_GUARD 110
 
 #define CIRCPAD_KEYFUNC_MAX 200
 

@@ -171,7 +171,15 @@ int invoke_plugin_operation_or_default(entry_point_map_t *key,
           }
           ctx->plugin = ep->plugin;
           log_debug(LD_PLUGIN, "Running plugin entry point %s", key->entry_name);
-          return plugin_run(ep, ctx, sizeof(relay_process_edge_t*));
+          int ret = plugin_run(ep, ctx, sizeof(relay_process_edge_t*));
+          if (ret == PLUGIN_ERROR) {
+            // Memory issue, we need to unplug
+            tor_assert(ep->plugin);
+            smartlist_remove(ctx->circ->plugins, ep->plugin);
+            plugin_unplug(ep->plugin);
+            ret = PLUGIN_RUN_DEFAULT;
+          }
+          return ret;
         }
       case RELAY_PROCESS_EDGE_UNKNOWN:
       case RELAY_REPLACE_PROCESS_EDGE_SENDME:
@@ -606,6 +614,19 @@ int call_host_func(int keyfunc, int size, ...) {
         ret = 0;
         break;
       }
+    case CIRCPAD_SEND_COMMAND_TO_GUARD:
+      {
+        origin_circuit_t *ocirc = TO_ORIGIN_CIRCUIT(va_arg(arguments, circuit_t*));
+        uint8_t hop = 1;
+        uint8_t command = 255; // should not be used by any core protocol feature
+        uint8_t *payload = va_arg(arguments, uint8_t*);
+        ssize_t len = va_arg(arguments, ssize_t);
+        if (circpad_send_command_to_hop(ocirc, hop, command, payload, len)) {
+          log_debug(LD_PLUGIN, "Failed to send command %d at hop %d, with length %lu", command, hop, len);
+        }
+        ret = 0;
+        break;
+      }
     case CIRCPAD_CHECK_MACHINE_TOKEN_SUPPLY:
     case CIRCPAD_MACHINE_COUNT_PADDING_SENT:
       {
@@ -663,6 +684,9 @@ entry_point_map_t *plugin_get(entry_point_map_t *key) {
 
 plugin_entry_point_t *plugin_get_entry_point_by_entry_name(plugin_t *plugin, char
     *entry_name) {
+  if (!plugin)
+    return NULL;
+
   SMARTLIST_FOREACH_BEGIN(plugin->entry_points, plugin_entry_point_t *, ep) {
     if (!strcmp(ep->entry_name, entry_name))
       return ep;
@@ -696,13 +720,15 @@ void plugin_cleanup_conn(circuit_t *circ, uint64_t uid) {
   args.circ = circ;
   log_debug(LD_PLUGIN, "Cleaning up connection plugin. Invoking plugin's housekeeping code");
   plugin_t *plugin = circuit_plugin_get(circ, uid);
-  args.plugin = plugin;
-  entry_point_map_t pmap;
-  memset(&pmap, 0, sizeof(pmap));
-  pmap.entry_name = (char *) "plugin_cleanup";
-  invoke_plugin_operation_or_default(&pmap, caller, (void*) &args);
-  plugin_unplug(plugin);
-  smartlist_remove(circ->plugins, plugin);
+  if (plugin) {
+    args.plugin = plugin;
+    entry_point_map_t pmap;
+    memset(&pmap, 0, sizeof(pmap));
+    pmap.entry_name = (char *) "plugin_cleanup";
+    invoke_plugin_operation_or_default(&pmap, caller, (void*) &args);
+    smartlist_remove(circ->plugins, plugin);
+    plugin_unplug(plugin);
+  }
 }
 
 uint64_t plugin_run(plugin_entry_point_t *entry_point, void *args, size_t args_size) {
