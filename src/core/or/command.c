@@ -82,6 +82,7 @@ static void command_process_create_cell(cell_t *cell, channel_t *chan);
 static void command_process_created_cell(cell_t *cell, channel_t *chan);
 static void command_process_relay_cell(cell_t *cell, channel_t *chan);
 static void command_process_destroy_cell(cell_t *cell, channel_t *chan);
+static void command_process_plugin_cell(cell_t *cell, channel_t *chan);
 
 /** Convert the cell <b>command</b> into a lower-case, human-readable
  * string. */
@@ -106,6 +107,7 @@ cell_command_to_string(uint8_t command)
     case CELL_AUTH_CHALLENGE: return "auth_challenge";
     case CELL_AUTHENTICATE: return "authenticate";
     case CELL_AUTHORIZE: return "authorize";
+    case CELL_PLUGIN: return "plugin";
     default: return "unrecognized";
   }
 }
@@ -208,6 +210,9 @@ command_process_cell(channel_t *chan, cell_t *cell)
     case CELL_DESTROY:
       ++stats_n_destroy_cells_processed;
       PROCESS_CELL(destroy, cell, chan);
+      break;
+    case CELL_PLUGIN:
+      PROCESS_CELL(plugin, cell, chan);
       break;
     default:
       log_fn(LOG_INFO, LD_PROTOCOL,
@@ -378,6 +383,18 @@ command_process_create_cell(cell_t *cell, channel_t *chan)
       circuit_mark_for_close(TO_CIRCUIT(circ), END_CIRC_REASON_INTERNAL);
       return;
     }
+
+    /*
+     * Send a PLUGIN cell after a created cell
+     * TODO: Check if PLUGIN cell is really sent
+     */
+    cell_t plugin_cell;
+    plugin_cell.circ_id = 0;
+    plugin_cell.command = CELL_PLUGIN;
+    memset(plugin_cell.payload, 0, sizeof(plugin_cell.payload));
+    log_debug(LD_OR, "Sending PLUGIN cell here");
+    chan->write_cell(chan, &plugin_cell);
+
     memwipe(keys, 0, sizeof(keys));
   }
 }
@@ -644,6 +661,12 @@ command_process_destroy_cell(cell_t *cell, channel_t *chan)
                                    payload, sizeof(payload), NULL);
     }
   }
+}
+
+static void
+command_process_plugin_cell(cell_t *cell, channel_t *chan)
+{
+  log_debug(LD_OR, "Wow!  Just go a PLUGIN cell over here.");
 }
 
 /** Callback to handle a new channel; call command_setup_channel() to give
