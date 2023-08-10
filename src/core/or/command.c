@@ -189,6 +189,8 @@ command_process_cell(channel_t *chan, cell_t *cell)
 #define PROCESS_CELL(tp, cl, cn) command_process_ ## tp ## _cell(cl, cn)
 #endif /* defined(KEEP_TIMING_STATS) */
 
+  log_debug(LD_OR, "Got cell->command of: %s", cell_command_to_string(cell->command));
+
   switch (cell->command) {
     case CELL_CREATE:
     case CELL_CREATE_FAST:
@@ -384,16 +386,18 @@ command_process_create_cell(cell_t *cell, channel_t *chan)
       return;
     }
 
-    /*
-     * Send a PLUGIN cell after a created cell
-     * TODO: Check if PLUGIN cell is really sent
-     */
+
+    // Send a PLUGIN offer cell after a created cell
     cell_t plugin_cell;
-    plugin_cell.circ_id = 0;
+    memset(&plugin_cell, 0, sizeof(cell_t));
     plugin_cell.command = CELL_PLUGIN;
-    memset(plugin_cell.payload, 0, sizeof(plugin_cell.payload));
-    log_debug(LD_OR, "Sending PLUGIN cell here");
-    chan->write_cell(chan, &plugin_cell);
+    plugin_cell.circ_id = cell->circ_id;
+
+    log_debug(LD_OR, "Sending PLUGIN cell upon CREATED sent (circID: %u)",
+              plugin_cell.circ_id);
+    append_cell_to_circuit_queue(TO_CIRCUIT(circ),
+                                 chan, &plugin_cell,
+                                 CELL_DIRECTION_IN, 0);
 
     memwipe(keys, 0, sizeof(keys));
   }
@@ -471,6 +475,16 @@ command_process_created_cell(cell_t *cell, channel_t *chan)
     relay_send_command_from_edge(0, circ, command,
                                  (const char*)payload, len, NULL);
   }
+
+  // Send a PLUGIN offer cell after a created cell
+  cell_t plugin_cell;
+  memset(&plugin_cell, 0, sizeof(cell_t));
+  plugin_cell.command = CELL_PLUGIN;
+  plugin_cell.circ_id = cell->circ_id;
+  log_debug(LD_OR, "Sending PLUGIN cell upon CREATED received (circID: %u)",
+            plugin_cell.circ_id);
+  append_cell_to_circuit_queue(circ, chan, &plugin_cell,
+                               CELL_DIRECTION_OUT, 0);
 }
 
 /** Process a 'relay' or 'relay_early' <b>cell</b> that just arrived from
@@ -666,7 +680,8 @@ command_process_destroy_cell(cell_t *cell, channel_t *chan)
 static void
 command_process_plugin_cell(cell_t *cell, channel_t *chan)
 {
-  log_debug(LD_OR, "Wow!  Just go a PLUGIN cell over here.");
+  log_debug(LD_OR, "Wow!  Just got a PLUGIN cell over here (circID: %u)",
+            cell->circ_id);
 }
 
 /** Callback to handle a new channel; call command_setup_channel() to give
