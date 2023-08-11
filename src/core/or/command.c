@@ -36,6 +36,8 @@
  *   callbacks registered in command_setup_channel(),
  *   called when channels are created in circuitbuild.c
  */
+#include <dirent.h>
+
 #include "core/or/or.h"
 #include "app/config/config.h"
 #include "core/crypto/onion_crypto.h"
@@ -84,6 +86,8 @@ static void command_process_relay_cell(cell_t *cell, channel_t *chan);
 static void command_process_destroy_cell(cell_t *cell, channel_t *chan);
 static void command_process_plugin_cell(cell_t *cell, channel_t *chan);
 
+static void create_plugin_offer(cell_t *plugin_cell, circid_t circ_id);
+
 /** Convert the cell <b>command</b> into a lower-case, human-readable
  * string. */
 const char *
@@ -107,7 +111,9 @@ cell_command_to_string(uint8_t command)
     case CELL_AUTH_CHALLENGE: return "auth_challenge";
     case CELL_AUTHENTICATE: return "authenticate";
     case CELL_AUTHORIZE: return "authorize";
-    case CELL_PLUGIN: return "plugin";
+    case CELL_PLUGIN_OFFER: return "plugin_offer";
+    case CELL_PLUGIN_REQUEST: return "plugin_request";
+    case CELL_PLUGIN_TRANSFER: return "plugin_transfer";
     default: return "unrecognized";
   }
 }
@@ -213,7 +219,9 @@ command_process_cell(channel_t *chan, cell_t *cell)
       ++stats_n_destroy_cells_processed;
       PROCESS_CELL(destroy, cell, chan);
       break;
-    case CELL_PLUGIN:
+    case CELL_PLUGIN_OFFER:
+    case CELL_PLUGIN_REQUEST:
+    case CELL_PLUGIN_TRANSFER:
       PROCESS_CELL(plugin, cell, chan);
       break;
     default:
@@ -389,9 +397,7 @@ command_process_create_cell(cell_t *cell, channel_t *chan)
 
     // Send a PLUGIN offer cell after a created cell
     cell_t plugin_cell;
-    memset(&plugin_cell, 0, sizeof(cell_t));
-    plugin_cell.command = CELL_PLUGIN;
-    plugin_cell.circ_id = cell->circ_id;
+    create_plugin_offer(&plugin_cell, cell->circ_id);
 
     log_debug(LD_OR, "Sending PLUGIN cell upon CREATED sent (circID: %u)",
               plugin_cell.circ_id);
@@ -478,9 +484,8 @@ command_process_created_cell(cell_t *cell, channel_t *chan)
 
   // Send a PLUGIN offer cell after a created cell
   cell_t plugin_cell;
-  memset(&plugin_cell, 0, sizeof(cell_t));
-  plugin_cell.command = CELL_PLUGIN;
-  plugin_cell.circ_id = cell->circ_id;
+  create_plugin_offer(&plugin_cell, cell->circ_id);
+
   log_debug(LD_OR, "Sending PLUGIN cell upon CREATED received (circID: %u)",
             plugin_cell.circ_id);
   append_cell_to_circuit_queue(circ, chan, &plugin_cell,
@@ -680,8 +685,58 @@ command_process_destroy_cell(cell_t *cell, channel_t *chan)
 static void
 command_process_plugin_cell(cell_t *cell, channel_t *chan)
 {
+
   log_debug(LD_OR, "Wow!  Just got a PLUGIN cell over here (circID: %u)",
             cell->circ_id);
+
+  switch (cell->command) {
+
+  case CELL_PLUGIN_OFFER:
+  case CELL_PLUGIN_REQUEST:
+  case CELL_PLUGIN_TRANSFER:
+    break;
+
+  }
+}
+
+static void
+create_plugin_offer(cell_t *plugin_offer, circid_t circ_id)
+{
+  tor_assert(get_options()->PluginsDirectory);
+
+  struct dirent *de;
+
+  memset(plugin_offer, 0, sizeof(*plugin_offer));
+  plugin_offer->command = CELL_PLUGIN_OFFER;
+  plugin_offer->circ_id = circ_id;
+
+  unsigned long space_left = CELL_PAYLOAD_SIZE-2;
+  int idx = 0;
+
+  DIR *dr = opendir(get_options()->PluginsDirectory);
+  while ((de = readdir(dr)) != NULL) {
+    if (!strcmp(de->d_name, ".") || !strcmp(de->d_name, ".."))
+      continue;
+    unsigned int i = 0;
+    unsigned long len = strlen(de->d_name);
+
+    if (space_left > len+1) {
+      while (i < len) {
+        plugin_offer->payload[idx] = de->d_name[i];
+        i++;
+        idx++;
+      }
+      plugin_offer->payload[idx] = '\n';
+      idx++;
+      space_left -= (len+1);
+    }
+  }
+  idx--;
+  plugin_offer->payload[idx] = 0;
+
+  closedir(dr);
+//  for (int i = 0; i < CELL_PAYLOAD_SIZE-2; i++)
+//    log_debug(LD_OR, "%i, %c", plugin_offer->payload[i], plugin_offer->payload[i]);
 }
 
 /** Callback to handle a new channel; call command_setup_channel() to give
