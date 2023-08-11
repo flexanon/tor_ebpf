@@ -703,6 +703,11 @@ command_process_plugin_cell(cell_t *cell, channel_t *chan)
   }
 }
 
+/**
+ * Receives a plugin offer and look which plugins are missing from the
+ * directory.
+ * Sends back a PLUGIN_REQUEST cell for the missing plugin
+ */
 static void
 handle_plugin_offer_cell(cell_t *cell, channel_t *chan)
 {
@@ -779,9 +784,18 @@ handle_plugin_offer_cell(cell_t *cell, channel_t *chan)
                                  chan, &request_cell,
                                  direction, 0);
   }
-
 }
 
+/**
+ * Look into the plugin folder for plugins to offer to other relays.
+ * Create a single cell with available plugins and place it in the
+ * plugin_offer param
+ *
+ * LIMITATION: if there are more plugins than what can fit in a cell, some are
+ * just ignored
+ *
+ * @return the number of plugin offered
+ */
 static int
 create_plugin_offer(cell_t *plugin_offer, circid_t circ_id)
 {
