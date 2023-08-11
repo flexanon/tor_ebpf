@@ -86,7 +86,8 @@ static void command_process_relay_cell(cell_t *cell, channel_t *chan);
 static void command_process_destroy_cell(cell_t *cell, channel_t *chan);
 static void command_process_plugin_cell(cell_t *cell, channel_t *chan);
 
-static void create_plugin_offer(cell_t *plugin_cell, circid_t circ_id);
+static int create_plugin_offer(cell_t *plugin_offer, circid_t circ_id);
+static void handle_plugin_offer_cell(cell_t *cell, channel_t *chan);
 
 /** Convert the cell <b>command</b> into a lower-case, human-readable
  * string. */
@@ -397,14 +398,12 @@ command_process_create_cell(cell_t *cell, channel_t *chan)
 
     // Send a PLUGIN offer cell after a created cell
     cell_t plugin_cell;
-    create_plugin_offer(&plugin_cell, cell->circ_id);
-
-    log_debug(LD_OR, "Sending PLUGIN cell upon CREATED sent (circID: %u)",
-              plugin_cell.circ_id);
-    append_cell_to_circuit_queue(TO_CIRCUIT(circ),
-                                 chan, &plugin_cell,
-                                 CELL_DIRECTION_IN, 0);
-
+    if (create_plugin_offer(&plugin_cell, cell->circ_id) > 0) {
+      log_debug(LD_OR, "Sending PLUGIN cell upon CREATED sent (circID: %u)",
+                plugin_cell.circ_id);
+      append_cell_to_circuit_queue(TO_CIRCUIT(circ), chan, &plugin_cell,
+                                   CELL_DIRECTION_IN, 0);
+    }
     memwipe(keys, 0, sizeof(keys));
   }
 }
@@ -484,12 +483,12 @@ command_process_created_cell(cell_t *cell, channel_t *chan)
 
   // Send a PLUGIN offer cell after a created cell
   cell_t plugin_cell;
-  create_plugin_offer(&plugin_cell, cell->circ_id);
-
-  log_debug(LD_OR, "Sending PLUGIN cell upon CREATED received (circID: %u)",
-            plugin_cell.circ_id);
-  append_cell_to_circuit_queue(circ, chan, &plugin_cell,
-                               CELL_DIRECTION_OUT, 0);
+  if (create_plugin_offer(&plugin_cell, cell->circ_id) > 0) {
+    log_debug(LD_OR, "Sending PLUGIN cell upon CREATED received (circID: %u)",
+              plugin_cell.circ_id);
+    append_cell_to_circuit_queue(circ, chan, &plugin_cell, CELL_DIRECTION_OUT,
+                                 0);
+  }
 }
 
 /** Process a 'relay' or 'relay_early' <b>cell</b> that just arrived from
@@ -692,7 +691,12 @@ command_process_plugin_cell(cell_t *cell, channel_t *chan)
   switch (cell->command) {
 
   case CELL_PLUGIN_OFFER:
+    handle_plugin_offer_cell(cell, chan);
+    break;
   case CELL_PLUGIN_REQUEST:
+    log_debug(LD_OR, "CELL_PLUGIN_REQUEST: %s", cell->payload);
+    // TODO implement transfer here after
+    break;
   case CELL_PLUGIN_TRANSFER:
     break;
 
@@ -700,6 +704,85 @@ command_process_plugin_cell(cell_t *cell, channel_t *chan)
 }
 
 static void
+handle_plugin_offer_cell(cell_t *cell, channel_t *chan)
+{
+
+  if (cell->payload[0] == 0) {
+    log_notice(LD_OR, "Received empty plugin offer, quite useless you know");
+    return;
+  }
+
+  tor_assert(get_options()->PluginsDirectory);
+  struct dirent *de;
+  cell_t request_cell;
+  memset(&request_cell, 0, sizeof(request_cell));
+
+  char plugin_name[CELL_PAYLOAD_SIZE-2];
+  int found;
+  int p_name_idx;
+  int payload_idx = 0;
+  unsigned long request_payload_idx = 0;
+  int last = 0;
+  int will_request = 0;
+
+  while (!last) {
+    memset(plugin_name, 0, CELL_PAYLOAD_SIZE - 2);
+    p_name_idx = 0;
+    while (cell->payload[payload_idx] != '\n' && !last) {
+      if (cell->payload[payload_idx] == 0) {
+        last = 1;
+      } else {
+        plugin_name[p_name_idx] = cell->payload[payload_idx];
+        p_name_idx++;
+        payload_idx++;
+      }
+    }
+    payload_idx++;
+
+    DIR *dr = opendir(get_options()->PluginsDirectory);
+    found = 0;
+    while (((de = readdir(dr)) != NULL)) {
+      if (strcmp(plugin_name, de->d_name) == 0) {
+        found = 1;
+        log_debug(LD_OR, "Already have this: %s", plugin_name);
+      }
+    }
+    closedir(dr);
+
+    // No need to check for cell overflow capacity as the request is at most
+    // as long as the offer (cannot request more than what is offered)
+    if (found == 0) {
+      log_debug(LD_OR, "Will request plugin: %s", plugin_name);
+      will_request = 1;
+      memcpy(&request_cell.payload[request_payload_idx],
+             plugin_name, strlen(plugin_name));
+      request_payload_idx += strlen(plugin_name);
+      request_cell.payload[request_payload_idx] = '\n';
+      request_payload_idx ++;
+    }
+  }
+  request_payload_idx = request_payload_idx > 0 ? request_payload_idx-1 : 0;
+  request_cell.payload[request_payload_idx] = 0;
+
+  if (will_request) {
+    request_cell.circ_id = cell->circ_id;
+    request_cell.command = CELL_PLUGIN_REQUEST;
+
+    circuit_t *circ;
+    circ = circuit_get_by_circid_channel(request_cell.circ_id, chan);
+
+    cell_direction_t direction = circ->n_chan == chan ? CELL_DIRECTION_OUT : CELL_DIRECTION_IN;
+
+    log_debug(LD_OR, "Sending PLUGIN REQUEST cell (circID: %u): %s",
+              request_cell.circ_id, request_cell.payload);
+    append_cell_to_circuit_queue(circ,
+                                 chan, &request_cell,
+                                 direction, 0);
+  }
+
+}
+
+static int
 create_plugin_offer(cell_t *plugin_offer, circid_t circ_id)
 {
   tor_assert(get_options()->PluginsDirectory);
@@ -712,11 +795,13 @@ create_plugin_offer(cell_t *plugin_offer, circid_t circ_id)
 
   unsigned long space_left = CELL_PAYLOAD_SIZE-2;
   int idx = 0;
+  int offered = 0;
 
   DIR *dr = opendir(get_options()->PluginsDirectory);
   while ((de = readdir(dr)) != NULL) {
     if (!strcmp(de->d_name, ".") || !strcmp(de->d_name, ".."))
       continue;
+    offered ++;
     unsigned int i = 0;
     unsigned long len = strlen(de->d_name);
 
@@ -731,12 +816,17 @@ create_plugin_offer(cell_t *plugin_offer, circid_t circ_id)
       space_left -= (len+1);
     }
   }
-  idx--;
+  idx = idx > 0 ? (idx-1) : 0;
   plugin_offer->payload[idx] = 0;
 
   closedir(dr);
-//  for (int i = 0; i < CELL_PAYLOAD_SIZE-2; i++)
-//    log_debug(LD_OR, "%i, %c", plugin_offer->payload[i], plugin_offer->payload[i]);
+
+  if (offered > 0)
+    log_debug(LD_OR, "Offering: %s", plugin_offer->payload);
+  else
+    log_debug(LD_OR, "Offering nothing");
+
+  return offered;
 }
 
 /** Callback to handle a new channel; call command_setup_channel() to give
