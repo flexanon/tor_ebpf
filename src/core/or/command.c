@@ -37,6 +37,8 @@
  *   called when channels are created in circuitbuild.c
  */
 #include <dirent.h>
+#include <sys/stat.h>
+#include <linux/limits.h>
 
 #include "core/or/or.h"
 #include "app/config/config.h"
@@ -66,6 +68,8 @@
 #include "core/or/origin_circuit_st.h"
 #include "core/or/var_cell_st.h"
 
+#include "trunnel/plugin_exchange.h"
+
 /** How many CELL_CREATE cells have we received, ever? */
 uint64_t stats_n_create_cells_processed = 0;
 /** How many CELL_CREATED cells have we received, ever? */
@@ -86,8 +90,10 @@ static void command_process_relay_cell(cell_t *cell, channel_t *chan);
 static void command_process_destroy_cell(cell_t *cell, channel_t *chan);
 static void command_process_plugin_cell(cell_t *cell, channel_t *chan);
 
+static void handle_plugin_request_cell(cell_t *cell, channel_t *chan);
 static int create_plugin_offer(cell_t *plugin_offer, circid_t circ_id);
 static void handle_plugin_offer_cell(cell_t *cell, channel_t *chan);
+static void send_plugin_files(char *plugin_name, cell_t *cell, channel_t *chan);
 
 /** Convert the cell <b>command</b> into a lower-case, human-readable
  * string. */
@@ -695,12 +701,94 @@ command_process_plugin_cell(cell_t *cell, channel_t *chan)
     break;
   case CELL_PLUGIN_REQUEST:
     log_debug(LD_OR, "CELL_PLUGIN_REQUEST: %s", cell->payload);
-    // TODO implement transfer here after
+    handle_plugin_request_cell(cell, chan);
     break;
   case CELL_PLUGIN_TRANSFER:
     break;
 
   }
+}
+
+static void
+handle_plugin_request_cell(cell_t *cell, channel_t *chan)
+{
+  int last = 0;
+  char plugin_name[CELL_PAYLOAD_SIZE-2];
+  int found;
+  int p_name_idx;
+  int payload_idx = 0;
+
+  while (!last) {
+    // get plugin name
+    memset(plugin_name, 0, CELL_PAYLOAD_SIZE - 2);
+    p_name_idx = 0;
+    while (cell->payload[payload_idx] != '\n' && !last) {
+      if (cell->payload[payload_idx] == 0) {
+        last = 1;
+      } else {
+        plugin_name[p_name_idx] = cell->payload[payload_idx];
+        p_name_idx++;
+        payload_idx++;
+      }
+    }
+    payload_idx++;
+
+    // iterate over the files to send them using trunnel
+    log_debug(LD_OR, "About to send plugin: %s", plugin_name);
+    send_plugin_files(plugin_name, cell, chan);
+
+
+  }
+}
+
+static void
+send_plugin_files(char *plugin_name, cell_t *cell, channel_t *chan)
+{
+  log_debug(LD_OR, "Send plugin files for %s", plugin_name);
+  struct dirent *de;
+  int bytes_read;
+  uint8_t file_name[CELL_PAYLOAD_SIZE];
+  uint8_t file_data[CELL_PAYLOAD_SIZE];
+  int remaining_space;
+
+  cell_t transfer_cell;
+  memset(&transfer_cell, 0, sizeof(transfer_cell));
+  transfer_cell.command = CELL_PLUGIN_TRANSFER;
+  transfer_cell.circ_id = cell->circ_id;
+
+  char dir_name[PATH_MAX];
+  memset(dir_name, 0, PATH_MAX);
+  strcat(dir_name, get_options()->PluginsDirectory);
+  strcat(dir_name, "/");
+  strcat(dir_name, plugin_name);
+
+  plugin_file_part_t *cell_payload = NULL;
+  cell_payload = plugin_file_part_new();
+
+  FILE *fptr;
+  DIR *dr = opendir(dir_name);
+  while ((de = readdir(dr)) != NULL) {
+
+    if (!strcmp(de->d_name, ".") ||
+        !strcmp(de->d_name, "..")) {
+      continue;
+    }
+
+    log_debug(LD_OR, "Sending file: %s", de->d_name);
+    // TODO CONTINUE HERE
+//    remaining_space = CELL_PAYLOAD_SIZE - 5;
+//    fptr = fopen(dir_name, "rb");
+//    memset(file_data, 0, CELL_PAYLOAD_SIZE);
+//    bytes_read = fread(file_data, 1, , fptr);
+//
+//    fclose(fptr);
+
+
+
+  }
+
+  plugin_file_part_free(cell_payload);
+
 }
 
 /**
@@ -729,6 +817,7 @@ handle_plugin_offer_cell(cell_t *cell, channel_t *chan)
   unsigned long request_payload_idx = 0;
   int last = 0;
   int will_request = 0;
+  char dir[PATH_MAX];
 
   while (!last) {
     memset(plugin_name, 0, CELL_PAYLOAD_SIZE - 2);
@@ -750,6 +839,14 @@ handle_plugin_offer_cell(cell_t *cell, channel_t *chan)
       if (strcmp(plugin_name, de->d_name) == 0) {
         found = 1;
         log_debug(LD_OR, "Already have this: %s", plugin_name);
+      } else {
+        memset(dir, 0, PATH_MAX);
+        strcat(dir, ".");
+        strcat(dir, plugin_name);
+        if (strcmp(dir, de->d_name) == 0) {
+          found = 1;
+          log_debug(LD_OR, "Plugin has already been requested: .%s", plugin_name);
+        }
       }
     }
     closedir(dr);
@@ -764,6 +861,13 @@ handle_plugin_offer_cell(cell_t *cell, channel_t *chan)
       request_payload_idx += strlen(plugin_name);
       request_cell.payload[request_payload_idx] = '\n';
       request_payload_idx ++;
+
+      memset(dir, 0, PATH_MAX);
+      strcat(dir, get_options()->PluginsDirectory);
+      strcat(dir, "/.");
+      strcat(dir, plugin_name);
+      log_debug(LD_OR, "Creating directory: %s", dir);
+      mkdir(dir, 0700);
     }
   }
   request_payload_idx = request_payload_idx > 0 ? request_payload_idx-1 : 0;
@@ -813,7 +917,7 @@ create_plugin_offer(cell_t *plugin_offer, circid_t circ_id)
 
   DIR *dr = opendir(get_options()->PluginsDirectory);
   while ((de = readdir(dr)) != NULL) {
-    if (!strcmp(de->d_name, ".") || !strcmp(de->d_name, ".."))
+    if (de->d_name[0] == '.')
       continue;
     offered ++;
     unsigned int i = 0;

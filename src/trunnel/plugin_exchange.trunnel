@@ -1,0 +1,11 @@
+struct plugin_file_part {
+
+ u16 file_name_len;
+ u16 data_len;
+ u8 is_last_chunk IN [0, 1];
+
+
+ u8 file_name[file_name_len];
+ u8 data[data_len];
+
+}
