@@ -758,7 +758,7 @@ send_plugin_files(char *plugin_name, cell_t *cell, channel_t *chan)
   struct dirent *de;
   unsigned long bytes_read;
   uint8_t relative_file_name[CELL_PAYLOAD_SIZE];
-  int payload_idx = 0;
+  int payload_idx;
   int len;
 
   cell_t transfer_cell;
@@ -792,6 +792,8 @@ send_plugin_files(char *plugin_name, cell_t *cell, channel_t *chan)
     strcat((char *)relative_file_name, "/");
     strcat((char *)relative_file_name, de->d_name);
     log_debug(LD_OR, "Sending file: %s", relative_file_name);
+
+    payload_idx = 0;
 
     len = (int) strlen((char*)relative_file_name);
     memcpy(&transfer_cell.payload[payload_idx], &len,
@@ -833,17 +835,9 @@ send_plugin_files(char *plugin_name, cell_t *cell, channel_t *chan)
     } while (bytes_read == remaining_space);
 
     fclose(fptr);
-
-
-
-
-
-
+    memset(transfer_cell.payload, 0, CELL_PAYLOAD_SIZE);
 
   }
-
-
-
 }
 
 /**
