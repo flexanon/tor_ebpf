@@ -18,6 +18,10 @@
 #include <dirent.h>
 #include "core/or/plugin_exchange.h"
 
+/**
+ * Read plugin file payload received from the network and write it to disk
+ * in the corresponding file
+ */
 void
 handle_plugin_transfer_cell(cell_t *cell)
 {
@@ -55,6 +59,9 @@ handle_plugin_transfer_cell(cell_t *cell)
   fclose(fptr);
 }
 
+/**
+ * Move the plugin to its final folder once the transfer is done
+ */
 void
 handle_plugin_transferred_cell(cell_t *cell)
 {
@@ -74,6 +81,11 @@ handle_plugin_transferred_cell(cell_t *cell)
   rename(dir_name, new_dir_name);
 }
 
+/**
+ * Send the plugins listed in the cell payload.
+ * Once the a given plugin is completely sent, a CELL_PLUGIN_TRANSFERRED
+ * is sent to acknowledge the end of the plugin transfer.
+ */
 void
 handle_plugin_request_cell(cell_t *cell, channel_t *chan)
 {
@@ -119,6 +131,11 @@ handle_plugin_request_cell(cell_t *cell, channel_t *chan)
   }
 }
 
+/**
+ * Send the files for a given plugin.
+ * The file in the folder corresponding to plugin_name are listed and
+ * sent in CELL_PLUGIN_TRANSFER cells in response to cell on chan
+ */
 void
 send_plugin_files(char *plugin_name, cell_t *cell, channel_t *chan)
 {
