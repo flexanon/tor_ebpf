@@ -14,8 +14,7 @@ TRUNNELINPUTS = \
 	src/trunnel/sendme_cell.trunnel \
 	src/trunnel/socks5.trunnel \
 	src/trunnel/circpad_negotiation.trunnel \
-    src/trunnel/plug_cell.trunnel \
-    src/trunnel/plugin_exchange.trunnel
+    src/trunnel/plug_cell.trunnel
 
 TRUNNELSOURCES = \
 	src/ext/trunnel/trunnel.c \
@@ -31,8 +30,7 @@ TRUNNELSOURCES = \
 	src/trunnel/socks5.c \
 	src/trunnel/netinfo.c \
 	src/trunnel/circpad_negotiation.c \
-    src/trunnel/plug_cell.c \
-    src/trunnel/plugin_exchange.c
+    src/trunnel/plug_cell.c
 
 TRUNNELHEADERS = \
 	src/ext/trunnel/trunnel.h		\
@@ -50,8 +48,7 @@ TRUNNELHEADERS = \
 	src/trunnel/socks5.h                    \
 	src/trunnel/netinfo.h \
 	src/trunnel/circpad_negotiation.h \
-    src/trunnel/plug_cell.h \
-    src/trunnel/plugin_exchange.h
+    src/trunnel/plug_cell.h
 
 
 src_trunnel_libor_trunnel_a_SOURCES = $(TRUNNELSOURCES)

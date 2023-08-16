@@ -68,7 +68,6 @@
 #include "core/or/origin_circuit_st.h"
 #include "core/or/var_cell_st.h"
 
-#include "trunnel/plugin_exchange.h"
 
 /** How many CELL_CREATE cells have we received, ever? */
 uint64_t stats_n_create_cells_processed = 0;
@@ -694,6 +693,11 @@ command_process_plugin_cell(cell_t *cell, channel_t *chan)
   log_debug(LD_OR, "Wow!  Just got a PLUGIN cell over here (circID: %u)",
             cell->circ_id);
 
+  int len_name;
+  int len_data;
+  char file_name[CELL_PAYLOAD_SIZE];
+  memset(file_name, 0, CELL_PAYLOAD_SIZE);
+
   switch (cell->command) {
 
   case CELL_PLUGIN_OFFER:
@@ -704,6 +708,12 @@ command_process_plugin_cell(cell_t *cell, channel_t *chan)
     handle_plugin_request_cell(cell, chan);
     break;
   case CELL_PLUGIN_TRANSFER:
+    memcpy(&len_name, cell->payload, sizeof (len_name));
+    memcpy(file_name, &cell->payload[sizeof (len_name)], len_name);
+    memcpy(&len_data, &cell->payload[sizeof (len_name) + len_name], sizeof (len_data));
+
+    log_debug(LD_OR, "CELL_PLUGIN_TRANSFER chunk of %s (%d bytes)", file_name, len_data);
+    // TODO handle cell here :-)
     break;
 
   }
@@ -733,7 +743,7 @@ handle_plugin_request_cell(cell_t *cell, channel_t *chan)
     }
     payload_idx++;
 
-    // iterate over the files to send them using trunnel
+    // iterate over the files to send them
     log_debug(LD_OR, "About to send plugin: %s", plugin_name);
     send_plugin_files(plugin_name, cell, chan);
 
@@ -746,15 +756,19 @@ send_plugin_files(char *plugin_name, cell_t *cell, channel_t *chan)
 {
   log_debug(LD_OR, "Send plugin files for %s", plugin_name);
   struct dirent *de;
-  int bytes_read;
-  uint8_t file_name[CELL_PAYLOAD_SIZE];
-  uint8_t file_data[CELL_PAYLOAD_SIZE];
-  int remaining_space;
+  unsigned long bytes_read;
+  uint8_t relative_file_name[CELL_PAYLOAD_SIZE];
+  int payload_idx = 0;
+  int len;
 
   cell_t transfer_cell;
   memset(&transfer_cell, 0, sizeof(transfer_cell));
   transfer_cell.command = CELL_PLUGIN_TRANSFER;
   transfer_cell.circ_id = cell->circ_id;
+
+  circuit_t *circ;
+  circ = circuit_get_by_circid_channel(transfer_cell.circ_id, chan);
+  cell_direction_t direction = circ->n_chan == chan ? CELL_DIRECTION_OUT : CELL_DIRECTION_IN;
 
   char dir_name[PATH_MAX];
   memset(dir_name, 0, PATH_MAX);
@@ -762,8 +776,7 @@ send_plugin_files(char *plugin_name, cell_t *cell, channel_t *chan)
   strcat(dir_name, "/");
   strcat(dir_name, plugin_name);
 
-  plugin_file_part_t *cell_payload = NULL;
-  cell_payload = plugin_file_part_new();
+  char absolute_file_name[PATH_MAX];
 
   FILE *fptr;
   DIR *dr = opendir(dir_name);
@@ -774,20 +787,62 @@ send_plugin_files(char *plugin_name, cell_t *cell, channel_t *chan)
       continue;
     }
 
-    log_debug(LD_OR, "Sending file: %s", de->d_name);
-    // TODO CONTINUE HERE
-//    remaining_space = CELL_PAYLOAD_SIZE - 5;
-//    fptr = fopen(dir_name, "rb");
-//    memset(file_data, 0, CELL_PAYLOAD_SIZE);
-//    bytes_read = fread(file_data, 1, , fptr);
-//
-//    fclose(fptr);
+    memset(relative_file_name, 0, CELL_PAYLOAD_SIZE);
+    strcat((char *)relative_file_name, plugin_name);
+    strcat((char *)relative_file_name, "/");
+    strcat((char *)relative_file_name, de->d_name);
+    log_debug(LD_OR, "Sending file: %s", relative_file_name);
+
+    len = (int) strlen((char*)relative_file_name);
+    memcpy(&transfer_cell.payload[payload_idx], &len,
+           sizeof(len));
+    payload_idx += sizeof(int);
+
+    memcpy(&transfer_cell.payload[payload_idx], relative_file_name, strlen((char*)relative_file_name));
+    payload_idx += (int) strlen((char*)relative_file_name);
+
+
+    unsigned long remaining_space = CELL_PAYLOAD_SIZE-payload_idx-sizeof(int);
+    log_debug(LD_OR, "remaining size: %lu", remaining_space);
+
+    memset(absolute_file_name, 0, PATH_MAX);
+    strcat(absolute_file_name, dir_name);
+    strcat(absolute_file_name, "/");
+    strcat(absolute_file_name, de->d_name);
+
+    fptr = fopen(absolute_file_name, "rb");
+
+    do {
+      bytes_read = fread(&transfer_cell.payload[payload_idx + sizeof(int)], 1,
+                         remaining_space, fptr);
+
+      len = (int)bytes_read;
+      memcpy(&transfer_cell.payload[payload_idx], &len, sizeof(len));
+      log_debug(LD_OR, "Read %lu bytes from file %s", bytes_read,
+                absolute_file_name);
+
+      // Actually send the cell here and zero what is needed for next iteration
+      log_debug(LD_OR, "Sending PLUGIN TRANSFER cell (circID: %u): %lu bytes of %s",
+                transfer_cell.circ_id, bytes_read, relative_file_name);
+      append_cell_to_circuit_queue(circ,
+                                   chan, &transfer_cell,
+                                   direction, 0);
+
+      memset(&transfer_cell.payload[payload_idx], 0, remaining_space);
+
+    } while (bytes_read == remaining_space);
+
+    fclose(fptr);
+
+
+
+
 
 
 
   }
 
-  plugin_file_part_free(cell_payload);
+
 
 }
 
