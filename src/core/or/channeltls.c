@@ -1149,6 +1149,7 @@ channel_tls_handle_cell(cell_t *cell, or_connection_t *conn)
     case CELL_PLUGIN_OFFER:
     case CELL_PLUGIN_REQUEST:
     case CELL_PLUGIN_TRANSFER:
+    case CELL_PLUGIN_TRANSFERRED:
       /*
        * These are all transport independent and we pass them up through the
        * channel_t mechanism.  They are ultimately handled in command.c.

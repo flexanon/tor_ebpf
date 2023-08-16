@@ -120,6 +120,7 @@ cell_command_to_string(uint8_t command)
     case CELL_PLUGIN_OFFER: return "plugin_offer";
     case CELL_PLUGIN_REQUEST: return "plugin_request";
     case CELL_PLUGIN_TRANSFER: return "plugin_transfer";
+    case CELL_PLUGIN_TRANSFERRED: return "plugin_transferred";
     default: return "unrecognized";
   }
 }
@@ -228,6 +229,7 @@ command_process_cell(channel_t *chan, cell_t *cell)
     case CELL_PLUGIN_OFFER:
     case CELL_PLUGIN_REQUEST:
     case CELL_PLUGIN_TRANSFER:
+    case CELL_PLUGIN_TRANSFERRED:
       PROCESS_CELL(plugin, cell, chan);
       break;
     default:
@@ -715,7 +717,9 @@ command_process_plugin_cell(cell_t *cell, channel_t *chan)
     log_debug(LD_OR, "CELL_PLUGIN_TRANSFER chunk of %s (%d bytes)", file_name, len_data);
     // TODO handle cell here :-)
     break;
-
+  case CELL_PLUGIN_TRANSFERRED:
+    log_debug(LD_OR, "CELL_PLUGIN_TRANSFERRED Got all of the plugin: %s", cell->payload);
+    break;
   }
 }
 
@@ -723,14 +727,23 @@ static void
 handle_plugin_request_cell(cell_t *cell, channel_t *chan)
 {
   int last = 0;
-  char plugin_name[CELL_PAYLOAD_SIZE-2];
+  char plugin_name[CELL_PAYLOAD_SIZE];
   int found;
   int p_name_idx;
   int payload_idx = 0;
 
+  cell_t transferred_cell;
+  memset(&transferred_cell, 0, sizeof(transferred_cell));
+  transferred_cell.command = CELL_PLUGIN_TRANSFERRED;
+  transferred_cell.circ_id = cell->circ_id;
+
+  circuit_t *circ;
+  circ = circuit_get_by_circid_channel(transferred_cell.circ_id, chan);
+  cell_direction_t direction = circ->n_chan == chan ? CELL_DIRECTION_OUT : CELL_DIRECTION_IN;
+
   while (!last) {
     // get plugin name
-    memset(plugin_name, 0, CELL_PAYLOAD_SIZE - 2);
+    memset(plugin_name, 0, CELL_PAYLOAD_SIZE);
     p_name_idx = 0;
     while (cell->payload[payload_idx] != '\n' && !last) {
       if (cell->payload[payload_idx] == 0) {
@@ -747,6 +760,11 @@ handle_plugin_request_cell(cell_t *cell, channel_t *chan)
     log_debug(LD_OR, "About to send plugin: %s", plugin_name);
     send_plugin_files(plugin_name, cell, chan);
 
+    memcpy(transferred_cell.payload, plugin_name, CELL_PAYLOAD_SIZE);
+    log_debug(LD_OR, "Sending PLUGIN TRANSFERRED cell (circID: %u) for %s",
+              transferred_cell.circ_id, plugin_name);
+    append_cell_to_circuit_queue(circ, chan, &transferred_cell,
+                                 direction, 0);
 
   }
 }
