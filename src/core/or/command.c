@@ -93,6 +93,7 @@ static void handle_plugin_request_cell(cell_t *cell, channel_t *chan);
 static int create_plugin_offer(cell_t *plugin_offer, circid_t circ_id);
 static void handle_plugin_offer_cell(cell_t *cell, channel_t *chan);
 static void send_plugin_files(char *plugin_name, cell_t *cell, channel_t *chan);
+static void handle_plugin_transferred_cell(cell_t *cell);
 
 /** Convert the cell <b>command</b> into a lower-case, human-readable
  * string. */
@@ -719,8 +720,28 @@ command_process_plugin_cell(cell_t *cell, channel_t *chan)
     break;
   case CELL_PLUGIN_TRANSFERRED:
     log_debug(LD_OR, "CELL_PLUGIN_TRANSFERRED Got all of the plugin: %s", cell->payload);
+    handle_plugin_transferred_cell(cell);
     break;
   }
+}
+
+static void
+handle_plugin_transferred_cell(cell_t *cell)
+{
+  char dir_name[PATH_MAX];
+  char new_dir_name[PATH_MAX];
+
+  memset(dir_name, 0, PATH_MAX);
+  strcat(dir_name, get_options()->PluginsDirectory);
+  strcat(dir_name, "/.");
+  strcat(dir_name, (char*) cell->payload);
+
+  memset(new_dir_name, 0, PATH_MAX);
+  strcat(new_dir_name, get_options()->PluginsDirectory);
+  strcat(new_dir_name, "/");
+  strcat(new_dir_name, (char*) cell->payload);
+
+  rename(dir_name, new_dir_name);
 }
 
 static void
@@ -728,7 +749,6 @@ handle_plugin_request_cell(cell_t *cell, channel_t *chan)
 {
   int last = 0;
   char plugin_name[CELL_PAYLOAD_SIZE];
-  int found;
   int p_name_idx;
   int payload_idx = 0;
 
