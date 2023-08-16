@@ -39,6 +39,7 @@
 #include <dirent.h>
 #include <sys/stat.h>
 #include <linux/limits.h>
+#include <unistd.h>
 
 #include "core/or/or.h"
 #include "app/config/config.h"
@@ -95,6 +96,7 @@ static void handle_plugin_offer_cell(cell_t *cell, channel_t *chan);
 static void send_plugin_files(char *plugin_name, cell_t *cell, channel_t *chan);
 static void handle_plugin_transferred_cell(cell_t *cell);
 
+static void handle_plugin_transfer_cell(cell_t *cell, channel_t *chan);
 /** Convert the cell <b>command</b> into a lower-case, human-readable
  * string. */
 const char *
@@ -716,13 +718,50 @@ command_process_plugin_cell(cell_t *cell, channel_t *chan)
     memcpy(&len_data, &cell->payload[sizeof (len_name) + len_name], sizeof (len_data));
 
     log_debug(LD_OR, "CELL_PLUGIN_TRANSFER chunk of %s (%d bytes)", file_name, len_data);
-    // TODO handle cell here :-)
+    handle_plugin_transfer_cell(cell, chan);
     break;
   case CELL_PLUGIN_TRANSFERRED:
     log_debug(LD_OR, "CELL_PLUGIN_TRANSFERRED Got all of the plugin: %s", cell->payload);
     handle_plugin_transferred_cell(cell);
     break;
   }
+}
+
+static void
+handle_plugin_transfer_cell(cell_t *cell, channel_t *chan)
+{
+  int len_name;
+  int len_data;
+  char file_name[CELL_PAYLOAD_SIZE];
+  memset(file_name, 0, CELL_PAYLOAD_SIZE);
+  uint8_t file_data[CELL_PAYLOAD_SIZE];
+  memset(file_data, 0, CELL_PAYLOAD_SIZE);
+  int idx = 0;
+  char absolute_file_name[PATH_MAX];
+  memset(absolute_file_name, 0, PATH_MAX);
+
+  memcpy(&len_name, &cell->payload[idx], sizeof (len_name));
+  idx += sizeof (len_name);
+  memcpy(file_name, &cell->payload[idx], len_name);
+  idx += len_name;
+  memcpy(&len_data, &cell->payload[idx], sizeof (len_data));
+  idx += sizeof (len_data);
+
+
+  // Open file in append mode (created if it does not exist)
+  strcat(absolute_file_name, get_options()->PluginsDirectory);
+  strcat(absolute_file_name, "/.");
+  strcat(absolute_file_name, file_name);
+
+  log_debug(LD_OR, "About to write %d bytes to %s", len_data, file_name);
+
+  FILE *fptr = fopen(absolute_file_name, "a");
+  unsigned long bytes_read;
+  bytes_read = fwrite(&cell->payload[idx], 1, len_data, fptr);
+
+  log_debug(LD_OR, "Wrote %lu bytes to %s", bytes_read, file_name);
+
+  fclose(fptr);
 }
 
 static void
