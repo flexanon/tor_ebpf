@@ -37,9 +37,6 @@
  *   called when channels are created in circuitbuild.c
  */
 #include <dirent.h>
-#include <sys/stat.h>
-#include <linux/limits.h>
-#include <unistd.h>
 
 #include "core/or/or.h"
 #include "app/config/config.h"
@@ -58,7 +55,6 @@
 #include "feature/hibernate/hibernate.h"
 #include "feature/nodelist/describe.h"
 #include "feature/nodelist/nodelist.h"
-#include "feature/nodelist/routerlist.h"
 #include "feature/relay/circuitbuild_relay.h"
 #include "feature/relay/routermode.h"
 #include "feature/stats/rephist.h"
@@ -237,6 +233,30 @@ command_process_cell(channel_t *chan, cell_t *cell)
   }
 }
 
+/**
+ * Handle the plugin exchange cells.
+ * The protocol is implemented in plugin_exchange.c
+ */
+static void
+command_process_plugin_cell(cell_t *cell, channel_t *chan)
+{
+  switch (cell->command) {
+
+  case CELL_PLUGIN_OFFER:
+      handle_plugin_offer_cell(cell, chan);
+      break;
+  case CELL_PLUGIN_REQUEST:
+      handle_plugin_request_cell(cell, chan);
+      break;
+  case CELL_PLUGIN_TRANSFER:
+      handle_plugin_transfer_cell(cell);
+      break;
+  case CELL_PLUGIN_TRANSFERRED:
+      handle_plugin_transferred_cell(cell);
+      break;
+  }
+}
+
 /** Process a 'create' <b>cell</b> that just arrived from <b>chan</b>. Make a
  * new circuit with the p_circ_id specified in cell. Put the circuit in state
  * onionskin_pending, and pass the onionskin to the cpuworker. Circ will get
@@ -398,8 +418,7 @@ command_process_create_cell(cell_t *cell, channel_t *chan)
       return;
     }
 
-
-    // Send a PLUGIN offer cell after a created cell
+    // Send a PLUGIN_OFFER cell after a created cell
     cell_t plugin_cell;
     if (create_plugin_offer(&plugin_cell, cell->circ_id) > 0) {
       log_debug(LD_OR, "Sending PLUGIN cell upon CREATED sent (circID: %u)",
@@ -484,7 +503,7 @@ command_process_created_cell(cell_t *cell, channel_t *chan)
                                  (const char*)payload, len, NULL);
   }
 
-  // Send a PLUGIN offer cell after a created cell
+  // Send a PLUGIN_OFFER cell after a created cell
   cell_t plugin_cell;
   if (create_plugin_offer(&plugin_cell, cell->circ_id) > 0) {
     log_debug(LD_OR, "Sending PLUGIN cell upon CREATED received (circID: %u)",
@@ -681,42 +700,6 @@ command_process_destroy_cell(cell_t *cell, channel_t *chan)
       relay_send_command_from_edge(0, circ, RELAY_COMMAND_TRUNCATED,
                                    payload, sizeof(payload), NULL);
     }
-  }
-}
-
-static void
-command_process_plugin_cell(cell_t *cell, channel_t *chan)
-{
-
-  log_debug(LD_OR, "Wow!  Just got a PLUGIN cell over here (circID: %u)",
-            cell->circ_id);
-
-  int len_name;
-  int len_data;
-  char file_name[CELL_PAYLOAD_SIZE];
-  memset(file_name, 0, CELL_PAYLOAD_SIZE);
-
-  switch (cell->command) {
-
-  case CELL_PLUGIN_OFFER:
-    handle_plugin_offer_cell(cell, chan);
-    break;
-  case CELL_PLUGIN_REQUEST:
-    log_debug(LD_OR, "CELL_PLUGIN_REQUEST: %s", cell->payload);
-    handle_plugin_request_cell(cell, chan);
-    break;
-  case CELL_PLUGIN_TRANSFER:
-    memcpy(&len_name, cell->payload, sizeof (len_name));
-    memcpy(file_name, &cell->payload[sizeof (len_name)], len_name);
-    memcpy(&len_data, &cell->payload[sizeof (len_name) + len_name], sizeof (len_data));
-
-    log_debug(LD_OR, "CELL_PLUGIN_TRANSFER chunk of %s (%d bytes)", file_name, len_data);
-    handle_plugin_transfer_cell(cell);
-    break;
-  case CELL_PLUGIN_TRANSFERRED:
-    log_debug(LD_OR, "CELL_PLUGIN_TRANSFERRED Got all of the plugin: %s", cell->payload);
-    handle_plugin_transferred_cell(cell);
-    break;
   }
 }
 

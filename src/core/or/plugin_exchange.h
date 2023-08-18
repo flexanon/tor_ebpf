@@ -2,6 +2,11 @@
 // Created by jdejaegh on 16/08/23.
 //
 
+/**
+ * \file plugin_exchange.h
+ * \brief Header file for plugin_exchange.c.
+ **/
+
 #ifndef PLUGIN_EXCHANGE_H
 #define PLUGIN_EXCHANGE_H
 #include "core/or/channel.h"

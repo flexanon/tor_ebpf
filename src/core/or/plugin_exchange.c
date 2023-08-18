@@ -1,6 +1,25 @@
 //
 // Created by jdejaegh on 16/08/23.
 //
+
+/**
+ * \file plugin_exchange.c
+ * \brief Functions for exchanging plugins between peers.
+ * 
+ * The protocol starts when a circuit is created (upon reception or emission
+ * of a CREATED cell). 
+ * Both peer send a PLUGIN_OFFER cell with a list of their available plugins.
+ * When a PLUGIN_OFFER cell arrives, a node can choose to request one or more
+ * plugins by listing their names in a PLUGIN_REQUEST cell.
+ * 
+ * Upon reception of a PLUGIN_REQUEST cell, a node starts sending the plugins
+ * listed in the cell payload with PLUGIN_TRANSFER cells.  Each PLUGIN_TRANSFER
+ * cell contain a chunk of a given plugin file. 
+ * Once all the plugin files are transferred, the node send a PLUGIN_TRANSFERRED
+ * to let the peer know that the plugin has been completely transferred.
+ */
+ 
+
 #include "core/or/or.h"
 #include "core/or/var_cell_st.h"
 #include "core/or/origin_circuit_st.h"
@@ -48,13 +67,13 @@ handle_plugin_transfer_cell(cell_t *cell)
   strcat(absolute_file_name, "/.");
   strcat(absolute_file_name, file_name);
 
-  log_debug(LD_OR, "About to write %d bytes to %s", len_data, file_name);
+  log_debug(LD_PLUGIN_EXCHANGE, "About to write %d bytes to %s", len_data, file_name);
 
   FILE *fptr = fopen(absolute_file_name, "a");
   unsigned long bytes_read;
   bytes_read = fwrite(&cell->payload[idx], 1, len_data, fptr);
 
-  log_debug(LD_OR, "Wrote %lu bytes to %s", bytes_read, file_name);
+  log_debug(LD_PLUGIN_EXCHANGE, "Wrote %lu bytes to %s", bytes_read, file_name);
 
   fclose(fptr);
 }
@@ -79,6 +98,8 @@ handle_plugin_transferred_cell(cell_t *cell)
   strcat(new_dir_name, (char*) cell->payload);
 
   rename(dir_name, new_dir_name);
+  log_notice(LD_PLUGIN_EXCHANGE, "Node (%s) completely received the plugin: %s (circ_id %u)",
+             get_options()->Nickname, cell->payload, cell->circ_id);
 }
 
 /**
@@ -119,12 +140,14 @@ handle_plugin_request_cell(cell_t *cell, channel_t *chan)
     payload_idx++;
 
     // iterate over the files to send them
-    log_debug(LD_OR, "About to send plugin: %s", plugin_name);
+    log_notice(LD_PLUGIN_EXCHANGE, "Starting to send plugin: %s (circ_id %u)",
+               plugin_name, transferred_cell.circ_id);
     send_plugin_files(plugin_name, cell, chan);
-
+    
+    // Notify peer once the plugin is transferred
     memcpy(transferred_cell.payload, plugin_name, CELL_PAYLOAD_SIZE);
-    log_debug(LD_OR, "Sending PLUGIN TRANSFERRED cell (circID: %u) for %s",
-              transferred_cell.circ_id, plugin_name);
+    log_notice(LD_PLUGIN_EXCHANGE, "Plugin sent: %s (circ_id %u)",
+              plugin_name, transferred_cell.circ_id);
     append_cell_to_circuit_queue(circ, chan, &transferred_cell,
                                  direction, 0);
 
@@ -133,13 +156,13 @@ handle_plugin_request_cell(cell_t *cell, channel_t *chan)
 
 /**
  * Send the files for a given plugin.
- * The file in the folder corresponding to plugin_name are listed and
+ * The files in the folder corresponding to plugin_name are listed and
  * sent in CELL_PLUGIN_TRANSFER cells in response to cell on chan
  */
 void
 send_plugin_files(char *plugin_name, cell_t *cell, channel_t *chan)
 {
-  log_debug(LD_OR, "Send plugin files for %s", plugin_name);
+  log_debug(LD_PLUGIN_EXCHANGE, "Send plugin files for %s", plugin_name);
   struct dirent *de;
   unsigned long bytes_read;
   uint8_t relative_file_name[CELL_PAYLOAD_SIZE];
@@ -163,6 +186,7 @@ send_plugin_files(char *plugin_name, cell_t *cell, channel_t *chan)
 
   char absolute_file_name[PATH_MAX];
 
+  // List all the files in the directory of the plugin
   FILE *fptr;
   DIR *dr = opendir(dir_name);
   while ((de = readdir(dr)) != NULL) {
@@ -176,7 +200,7 @@ send_plugin_files(char *plugin_name, cell_t *cell, channel_t *chan)
     strcat((char *)relative_file_name, plugin_name);
     strcat((char *)relative_file_name, "/");
     strcat((char *)relative_file_name, de->d_name);
-    log_debug(LD_OR, "Sending file: %s", relative_file_name);
+    log_debug(LD_PLUGIN_EXCHANGE, "Sending file: %s", relative_file_name);
 
     payload_idx = 0;
 
@@ -190,7 +214,6 @@ send_plugin_files(char *plugin_name, cell_t *cell, channel_t *chan)
 
 
     unsigned long remaining_space = CELL_PAYLOAD_SIZE-payload_idx-sizeof(int);
-    log_debug(LD_OR, "remaining size: %lu", remaining_space);
 
     memset(absolute_file_name, 0, PATH_MAX);
     strcat(absolute_file_name, dir_name);
@@ -199,17 +222,17 @@ send_plugin_files(char *plugin_name, cell_t *cell, channel_t *chan)
 
     fptr = fopen(absolute_file_name, "rb");
 
+    // As long as we can read the maximum from the file, continue to send
+    // cells with content of the file
     do {
       bytes_read = fread(&transfer_cell.payload[payload_idx + sizeof(int)], 1,
                          remaining_space, fptr);
 
       len = (int)bytes_read;
       memcpy(&transfer_cell.payload[payload_idx], &len, sizeof(len));
-      log_debug(LD_OR, "Read %lu bytes from file %s", bytes_read,
-                absolute_file_name);
 
       // Actually send the cell here and zero what is needed for next iteration
-      log_debug(LD_OR, "Sending PLUGIN TRANSFER cell (circID: %u): %lu bytes of %s",
+      log_debug(LD_PLUGIN_EXCHANGE, "Sending PLUGIN_TRANSFER cell (circID: %u): %lu bytes of %s",
                 transfer_cell.circ_id, bytes_read, relative_file_name);
       append_cell_to_circuit_queue(circ,
                                    chan, &transfer_cell,
@@ -235,7 +258,9 @@ handle_plugin_offer_cell(cell_t *cell, channel_t *chan)
 {
 
   if (cell->payload[0] == 0) {
-    log_notice(LD_OR, "Received empty plugin offer, quite useless you know");
+    log_notice(LD_PLUGIN_EXCHANGE,
+               "Received empty plugin offer, quite useless you know (circ_id %u)",
+               cell->circ_id);
     return;
   }
 
@@ -272,14 +297,14 @@ handle_plugin_offer_cell(cell_t *cell, channel_t *chan)
     while (((de = readdir(dr)) != NULL)) {
       if (strcmp(plugin_name, de->d_name) == 0) {
         found = 1;
-        log_debug(LD_OR, "Already have this: %s", plugin_name);
+        log_debug(LD_PLUGIN_EXCHANGE, "Already have this: %s", plugin_name);
       } else {
         memset(dir, 0, PATH_MAX);
         strcat(dir, ".");
         strcat(dir, plugin_name);
         if (strcmp(dir, de->d_name) == 0) {
           found = 1;
-          log_debug(LD_OR, "Plugin has already been requested: .%s", plugin_name);
+          log_debug(LD_PLUGIN_EXCHANGE, "Plugin has already been requested: .%s", plugin_name);
         }
       }
     }
@@ -288,7 +313,7 @@ handle_plugin_offer_cell(cell_t *cell, channel_t *chan)
     // No need to check for cell overflow capacity as the request is at most
     // as long as the offer (cannot request more than what is offered)
     if (found == 0) {
-      log_debug(LD_OR, "Will request plugin: %s", plugin_name);
+      log_debug(LD_PLUGIN_EXCHANGE, "Will request plugin: %s", plugin_name);
       will_request = 1;
       memcpy(&request_cell.payload[request_payload_idx],
              plugin_name, strlen(plugin_name));
@@ -300,7 +325,7 @@ handle_plugin_offer_cell(cell_t *cell, channel_t *chan)
       strcat(dir, get_options()->PluginsDirectory);
       strcat(dir, "/.");
       strcat(dir, plugin_name);
-      log_debug(LD_OR, "Creating directory: %s", dir);
+      log_debug(LD_PLUGIN_EXCHANGE, "Creating directory: %s", dir);
       mkdir(dir, 0700);
     }
   }
@@ -316,7 +341,7 @@ handle_plugin_offer_cell(cell_t *cell, channel_t *chan)
 
     cell_direction_t direction = circ->n_chan == chan ? CELL_DIRECTION_OUT : CELL_DIRECTION_IN;
 
-    log_debug(LD_OR, "Sending PLUGIN REQUEST cell (circID: %u): %s",
+    log_debug(LD_PLUGIN_EXCHANGE, "Sending PLUGIN REQUEST cell (circID: %u): %s",
               request_cell.circ_id, request_cell.payload);
     append_cell_to_circuit_queue(circ,
                                  chan, &request_cell,
@@ -374,9 +399,9 @@ create_plugin_offer(cell_t *plugin_offer, circid_t circ_id)
   closedir(dr);
 
   if (offered > 0)
-    log_debug(LD_OR, "Offering: %s", plugin_offer->payload);
+    log_debug(LD_PLUGIN_EXCHANGE, "Offering: %s", plugin_offer->payload);
   else
-    log_debug(LD_OR, "Offering nothing");
+    log_debug(LD_PLUGIN_EXCHANGE, "Offering nothing");
 
   return offered;
 }
