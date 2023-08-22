@@ -418,17 +418,17 @@ command_process_create_cell(cell_t *cell, channel_t *chan)
       circuit_mark_for_close(TO_CIRCUIT(circ), END_CIRC_REASON_INTERNAL);
       return;
     }
-
-    // Send a PLUGIN_OFFER cell after a created cell
-    log_debug(LD_PLUGIN_EXCHANGE, "I should send PLUGIN cell on circ_id %u", cell->circ_id);
-    cell_t plugin_cell;
-    if (create_plugin_offer(&plugin_cell, cell->circ_id) > 0) {
-      log_debug(LD_PLUGIN_EXCHANGE, "Sending PLUGIN cell upon CREATED sent (circ_id: %u)",
-                plugin_cell.circ_id);
-      append_cell_to_circuit_queue(TO_CIRCUIT(circ), chan, &plugin_cell,
-                                   CELL_DIRECTION_IN, 0);
-    }
     memwipe(keys, 0, sizeof(keys));
+  }
+
+  // Send a PLUGIN_OFFER cell after a created cell
+  log_debug(LD_PLUGIN_EXCHANGE, "I should send PLUGIN cell on circ_id %u", cell->circ_id);
+  cell_t plugin_cell;
+  if (create_plugin_offer(&plugin_cell, cell->circ_id) > 0) {
+    log_debug(LD_PLUGIN_EXCHANGE, "Sending PLUGIN cell upon CREATED sent (circ_id: %u)",
+              plugin_cell.circ_id);
+    append_cell_to_circuit_queue(TO_CIRCUIT(circ), chan, &plugin_cell,
+                                 CELL_DIRECTION_IN, 0);
   }
 }
 
