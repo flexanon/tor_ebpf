@@ -297,14 +297,14 @@ handle_plugin_offer_cell(cell_t *cell, channel_t *chan)
     while (((de = readdir(dr)) != NULL)) {
       if (strcmp(plugin_name, de->d_name) == 0) {
         found = 1;
-        log_debug(LD_PLUGIN_EXCHANGE, "Already have this: %s", plugin_name);
+        log_debug(LD_PLUGIN_EXCHANGE, "Already have this: %s (circ_id %u)", plugin_name, cell->circ_id);
       } else {
         memset(dir, 0, PATH_MAX);
         strcat(dir, ".");
         strcat(dir, plugin_name);
         if (strcmp(dir, de->d_name) == 0) {
           found = 1;
-          log_debug(LD_PLUGIN_EXCHANGE, "Plugin has already been requested: .%s", plugin_name);
+          log_debug(LD_PLUGIN_EXCHANGE, "Plugin has already been requested: .%s (circ_id %u)", plugin_name, cell->circ_id);
         }
       }
     }
@@ -313,7 +313,7 @@ handle_plugin_offer_cell(cell_t *cell, channel_t *chan)
     // No need to check for cell overflow capacity as the request is at most
     // as long as the offer (cannot request more than what is offered)
     if (found == 0) {
-      log_debug(LD_PLUGIN_EXCHANGE, "Will request plugin: %s", plugin_name);
+      log_debug(LD_PLUGIN_EXCHANGE, "Will request plugin: %s (circ_id %u)", plugin_name, cell->circ_id);
       will_request = 1;
       memcpy(&request_cell.payload[request_payload_idx],
              plugin_name, strlen(plugin_name));
@@ -341,7 +341,7 @@ handle_plugin_offer_cell(cell_t *cell, channel_t *chan)
 
     cell_direction_t direction = circ->n_chan == chan ? CELL_DIRECTION_OUT : CELL_DIRECTION_IN;
 
-    log_debug(LD_PLUGIN_EXCHANGE, "Sending PLUGIN REQUEST cell (circID: %u): %s",
+    log_debug(LD_PLUGIN_EXCHANGE, "Sending PLUGIN REQUEST cell (circ_id: %u): %s",
               request_cell.circ_id, request_cell.payload);
     append_cell_to_circuit_queue(circ,
                                  chan, &request_cell,
@@ -399,9 +399,9 @@ create_plugin_offer(cell_t *plugin_offer, circid_t circ_id)
   closedir(dr);
 
   if (offered > 0)
-    log_debug(LD_PLUGIN_EXCHANGE, "Offering: %s", plugin_offer->payload);
+    log_debug(LD_PLUGIN_EXCHANGE, "Offering: %s (circ_id %u)", plugin_offer->payload, plugin_offer->circ_id);
   else
-    log_debug(LD_PLUGIN_EXCHANGE, "Offering nothing");
+    log_debug(LD_PLUGIN_EXCHANGE, "Offering nothing (circ_id %u)", plugin_offer->circ_id);
 
   return offered;
 }
