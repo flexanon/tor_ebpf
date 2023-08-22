@@ -241,7 +241,8 @@ static void
 command_process_plugin_cell(cell_t *cell, channel_t *chan)
 {
   switch (cell->command) {
-  log_debug(LD_PLUGIN_EXCHANGE, "Got %s cell", cell_command_to_string(cell->command));
+  log_debug(LD_PLUGIN_EXCHANGE, "Got %s cell on circ_id %u",
+                cell_command_to_string(cell->command), cell->circ_id);
   case CELL_PLUGIN_OFFER:
       handle_plugin_offer_cell(cell, chan);
       break;
@@ -422,7 +423,7 @@ command_process_create_cell(cell_t *cell, channel_t *chan)
     log_debug(LD_PLUGIN_EXCHANGE, "I should send PLUGIN cell on circ_id %u", cell->circ_id);
     cell_t plugin_cell;
     if (create_plugin_offer(&plugin_cell, cell->circ_id) > 0) {
-      log_debug(LD_PLUGIN_EXCHANGE, "Sending PLUGIN cell upon CREATED sent (circID: %u)",
+      log_debug(LD_PLUGIN_EXCHANGE, "Sending PLUGIN cell upon CREATED sent (circ_id: %u)",
                 plugin_cell.circ_id);
       append_cell_to_circuit_queue(TO_CIRCUIT(circ), chan, &plugin_cell,
                                    CELL_DIRECTION_IN, 0);
@@ -507,7 +508,7 @@ command_process_created_cell(cell_t *cell, channel_t *chan)
   // Send a PLUGIN_OFFER cell after a created cell
   cell_t plugin_cell;
   if (create_plugin_offer(&plugin_cell, cell->circ_id) > 0) {
-    log_debug(LD_PLUGIN_EXCHANGE, "Sending PLUGIN cell upon CREATED received (circID: %u)",
+    log_debug(LD_PLUGIN_EXCHANGE, "Sending PLUGIN cell upon CREATED received (circ_id: %u)",
               plugin_cell.circ_id);
     append_cell_to_circuit_queue(circ, chan, &plugin_cell, CELL_DIRECTION_OUT,
                                  0);
