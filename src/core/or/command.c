@@ -240,9 +240,9 @@ command_process_cell(channel_t *chan, cell_t *cell)
 static void
 command_process_plugin_cell(cell_t *cell, channel_t *chan)
 {
-  switch (cell->command) {
   log_debug(LD_PLUGIN_EXCHANGE, "Got %s cell on circ_id %u",
-                cell_command_to_string(cell->command), cell->circ_id);
+            cell_command_to_string(cell->command), cell->circ_id);
+  switch (cell->command) {
   case CELL_PLUGIN_OFFER:
       handle_plugin_offer_cell(cell, chan);
       break;
