@@ -140,14 +140,14 @@ handle_plugin_request_cell(cell_t *cell, channel_t *chan)
     payload_idx++;
 
     // iterate over the files to send them
-    log_notice(LD_PLUGIN_EXCHANGE, "Starting to send plugin: %s (circ_id %u)",
-               plugin_name, transferred_cell.circ_id);
+    log_notice(LD_PLUGIN_EXCHANGE, "Node (%s) starting to send plugin: %s (circ_id %u)",
+               get_options()->Nickname, plugin_name, transferred_cell.circ_id);
     send_plugin_files(plugin_name, cell, chan);
     
     // Notify peer once the plugin is transferred
     memcpy(transferred_cell.payload, plugin_name, CELL_PAYLOAD_SIZE);
-    log_notice(LD_PLUGIN_EXCHANGE, "Plugin sent: %s (circ_id %u)",
-              plugin_name, transferred_cell.circ_id);
+    log_notice(LD_PLUGIN_EXCHANGE, "Node (%s) plugin sent: %s (circ_id %u)",
+               get_options()->Nickname, plugin_name, transferred_cell.circ_id);
     append_cell_to_circuit_queue(circ, chan, &transferred_cell,
                                  direction, 0);
 
