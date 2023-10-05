@@ -52,6 +52,7 @@
 
 // trunnel
 #include "trunnel/ed25519_cert.h"
+#include "ed25519_cert.h"
 
 /** Helper: return 0 if <b>cell</b> appears valid, -1 otherwise. If
  * <b>unknown_ok</b> is true, allow cells with handshake types we don't
@@ -322,6 +323,10 @@ create_cell_from_create2_cell_body(create_cell_t *cell_out,
   memcpy(cell_out->onionskin,
        create2_cell_body_getconstarray_handshake_data(cell),
        cell->handshake_len);
+  cell_out->plugin_list_len = cell->plugin_list_len;
+  memcpy(cell_out->plugins,
+         create2_cell_body_getconstarray_plugins(cell),
+         cell->plugin_list_len);
   return 0;
 }
 
@@ -399,12 +404,15 @@ extend_cell_parse,(extend_cell_t *cell_out,
   tor_assert(cell_out);
   tor_assert(payload);
 
+  log_debug(LD_PLUGIN_EXCHANGE, "Got extend cell with payload of %zu bytes", payload_length);
+
   if (payload_length > RELAY_PAYLOAD_SIZE)
     return -1;
 
   switch (command) {
   case RELAY_COMMAND_EXTEND:
     {
+    log_debug(LD_PLUGIN_EXCHANGE, "RELAY_COMMAND_EXTEND case");
       extend1_cell_body_t *cell = NULL;
       if (extend1_cell_body_parse(&cell, payload, payload_length)<0 ||
           cell == NULL) {
@@ -420,6 +428,7 @@ extend_cell_parse,(extend_cell_t *cell_out,
     break;
   case RELAY_COMMAND_EXTEND2:
     {
+      log_debug(LD_PLUGIN_EXCHANGE, "RELAY_COMMAND_EXTEND2 case");
       extend2_cell_body_t *cell = NULL;
       if (extend2_cell_body_parse(&cell, payload, payload_length) < 0 ||
           cell == NULL) {
@@ -431,6 +440,9 @@ extend_cell_parse,(extend_cell_t *cell_out,
       extend2_cell_body_free(cell);
       if (r < 0)
         return r;
+
+      log_debug(LD_PLUGIN_EXCHANGE, "%d bytes of plugins parsed: %s",
+                cell_out->create_cell.plugin_list_len, cell_out->create_cell.plugins);
     }
     break;
   default:
@@ -536,10 +548,19 @@ create_cell_format_impl(cell_t *cell_out, const create_cell_t *cell_in,
     set_uint16(cell_out->payload, htons(cell_in->handshake_type));
     set_uint16(cell_out->payload+2, htons(cell_in->handshake_len));
     memcpy(cell_out->payload + 4, cell_in->onionskin, cell_in->handshake_len);
+    p += 4;
     break;
   default:
     return -1;
   }
+  // TODO maybe use the full definition, including plugin_list_len in the payload?
+  //  See how it is parsed on the receiving end first
+  p += cell_in->handshake_len;
+  memcpy(p, cell_in->plugins, cell_in->plugin_list_len);
+  p += cell_in->plugin_list_len;
+  log_debug(LD_PLUGIN_EXCHANGE, "%ld out of %d bytes used in payload of CREATE",
+            p - cell_out->payload, CELL_PAYLOAD_SIZE);
+  tor_assert(p - cell_out->payload <= CELL_PAYLOAD_SIZE);
 
   return 0;
 }
@@ -683,12 +704,22 @@ extend_cell_format(uint8_t *command_out, uint16_t *len_out,
       /* Now, the handshake */
       cell->create2 = create2_cell_body_new();
       cell->create2->handshake_type = cell_in->create_cell.handshake_type;
+
       cell->create2->handshake_len = cell_in->create_cell.handshake_len;
       create2_cell_body_setlen_handshake_data(cell->create2,
                                          cell_in->create_cell.handshake_len);
       memcpy(create2_cell_body_getarray_handshake_data(cell->create2),
              cell_in->create_cell.onionskin,
              cell_in->create_cell.handshake_len);
+
+      /* Jules just copied the chunk of code above and changed
+       * handshake to plugins basically */
+      cell->create2->plugin_list_len = cell_in->create_cell.plugin_list_len;
+      create2_cell_body_setlen_plugins(cell->create2,
+                                       cell_in->create_cell.plugin_list_len);
+      memcpy(create2_cell_body_getarray_plugins(cell->create2),
+             cell_in->create_cell.plugins,
+             cell_in->create_cell.plugin_list_len);
 
       ssize_t len_encoded = extend2_cell_body_encode(
                              payload_out, RELAY_PAYLOAD_SIZE,
@@ -702,6 +733,9 @@ extend_cell_format(uint8_t *command_out, uint16_t *len_out,
   default:
     return -1;
   }
+
+  log_debug(LD_PLUGIN_EXCHANGE, "RELAY EXTEND *len_out is: %d (%d bytes free)",
+            *len_out, RELAY_PAYLOAD_SIZE-*len_out);
 
   return 0;
 }

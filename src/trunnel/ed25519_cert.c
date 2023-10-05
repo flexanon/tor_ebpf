@@ -45,6 +45,8 @@ create2_cell_body_clear(create2_cell_body_t *obj)
   (void) obj;
   TRUNNEL_DYNARRAY_WIPE(&obj->handshake_data);
   TRUNNEL_DYNARRAY_CLEAR(&obj->handshake_data);
+  TRUNNEL_DYNARRAY_WIPE(&obj->plugins);
+  TRUNNEL_DYNARRAY_CLEAR(&obj->plugins);
 }
 
 void
@@ -146,6 +148,84 @@ create2_cell_body_setlen_handshake_data(create2_cell_body_t *inp, size_t newlen)
   TRUNNEL_SET_ERROR_CODE(inp);
   return -1;
 }
+uint16_t
+create2_cell_body_get_plugin_list_len(const create2_cell_body_t *inp)
+{
+  return inp->plugin_list_len;
+}
+int
+create2_cell_body_set_plugin_list_len(create2_cell_body_t *inp, uint16_t val)
+{
+  inp->plugin_list_len = val;
+  return 0;
+}
+size_t
+create2_cell_body_getlen_plugins(const create2_cell_body_t *inp)
+{
+  return TRUNNEL_DYNARRAY_LEN(&inp->plugins);
+}
+
+uint8_t
+create2_cell_body_get_plugins(create2_cell_body_t *inp, size_t idx)
+{
+  return TRUNNEL_DYNARRAY_GET(&inp->plugins, idx);
+}
+
+uint8_t
+create2_cell_body_getconst_plugins(const create2_cell_body_t *inp, size_t idx)
+{
+  return create2_cell_body_get_plugins((create2_cell_body_t*)inp, idx);
+}
+int
+create2_cell_body_set_plugins(create2_cell_body_t *inp, size_t idx, uint8_t elt)
+{
+  TRUNNEL_DYNARRAY_SET(&inp->plugins, idx, elt);
+  return 0;
+}
+int
+create2_cell_body_add_plugins(create2_cell_body_t *inp, uint8_t elt)
+{
+#if SIZE_MAX >= UINT16_MAX
+  if (inp->plugins.n_ == UINT16_MAX)
+    goto trunnel_alloc_failed;
+#endif
+  TRUNNEL_DYNARRAY_ADD(uint8_t, &inp->plugins, elt, {});
+  return 0;
+ trunnel_alloc_failed:
+  TRUNNEL_SET_ERROR_CODE(inp);
+  return -1;
+}
+
+uint8_t *
+create2_cell_body_getarray_plugins(create2_cell_body_t *inp)
+{
+  return inp->plugins.elts_;
+}
+const uint8_t  *
+create2_cell_body_getconstarray_plugins(const create2_cell_body_t *inp)
+{
+  return (const uint8_t  *)create2_cell_body_getarray_plugins((create2_cell_body_t*)inp);
+}
+int
+create2_cell_body_setlen_plugins(create2_cell_body_t *inp, size_t newlen)
+{
+  uint8_t *newptr;
+#if UINT16_MAX < SIZE_MAX
+  if (newlen > UINT16_MAX)
+    goto trunnel_alloc_failed;
+#endif
+  newptr = trunnel_dynarray_setlen(&inp->plugins.allocated_,
+                 &inp->plugins.n_, inp->plugins.elts_, newlen,
+                 sizeof(inp->plugins.elts_[0]), (trunnel_free_fn_t) NULL,
+                 &inp->trunnel_error_code_);
+  if (newlen != 0 && newptr == NULL)
+    goto trunnel_alloc_failed;
+  inp->plugins.elts_ = newptr;
+  return 0;
+ trunnel_alloc_failed:
+  TRUNNEL_SET_ERROR_CODE(inp);
+  return -1;
+}
 const char *
 create2_cell_body_check(const create2_cell_body_t *obj)
 {
@@ -155,6 +235,8 @@ create2_cell_body_check(const create2_cell_body_t *obj)
     return "A set function failed on this object";
   if (TRUNNEL_DYNARRAY_LEN(&obj->handshake_data) != obj->handshake_len)
     return "Length mismatch for handshake_data";
+  if (TRUNNEL_DYNARRAY_LEN(&obj->plugins) != obj->plugin_list_len)
+    return "Length mismatch for plugins";
   return NULL;
 }
 
@@ -175,6 +257,12 @@ create2_cell_body_encoded_len(const create2_cell_body_t *obj)
 
   /* Length of u8 handshake_data[handshake_len] */
   result += TRUNNEL_DYNARRAY_LEN(&obj->handshake_data);
+
+  /* Length of u16 plugin_list_len */
+  result += 2;
+
+  /* Length of u8 plugins[plugin_list_len] */
+  result += TRUNNEL_DYNARRAY_LEN(&obj->plugins);
   return result;
 }
 int
@@ -228,6 +316,25 @@ create2_cell_body_encode(uint8_t *output, const size_t avail, const create2_cell
     written += elt_len; ptr += elt_len;
   }
 
+  /* Encode u16 plugin_list_len */
+  trunnel_assert(written <= avail);
+  if (avail - written < 2)
+    goto truncated;
+  trunnel_set_uint16(ptr, trunnel_htons(obj->plugin_list_len));
+  written += 2; ptr += 2;
+
+  /* Encode u8 plugins[plugin_list_len] */
+  {
+    size_t elt_len = TRUNNEL_DYNARRAY_LEN(&obj->plugins);
+    trunnel_assert(obj->plugin_list_len == elt_len);
+    trunnel_assert(written <= avail);
+    if (avail - written < elt_len)
+      goto truncated;
+    if (elt_len)
+      memcpy(ptr, obj->plugins.elts_, elt_len);
+    written += elt_len; ptr += elt_len;
+  }
+
 
   trunnel_assert(ptr == output + written);
 #ifdef TRUNNEL_CHECK_ENCODED_LEN
@@ -258,6 +365,9 @@ create2_cell_body_encode(uint8_t *output, const size_t avail, const create2_cell
 static ssize_t
 create2_cell_body_parse_into(create2_cell_body_t *obj, const uint8_t *input, const size_t len_in)
 {
+  log_debug(LD_PLUGIN_EXCHANGE, "create2_cell_body_parse_into input (len %zu)", len_in);
+  for(int i = 0; i<len_in; i++)
+    log_debug(LD_PLUGIN_EXCHANGE, "input[%d]: %d %c", i, input[i], input[i]);
   const uint8_t *ptr = input;
   size_t remaining = len_in;
   ssize_t result = 0;
@@ -271,6 +381,7 @@ create2_cell_body_parse_into(create2_cell_body_t *obj, const uint8_t *input, con
   /* Parse u16 handshake_len */
   CHECK_REMAINING(2, truncated);
   obj->handshake_len = trunnel_ntohs(trunnel_get_uint16(ptr));
+  log_debug(LD_PLUGIN_EXCHANGE, "obj->handshake_len %u", obj->handshake_len);
   remaining -= 2; ptr += 2;
 
   /* Parse u8 handshake_data[handshake_len] */
@@ -280,6 +391,21 @@ create2_cell_body_parse_into(create2_cell_body_t *obj, const uint8_t *input, con
   if (obj->handshake_len)
     memcpy(obj->handshake_data.elts_, ptr, obj->handshake_len);
   ptr += obj->handshake_len; remaining -= obj->handshake_len;
+
+  /* Parse u16 plugin_list_len */
+  CHECK_REMAINING(2, truncated);
+  obj->plugin_list_len = trunnel_ntohs(trunnel_get_uint16(ptr));
+  remaining -= 2; ptr += 2;
+
+  log_debug(LD_PLUGIN_EXCHANGE, "obj->plugin_list_len %u", obj->plugin_list_len);
+
+  /* Parse u8 plugins[plugin_list_len] */
+  CHECK_REMAINING(obj->plugin_list_len, truncated);
+  TRUNNEL_DYNARRAY_EXPAND(uint8_t, &obj->plugins, obj->plugin_list_len, {});
+  obj->plugins.n_ = obj->plugin_list_len;
+  if (obj->plugin_list_len)
+    memcpy(obj->plugins.elts_, ptr, obj->plugin_list_len);
+  ptr += obj->plugin_list_len; remaining -= obj->plugin_list_len;
   trunnel_assert(ptr + remaining == input + len_in);
   return len_in - remaining;
 

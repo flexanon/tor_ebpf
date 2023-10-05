@@ -57,6 +57,8 @@ struct create2_cell_body {
   u16 handshake_type;
   u16 handshake_len;
   u8 handshake_data[handshake_len];
+  u16 plugin_list_len;
+  u8 plugins[plugin_list_len];
 }
 
 struct extend2_cell_body {

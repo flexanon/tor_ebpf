@@ -27,6 +27,7 @@
 #define CIRCUITBUILD_PRIVATE
 #define OCIRC_EVENT_PRIVATE
 
+#include <dirent.h>
 #include "core/or/or.h"
 #include "app/config/config.h"
 #include "lib/confmgt/confmgt.h"
@@ -90,6 +91,7 @@ static const node_t *choose_good_middle_server(uint8_t purpose,
                           cpath_build_state_t *state,
                           crypt_path_t *head,
                           int cur_len);
+uint16_t list_plugins_on_disk(uint8_t *list_out, uint16_t max_size);
 
 /** This function tries to get a channel to the specified endpoint,
  * and then calls command_setup_channel() to give it the right
@@ -740,6 +742,8 @@ circuit_deliver_create_cell,(circuit_t *circ,
   circid_t id;
   int r;
 
+  log_debug(LD_PLUGIN_EXCHANGE, "Here we go, relayed: %d", relayed);
+
   tor_assert(circ);
   tor_assert(circ->n_chan);
   tor_assert(create_cell);
@@ -995,6 +999,16 @@ circuit_send_first_onion_skin(origin_circuit_t *circ)
   }
   cc.handshake_len = len;
 
+  // Listing the plugins in the CREATE cell here
+  // TODO enable this again once EXTEND is good :)
+  int remaining_len = CELL_PAYLOAD_SIZE - 6 - cc.handshake_len;
+  log_debug(LD_PLUGIN_EXCHANGE, "NOT Listing plugins on disk for CREATE cell (%d bytes free)",
+           remaining_len);
+
+//  len = list_plugins_on_disk(cc.plugins, remaining_len);
+//
+//  cc.plugin_list_len = len;
+
   if (circuit_deliver_create_cell(TO_CIRCUIT(circ), &cc, 0) < 0)
     return - END_CIRC_REASON_RESOURCELIMIT;
   tor_trace(TR_SUBSYS(circuit), TR_EV(first_onion_skin), circ, circ->cpath);
@@ -1005,6 +1019,50 @@ circuit_send_first_onion_skin(origin_circuit_t *circ)
            fast ? "CREATE_FAST" : "CREATE",
            node ? node_describe(node) : "<unnamed>");
   return 0;
+}
+
+uint16_t list_plugins_on_disk(uint8_t *list_out, uint16_t max_size) {
+  tor_assert(get_options()->PluginsDirectory);
+
+  struct dirent *de;
+
+  int idx = 0;
+  int offered = 0;
+  uint16_t space_left = max_size;
+
+  DIR *dr = opendir(get_options()->PluginsDirectory);
+  while ((de = readdir(dr)) != NULL) {
+    if (de->d_name[0] == '.')
+      continue;
+    offered ++;
+    unsigned int i = 0;
+    unsigned long len = strlen(de->d_name);
+
+    if (space_left > len+1) {
+      while (i < len) {
+        list_out[idx] = de->d_name[i];
+        i++;
+        idx++;
+      }
+      list_out[idx] = '\n';
+      idx++;
+      space_left -= (len+1);
+    } else {
+      log_warn(LD_PLUGIN_EXCHANGE, "Some plugin could not be included in CREATE cell");
+    }
+  }
+  idx = idx > 0 ? (idx-1) : 0;
+  list_out[idx] = 0;
+
+  closedir(dr);
+  if (offered > 0)
+    log_debug(LD_PLUGIN_EXCHANGE, "Offering plugins (%d bytes): %s",
+              max_size - space_left, list_out);
+  else
+    log_debug(LD_PLUGIN_EXCHANGE, "Offering nothing");
+
+  return max_size - space_left;
+
 }
 
 /**
@@ -1141,6 +1199,23 @@ circuit_send_intermediate_onion_skin(origin_circuit_t *circ,
     return - END_CIRC_REASON_INTERNAL;
   }
   ec.create_cell.handshake_len = len;
+
+  // Listing the plugins in the CREATE cell here
+  // TODO make sure that we can fit the list of plugins in the remaining space
+  // TODO find a good way to compute remaining size in the payload (tricky)
+
+  /* Add the plugin list to payload  */
+  // Guesstimate of the size available to put the plugins into the cell
+  uint16_t remaining_len = RELAY_PAYLOAD_SIZE - sizeof(tor_addr_port_t) -
+      sizeof(tor_addr_port_t) - DIGEST_LEN - sizeof(ed25519_public_key_t) -
+      sizeof(uint8_t) - sizeof(uint16_t) - sizeof(uint16_t) -
+      ec.create_cell.handshake_len - sizeof(uint16_t);
+
+  uint16_t len_plugins = list_plugins_on_disk(ec.create_cell.plugins, remaining_len);
+  ec.create_cell.plugin_list_len = len_plugins;
+
+  log_debug(LD_PLUGIN_EXCHANGE, "Listed for %d bytes: %s",
+            len_plugins, ec.create_cell.plugins);
 
   log_info(LD_CIRC,"Sending extend relay cell.");
   {
