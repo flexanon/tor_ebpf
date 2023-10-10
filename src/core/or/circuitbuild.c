@@ -1000,14 +1000,12 @@ circuit_send_first_onion_skin(origin_circuit_t *circ)
   cc.handshake_len = len;
 
   // Listing the plugins in the CREATE cell here
-  // TODO enable this again once EXTEND is good :)
   int remaining_len = CELL_PAYLOAD_SIZE - 6 - cc.handshake_len;
   log_debug(LD_PLUGIN_EXCHANGE, "NOT Listing plugins on disk for CREATE cell (%d bytes free)",
            remaining_len);
 
-//  len = list_plugins_on_disk(cc.plugins, remaining_len);
-//
-//  cc.plugin_list_len = len;
+  len = list_plugins_on_disk(cc.plugins, remaining_len);
+  cc.plugin_list_len = len;
 
   if (circuit_deliver_create_cell(TO_CIRCUIT(circ), &cc, 0) < 0)
     return - END_CIRC_REASON_RESOURCELIMIT;
