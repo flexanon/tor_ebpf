@@ -18,7 +18,6 @@
  * Once all the plugin files are transferred, the node send a PLUGIN_TRANSFERRED
  * to let the peer know that the plugin has been completely transferred.
  */
- 
 
 #include "core/or/or.h"
 #include "core/or/var_cell_st.h"
@@ -37,10 +36,6 @@
 #include <dirent.h>
 #include "core/or/plugin_exchange.h"
 
-/**
- * Read plugin file payload received from the network and write it to disk
- * in the corresponding file
- */
 void
 handle_plugin_transfer_cell(cell_t *cell)
 {
@@ -404,4 +399,49 @@ create_plugin_offer(cell_t *plugin_offer, circid_t circ_id)
     log_debug(LD_PLUGIN_EXCHANGE, "Offering nothing (circ_id %u)", plugin_offer->circ_id);
 
   return offered;
+}
+
+
+uint16_t list_plugins_on_disk(uint8_t *list_out, uint16_t max_size) {
+  tor_assert(get_options()->PluginsDirectory);
+
+  struct dirent *de;
+
+  int idx = 0;
+  int offered = 0;
+  uint16_t space_left = max_size;
+
+  DIR *dr = opendir(get_options()->PluginsDirectory);
+  while ((de = readdir(dr)) != NULL) {
+    if (de->d_name[0] == '.')
+      continue;
+    offered ++;
+    unsigned int i = 0;
+    unsigned long len = strlen(de->d_name);
+
+    if (space_left > len+1) {
+      while (i < len) {
+        list_out[idx] = de->d_name[i];
+        i++;
+        idx++;
+      }
+      list_out[idx] = '\n';
+      idx++;
+      space_left -= (len+1);
+    } else {
+      log_warn(LD_PLUGIN_EXCHANGE, "Some plugin could not be included in CREATE cell");
+    }
+  }
+  idx = idx > 0 ? (idx-1) : 0;
+  list_out[idx] = 0;
+
+  closedir(dr);
+  if (offered > 0)
+    log_debug(LD_PLUGIN_EXCHANGE, "Offering plugins (%d bytes): %s",
+              max_size - space_left, list_out);
+  else
+    log_debug(LD_PLUGIN_EXCHANGE, "Offering nothing");
+
+  return max_size - space_left;
+
 }

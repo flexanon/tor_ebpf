@@ -272,8 +272,6 @@ command_process_create_cell(cell_t *cell, channel_t *chan)
   create_cell_t *create_cell;
 
   log_warn(LD_OR, "Got %s with content ??", cell_command_to_string(cell->command));
-  for (int i =0; i<509; i++)
-    log_debug(LD_PLUGIN_EXCHANGE, "create.cell->payload[%d] %d %c",i, cell->payload[i], cell->payload[i]);
 
   tor_assert(cell);
   tor_assert(chan);
@@ -425,16 +423,10 @@ command_process_create_cell(cell_t *cell, channel_t *chan)
     memwipe(keys, 0, sizeof(keys));
   }
 
-  // Send a PLUGIN_OFFER cell after a created cell
-  // Actually, don't offer plugin this way for the moment
-//  log_debug(LD_PLUGIN_EXCHANGE, "I should send PLUGIN cell on circ_id %u", cell->circ_id);
-//  cell_t plugin_cell;
-//  if (create_plugin_offer(&plugin_cell, cell->circ_id) > 0) {
-//    log_debug(LD_PLUGIN_EXCHANGE, "Sending PLUGIN cell upon CREATED sent (circ_id: %u)",
-//              plugin_cell.circ_id);
-//    append_cell_to_circuit_queue(TO_CIRCUIT(circ), chan, &plugin_cell,
-//                                 CELL_DIRECTION_IN, 0);
-//  }
+  // TODO list required plugins that are missing
+
+
+  // TODO send offer for plugins that the peer does not have
 }
 
 /** Process a 'created' <b>cell</b> that just arrived from <b>chan</b>.
@@ -510,15 +502,6 @@ command_process_created_cell(cell_t *cell, channel_t *chan)
                                  (const char*)payload, len, NULL);
   }
 
-  // Send a PLUGIN_OFFER cell after a created cell
-  // Actually, don't offer plugin this way for the moment
-//  cell_t plugin_cell;
-//  if (create_plugin_offer(&plugin_cell, cell->circ_id) > 0) {
-//    log_debug(LD_PLUGIN_EXCHANGE, "Sending PLUGIN cell upon CREATED received (circ_id: %u)",
-//              plugin_cell.circ_id);
-//    append_cell_to_circuit_queue(circ, chan, &plugin_cell, CELL_DIRECTION_OUT,
-//                                 0);
-//  }
 }
 
 /** Process a 'relay' or 'relay_early' <b>cell</b> that just arrived from

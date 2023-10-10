@@ -82,6 +82,7 @@
 #include "feature/nodelist/node_st.h"
 #include "core/or/or_circuit_st.h"
 #include "core/or/origin_circuit_st.h"
+#include "core/or/plugin_exchange.h"
 
 static int circuit_send_first_onion_skin(origin_circuit_t *circ);
 static int circuit_build_no_more_hops(origin_circuit_t *circ);
@@ -91,7 +92,6 @@ static const node_t *choose_good_middle_server(uint8_t purpose,
                           cpath_build_state_t *state,
                           crypt_path_t *head,
                           int cur_len);
-uint16_t list_plugins_on_disk(uint8_t *list_out, uint16_t max_size);
 
 /** This function tries to get a channel to the specified endpoint,
  * and then calls command_setup_channel() to give it the right
@@ -1017,50 +1017,6 @@ circuit_send_first_onion_skin(origin_circuit_t *circ)
            fast ? "CREATE_FAST" : "CREATE",
            node ? node_describe(node) : "<unnamed>");
   return 0;
-}
-
-uint16_t list_plugins_on_disk(uint8_t *list_out, uint16_t max_size) {
-  tor_assert(get_options()->PluginsDirectory);
-
-  struct dirent *de;
-
-  int idx = 0;
-  int offered = 0;
-  uint16_t space_left = max_size;
-
-  DIR *dr = opendir(get_options()->PluginsDirectory);
-  while ((de = readdir(dr)) != NULL) {
-    if (de->d_name[0] == '.')
-      continue;
-    offered ++;
-    unsigned int i = 0;
-    unsigned long len = strlen(de->d_name);
-
-    if (space_left > len+1) {
-      while (i < len) {
-        list_out[idx] = de->d_name[i];
-        i++;
-        idx++;
-      }
-      list_out[idx] = '\n';
-      idx++;
-      space_left -= (len+1);
-    } else {
-      log_warn(LD_PLUGIN_EXCHANGE, "Some plugin could not be included in CREATE cell");
-    }
-  }
-  idx = idx > 0 ? (idx-1) : 0;
-  list_out[idx] = 0;
-
-  closedir(dr);
-  if (offered > 0)
-    log_debug(LD_PLUGIN_EXCHANGE, "Offering plugins (%d bytes): %s",
-              max_size - space_left, list_out);
-  else
-    log_debug(LD_PLUGIN_EXCHANGE, "Offering nothing");
-
-  return max_size - space_left;
-
 }
 
 /**
