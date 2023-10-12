@@ -240,6 +240,7 @@ circuit_set_circid_chan_helper(circuit_t *circ, int direction,
                                circid_t id,
                                channel_t *chan)
 {
+  log_debug(LD_PLUGIN_EXCHANGE, "in circuit_set_circid_chan_helper");
   chan_circid_circuit_map_t search;
   chan_circid_circuit_map_t *found;
   channel_t *old_chan, **chan_ptr;
@@ -319,6 +320,8 @@ circuit_set_circid_chan_helper(circuit_t *circ, int direction,
     found->circ_id = id;
     found->chan = chan;
     found->circuit = circ;
+    log_debug(LD_PLUGIN_EXCHANGE, "HT_INSERT(chan_circid_map, &chan_circid_map, found);");
+    log_debug(LD_PLUGIN_EXCHANGE, "%u", found->circ_id);
     HT_INSERT(chan_circid_map, &chan_circid_map, found);
   }
 

@@ -251,6 +251,9 @@ struct circuit_t {
    * is owned by the plugin -- don't free it! */
   void *p_conn_ctx;
 
+  /** List of plugins that we should still get before creating the circuit */
+  smartlist_t *missing_plugins;
+
   /**
    * PLUGIN_XXX
    *
