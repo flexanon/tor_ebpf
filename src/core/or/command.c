@@ -194,8 +194,7 @@ command_process_cell(channel_t *chan, cell_t *cell)
 #define PROCESS_CELL(tp, cl, cn) command_process_ ## tp ## _cell(cl, cn)
 #endif /* defined(KEEP_TIMING_STATS) */
 
-  log_debug(LD_PLUGIN_EXCHANGE, "Got cell->command of: %s", cell_command_to_string(cell->command));
-
+  log_debug(LD_OR, "Got cell->command of: %s", cell_command_to_string(cell->command));
   switch (cell->command) {
     case CELL_CREATE:
     case CELL_CREATE_FAST:
@@ -376,19 +375,8 @@ command_process_create_cell(cell_t *cell, channel_t *chan)
     rep_hist_note_circuit_handshake_requested(create_cell->handshake_type);
   }
 
-  log_debug(LD_PLUGIN_EXCHANGE, "circ->p_circ_id: %u", circ->p_circ_id);
-  // Set circ_id to circ so that we can send plugin cells down that circuit
-//  circuit_set_n_circid_chan(TO_CIRCUIT(circ), cell->circ_id, chan);
-//  circuit_set_p_circid_chan(circ, cell->circ_id, chan);
-//  circ->p_circ_id = cell->circ_id;
-//  circuit_set_state(TO_CIRCUIT(circ), CIRCUIT_STATE_OPEN);
-  log_debug(LD_PLUGIN_EXCHANGE, "now circ->p_circ_id: %u", circ->p_circ_id);
-
 
   handle_plugin_offer_in_create_cell(create_cell->plugins, circ, chan);
-  for (int i = 0; i< smartlist_len(circ->base_.missing_plugins); i++)
-    log_debug(LD_PLUGIN_EXCHANGE, "Missing: %s", (char*) smartlist_get(circ->base_.missing_plugins, i));
-
 
   // TODO send offer for plugins that the peer does not have
   //  maybe to be done somewhere else

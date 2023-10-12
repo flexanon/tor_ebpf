@@ -101,8 +101,7 @@ handle_plugin_transferred_cell(cell_t *cell, channel_t *chan)
   log_debug(LD_PLUGIN_EXCHANGE, "Locating circ with circ_id %u", cell->circ_id);
   circ = circuit_get_by_circid_channel(cell->circ_id, chan);
 
-  for (int i = 0; i< smartlist_len(circ->missing_plugins); i++)
-    log_debug(LD_PLUGIN_EXCHANGE, "Missing: %s", (char*) smartlist_get(circ->missing_plugins, i));
+  log_debug(LD_PLUGIN_EXCHANGE, "Missing %d plugin(s)", smartlist_len(circ->missing_plugins));
 
   mark_plugin_as_received((char *) cell->payload, circ);
 }
@@ -112,6 +111,7 @@ mark_plugin_as_received(char * plugin_name, circuit_t *circ)
 {
   log_debug(LD_PLUGIN_EXCHANGE, "%s, strlen: %lu (circ_id: %u)",
             plugin_name, strlen(plugin_name), circ->n_circ_id);
+  // TODO here
 }
 
 /**
@@ -244,7 +244,7 @@ send_plugin_files(char *plugin_name, cell_t *cell, channel_t *chan)
       memcpy(&transfer_cell.payload[payload_idx], &len, sizeof(len));
 
       // Actually send the cell here and zero what is needed for next iteration
-      log_debug(LD_PLUGIN_EXCHANGE, "Sending PLUGIN_TRANSFER cell (circID: %u): %lu bytes of %s",
+      log_debug(LD_PLUGIN_EXCHANGE, "Sending PLUGIN_TRANSFER cell (circID %u): %lu bytes of %s",
                 transfer_cell.circ_id, bytes_read, relative_file_name);
       append_cell_to_circuit_queue(circ,
                                    chan, &transfer_cell,
@@ -330,6 +330,7 @@ handle_plugin_offer_in_create_cell(const uint8_t *required_plugins,
       log_debug(LD_PLUGIN_EXCHANGE, "Will request plugin: %s (circ_id %u)", plugin_name, circ->base_.n_circ_id);
       will_request = 1;
 
+      // Put element in circuit info
       char * elm = malloc(strlen(plugin_name)+1);
       memset(elm, 0, strlen(plugin_name)+1);
       strcpy(elm, plugin_name);
@@ -359,16 +360,12 @@ handle_plugin_offer_in_create_cell(const uint8_t *required_plugins,
 
     cell_direction_t direction = circ->base_.n_chan == chan ? CELL_DIRECTION_OUT : CELL_DIRECTION_IN;
 
-    log_debug(LD_PLUGIN_EXCHANGE, "Sending PLUGIN REQUEST cell (circ_id: %u): %s",
+    log_debug(LD_PLUGIN_EXCHANGE, "Sending PLUGIN REQUEST cell (circ_id %u): %s",
               request_cell.circ_id, request_cell.payload);
 
     append_cell_to_circuit_queue(TO_CIRCUIT(circ),
                                  circ->p_chan, &request_cell,
                                  direction, 0);
-
-    for (int i = 0; i< smartlist_len(circ->base_.missing_plugins); i++)
-      log_debug(LD_PLUGIN_EXCHANGE, "Missing: %s", (char*) smartlist_get(circ->base_.missing_plugins, i));
-    log_debug(LD_PLUGIN_EXCHANGE, "Nb missing: %d", smartlist_len(circ->base_.missing_plugins));
   }
 }
 
