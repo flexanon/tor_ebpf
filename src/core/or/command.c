@@ -112,6 +112,7 @@ cell_command_to_string(uint8_t command)
     case CELL_PLUGIN_OFFER: return "plugin_offer";
     case CELL_PLUGIN_REQUEST: return "plugin_request";
     case CELL_PLUGIN_TRANSFER: return "plugin_transfer";
+    case CELL_PLUGIN_TRANSFER_BACK: return "plugin_transfer_back";
     case CELL_PLUGIN_TRANSFERRED: return "plugin_transferred";
     default: return "unrecognized";
   }
@@ -220,6 +221,7 @@ command_process_cell(channel_t *chan, cell_t *cell)
     case CELL_PLUGIN_OFFER:
     case CELL_PLUGIN_REQUEST:
     case CELL_PLUGIN_TRANSFER:
+    case CELL_PLUGIN_TRANSFER_BACK:
     case CELL_PLUGIN_TRANSFERRED:
       PROCESS_CELL(plugin, cell, chan);
       break;
@@ -244,6 +246,10 @@ command_process_plugin_cell(cell_t *cell, channel_t *chan)
   switch (cell->command) {
   case CELL_PLUGIN_REQUEST:
       handle_plugin_request_cell(cell, chan);
+      break;
+  case CELL_PLUGIN_TRANSFER_BACK:
+      // TODO implement this :) and remove the IF statement in send_plugin()
+      log_debug(LD_PLUGIN_EXCHANGE, "case CELL_PLUGIN_TRANSFER_BACK");
       break;
   case CELL_PLUGIN_TRANSFER:
       handle_plugin_transfer_cell(cell);
@@ -375,6 +381,7 @@ command_process_create_cell(cell_t *cell, channel_t *chan)
     rep_hist_note_circuit_handshake_requested(create_cell->handshake_type);
   }
 
+  send_missing_plugins_to_peer(create_cell->plugins, cell->circ_id, chan);
   int nb_missing_plugins;
   nb_missing_plugins = handle_plugin_offer_in_create_cell(create_cell->plugins, circ, chan);
 

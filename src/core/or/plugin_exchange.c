@@ -112,7 +112,6 @@ handle_plugin_transferred_cell(cell_t *cell, channel_t *chan)
     log_debug(LD_PLUGIN_EXCHANGE, "Still missing plugin: %s",
               (char*) smartlist_get(circ->missing_plugins, i));
 
-  // TODO when all the plugins are received, continue with CREATED cell as it should be
   if(nb_missing_plugins == 0) {
     log_debug(LD_PLUGIN_EXCHANGE, "I should now process the CREATE cell with those: %s",
               circ->saved_create_cell->plugins);
@@ -145,6 +144,39 @@ mark_plugin_as_received(char * plugin_name, circuit_t *circ)
 
 }
 
+void
+send_missing_plugins_to_peer(uint8_t *payload, circid_t circ_id, channel_t *chan)
+{
+  smartlist_t * on_disk = smart_list_plugins_on_disk();
+  smartlist_t * in_create = smart_list_plugins_in_payload(payload);
+
+  int nb_plugins_on_disk = smartlist_len(on_disk);
+  char * current_plugin_name;
+
+  for(int i = 0; i < nb_plugins_on_disk; i++) {
+    current_plugin_name = smartlist_get(on_disk, i);
+    if (!is_str_in_smartlist(current_plugin_name, in_create)) {
+      log_debug(LD_PLUGIN_EXCHANGE, "%s not in_create, sending it to peer",
+                current_plugin_name);
+      send_plugin(current_plugin_name, circ_id, chan, CELL_PLUGIN_TRANSFER_BACK);
+    }
+  }
+}
+
+int
+is_str_in_smartlist(char * str, smartlist_t * list) {
+  int list_len = smartlist_len(list);
+  char * current_str;
+
+  for(int i = 0; i < list_len; i++) {
+    current_str = smartlist_get(list, i);
+    if (strcmp(str, current_str) == 0)
+      return 1;
+  }
+
+  return 0;
+}
+
 /**
  * Send the plugins listed in the cell payload.
  * Once the a given plugin is completely sent, a CELL_PLUGIN_TRANSFERRED
@@ -157,15 +189,6 @@ handle_plugin_request_cell(cell_t *cell, channel_t *chan)
   char plugin_name[CELL_PAYLOAD_SIZE];
   int p_name_idx;
   int payload_idx = 0;
-
-  cell_t transferred_cell;
-  memset(&transferred_cell, 0, sizeof(transferred_cell));
-  transferred_cell.command = CELL_PLUGIN_TRANSFERRED;
-  transferred_cell.circ_id = cell->circ_id;
-
-  circuit_t *circ;
-  circ = circuit_get_by_circid_channel(transferred_cell.circ_id, chan);
-  cell_direction_t direction = circ->n_chan == chan ? CELL_DIRECTION_OUT : CELL_DIRECTION_IN;
 
   while (!last) {
     // get plugin name
@@ -181,19 +204,36 @@ handle_plugin_request_cell(cell_t *cell, channel_t *chan)
       }
     }
     payload_idx++;
+    send_plugin(plugin_name, cell->circ_id, chan, CELL_PLUGIN_TRANSFER);
+  }
+}
 
-    // iterate over the files to send them
-    log_notice(LD_PLUGIN_EXCHANGE, "Node (%s) starting to send plugin: %s (circ_id %u)",
-               get_options()->Nickname, plugin_name, transferred_cell.circ_id);
-    send_plugin_files(plugin_name, cell, chan);
-    
+void
+send_plugin(char *plugin_name, circid_t circ_id, channel_t *chan,
+            uint8_t command)
+{
+  cell_t transferred_cell;
+  memset(&transferred_cell, 0, sizeof(transferred_cell));
+  transferred_cell.command = CELL_PLUGIN_TRANSFERRED;
+  transferred_cell.circ_id = circ_id;
+
+  circuit_t *circ;
+  circ = circuit_get_by_circid_channel(circ_id, chan);
+  cell_direction_t direction = circ->n_chan == chan ? CELL_DIRECTION_OUT : CELL_DIRECTION_IN;
+
+  // iterate over the files to send them
+  log_notice(
+      LD_PLUGIN_EXCHANGE, "Node (%s) starting to send plugin: %s (circ_id %u)",
+      get_options()->Nickname, plugin_name, circ_id);
+  send_plugin_files(plugin_name, circ_id, chan, command);
+
+  // TODO remove condition
+  if (command == CELL_PLUGIN_TRANSFER) {
     // Notify peer once the plugin is transferred
     memcpy(transferred_cell.payload, plugin_name, CELL_PAYLOAD_SIZE);
     log_notice(LD_PLUGIN_EXCHANGE, "Node (%s) plugin sent: %s (circ_id %u)",
-               get_options()->Nickname, plugin_name, transferred_cell.circ_id);
-    append_cell_to_circuit_queue(circ, chan, &transferred_cell,
-                                 direction, 0);
-
+               get_options()->Nickname, plugin_name, circ_id);
+    append_cell_to_circuit_queue(circ, chan, &transferred_cell, direction, 0);
   }
 }
 
@@ -203,7 +243,8 @@ handle_plugin_request_cell(cell_t *cell, channel_t *chan)
  * sent in CELL_PLUGIN_TRANSFER cells in response to cell on chan
  */
 void
-send_plugin_files(char *plugin_name, cell_t *cell, channel_t *chan)
+send_plugin_files(char *plugin_name, circid_t circ_id, channel_t *chan,
+                  uint8_t command)
 {
   log_debug(LD_PLUGIN_EXCHANGE, "Send plugin files for %s", plugin_name);
   struct dirent *de;
@@ -214,8 +255,8 @@ send_plugin_files(char *plugin_name, cell_t *cell, channel_t *chan)
 
   cell_t transfer_cell;
   memset(&transfer_cell, 0, sizeof(transfer_cell));
-  transfer_cell.command = CELL_PLUGIN_TRANSFER;
-  transfer_cell.circ_id = cell->circ_id;
+  transfer_cell.command = command;
+  transfer_cell.circ_id = circ_id;
 
   circuit_t *circ;
   circ = circuit_get_by_circid_channel(transfer_cell.circ_id, chan);
@@ -503,4 +544,52 @@ uint16_t list_plugins_on_disk(uint8_t *list_out, uint16_t max_size) {
 
   return max_size - space_left;
 
+}
+
+smartlist_t * smart_list_plugins_on_disk(void) {
+  tor_assert(get_options()->PluginsDirectory);
+
+  struct dirent *de;
+  smartlist_t * list = smartlist_new();
+
+  DIR *dr = opendir(get_options()->PluginsDirectory);
+  while ((de = readdir(dr)) != NULL) {
+    if (de->d_name[0] == '.')
+      continue;
+    smartlist_add_strdup(list, de->d_name);
+  }
+  closedir(dr);
+
+  for(int j = 0; j < smartlist_len(list); j++)
+    log_debug(LD_PLUGIN_EXCHANGE, "Plugin on disk: %s", (char*) smartlist_get(list, j));
+
+  return list;
+}
+
+smartlist_t * smart_list_plugins_in_payload(const uint8_t *payload) {
+  smartlist_t * list = smartlist_new();
+  char plugin_name[PATH_MAX];
+
+  int i = 0;
+  int start_idx = i;
+
+  while(payload[i] != 0) {
+    if (payload[i] == '\n') {
+      memset(plugin_name, 0, PATH_MAX);
+      memcpy(plugin_name, payload + start_idx, i-start_idx);
+      smartlist_add_strdup(list, plugin_name);
+      start_idx = i+1;
+    }
+    i++;
+  }
+
+  if (start_idx < i) {
+    memset(plugin_name, 0, PATH_MAX);
+    memcpy(plugin_name, payload + start_idx, i-start_idx);
+    smartlist_add_strdup(list, plugin_name);
+  }
+
+  for(int j = 0; j < smartlist_len(list); j++)
+    log_debug(LD_PLUGIN_EXCHANGE, "Plugin in payload: %s", (char*) smartlist_get(list, j));
+  return list;
 }
