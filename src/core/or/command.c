@@ -194,7 +194,7 @@ command_process_cell(channel_t *chan, cell_t *cell)
 #define PROCESS_CELL(tp, cl, cn) command_process_ ## tp ## _cell(cl, cn)
 #endif /* defined(KEEP_TIMING_STATS) */
 
-  log_debug(LD_OR, "Got cell->command of: %s", cell_command_to_string(cell->command));
+  log_warn(LD_OR, "Got cell->command of: %s circ_id: %u", cell_command_to_string(cell->command), cell->circ_id);
   switch (cell->command) {
     case CELL_CREATE:
     case CELL_CREATE_FAST:
@@ -375,8 +375,8 @@ command_process_create_cell(cell_t *cell, channel_t *chan)
     rep_hist_note_circuit_handshake_requested(create_cell->handshake_type);
   }
 
-
-  handle_plugin_offer_in_create_cell(create_cell->plugins, circ, chan);
+  int nb_missing_plugins;
+  nb_missing_plugins = handle_plugin_offer_in_create_cell(create_cell->plugins, circ, chan);
 
   // TODO send offer for plugins that the peer does not have
   //  maybe to be done somewhere else
@@ -385,6 +385,21 @@ command_process_create_cell(cell_t *cell, channel_t *chan)
   //  delay the computation that is done below to start only when all the plugins
   //  are exchanged.
 
+  if (nb_missing_plugins==0) {
+    log_debug(LD_PLUGIN_EXCHANGE, "No plugins needed on circ_id %u", cell->circ_id);
+    continue_process_create_cell(circ, create_cell);
+  } else {
+    create_cell_t *saved = malloc(sizeof (create_cell_t));
+    memcpy(saved, create_cell, sizeof(create_cell_t));
+    circ->base_.saved_create_cell = saved;
+  }
+}
+
+void
+continue_process_create_cell(or_circuit_t *circ, create_cell_t *create_cell)
+{
+  log_debug(LD_PLUGIN_EXCHANGE, "Continue processing CREATE cell, all plugins are here! circ_id %u",
+            circ->p_circ_id);
   if (create_cell->handshake_type != ONION_HANDSHAKE_TYPE_FAST) {
     /* hand it off to the cpuworkers, and then return. */
 
@@ -429,7 +444,6 @@ command_process_create_cell(cell_t *cell, channel_t *chan)
     }
     memwipe(keys, 0, sizeof(keys));
   }
-
 }
 
 /** Process a 'created' <b>cell</b> that just arrived from <b>chan</b>.

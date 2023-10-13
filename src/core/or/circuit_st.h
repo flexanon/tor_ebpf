@@ -254,6 +254,9 @@ struct circuit_t {
   /** List of plugins that we should still get before creating the circuit */
   smartlist_t *missing_plugins;
 
+  /** Saved CREATE cell to be processed after all the plugins are received */
+  struct create_cell_t *saved_create_cell;
+
   /**
    * PLUGIN_XXX
    *

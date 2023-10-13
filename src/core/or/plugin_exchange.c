@@ -31,6 +31,7 @@
 #include "core/or/channel.h"
 #include "core/mainloop/connection.h"
 #include "app/config/config.h"
+#include "core/or/command.h"
 
 #include <linux/limits.h>
 #include <sys/stat.h>
@@ -104,14 +105,44 @@ handle_plugin_transferred_cell(cell_t *cell, channel_t *chan)
   log_debug(LD_PLUGIN_EXCHANGE, "Missing %d plugin(s)", smartlist_len(circ->missing_plugins));
 
   mark_plugin_as_received((char *) cell->payload, circ);
+
+  int nb_missing_plugins = smartlist_len(circ->missing_plugins);
+
+  for (int i=0; i<nb_missing_plugins; i++)
+    log_debug(LD_PLUGIN_EXCHANGE, "Still missing plugin: %s",
+              (char*) smartlist_get(circ->missing_plugins, i));
+
+  // TODO when all the plugins are received, continue with CREATED cell as it should be
+  if(nb_missing_plugins == 0) {
+    log_debug(LD_PLUGIN_EXCHANGE, "I should now process the CREATE cell with those: %s",
+              circ->saved_create_cell->plugins);
+    continue_process_create_cell(TO_OR_CIRCUIT(circ), circ->saved_create_cell);
+  }
+
+
 }
 
 void
 mark_plugin_as_received(char * plugin_name, circuit_t *circ)
 {
-  log_debug(LD_PLUGIN_EXCHANGE, "%s, strlen: %lu (circ_id: %u)",
-            plugin_name, strlen(plugin_name), circ->n_circ_id);
-  // TODO here
+  char * current_elm;
+  int list_len = smartlist_len(circ->missing_plugins);
+  log_debug(LD_PLUGIN_EXCHANGE, "Marking %s as received", plugin_name);
+
+  for(int i = 0; i< list_len; i++) {
+    current_elm = smartlist_get(circ->missing_plugins, i);
+
+    if (strcmp(current_elm, plugin_name) == 0) {
+      log_debug(LD_PLUGIN_EXCHANGE, "Remove from smartlist: %s", plugin_name);
+      smartlist_remove(circ->missing_plugins, current_elm);
+      free(current_elm);
+      return;
+    }
+  }
+
+  log_warn(LD_PLUGIN_EXCHANGE, "Plugin %s not found in list of required plugins for the circuit",
+           plugin_name);
+
 }
 
 /**
@@ -256,7 +287,6 @@ send_plugin_files(char *plugin_name, cell_t *cell, channel_t *chan)
 
     fclose(fptr);
     memset(transfer_cell.payload, 0, CELL_PAYLOAD_SIZE);
-
   }
 }
 
@@ -264,8 +294,9 @@ send_plugin_files(char *plugin_name, cell_t *cell, channel_t *chan)
  * Receives a plugin offer and look which plugins are missing from the
  * directory.
  * Sends back a PLUGIN_REQUEST cell for the missing plugin
+ * Return the number of missing plugins
  */
-void
+int
 handle_plugin_offer_in_create_cell(const uint8_t *required_plugins,
                                    or_circuit_t *circ, channel_t *chan)
 {
@@ -274,7 +305,7 @@ handle_plugin_offer_in_create_cell(const uint8_t *required_plugins,
     log_debug(LD_PLUGIN_EXCHANGE,
                "Received empty list of plugin in CREATE cell (circ_id %u)",
                circ->p_circ_id);
-    return;
+    return 0;
   }
 
   tor_assert(get_options()->PluginsDirectory);
@@ -311,14 +342,14 @@ handle_plugin_offer_in_create_cell(const uint8_t *required_plugins,
     while (((de = readdir(dr)) != NULL)) {
       if (strcmp(plugin_name, de->d_name) == 0) {
         found = 1;
-        log_debug(LD_PLUGIN_EXCHANGE, "Already have this: %s (circ_id %u)", plugin_name, circ->base_.n_circ_id);
+        log_debug(LD_PLUGIN_EXCHANGE, "Already have this: %s (circ_id %u)", plugin_name, circ->p_circ_id);
       } else {
         memset(dir, 0, PATH_MAX);
         strcat(dir, ".");
         strcat(dir, plugin_name);
         if (strcmp(dir, de->d_name) == 0) {
           found = 1;
-          log_debug(LD_PLUGIN_EXCHANGE, "Plugin has already been requested: .%s (circ_id %u)", plugin_name, circ->base_.n_circ_id);
+          log_debug(LD_PLUGIN_EXCHANGE, "Plugin has already been requested: .%s (circ_id %u)", plugin_name, circ->p_circ_id);
         }
       }
     }
@@ -327,14 +358,11 @@ handle_plugin_offer_in_create_cell(const uint8_t *required_plugins,
     // No need to check for cell overflow capacity as the request is at most
     // as long as the offer (cannot request more than what is offered)
     if (found == 0) {
-      log_debug(LD_PLUGIN_EXCHANGE, "Will request plugin: %s (circ_id %u)", plugin_name, circ->base_.n_circ_id);
+      log_debug(LD_PLUGIN_EXCHANGE, "Will request plugin: %s (circ_id %u)", plugin_name, circ->p_circ_id);
       will_request = 1;
 
       // Put element in circuit info
-      char * elm = malloc(strlen(plugin_name)+1);
-      memset(elm, 0, strlen(plugin_name)+1);
-      strcpy(elm, plugin_name);
-      smartlist_add(circ->base_.missing_plugins, elm);
+      smartlist_add_strdup(circ->base_.missing_plugins, plugin_name);
 
       memcpy(&request_cell.payload[request_payload_idx],
              plugin_name, strlen(plugin_name));
@@ -367,6 +395,12 @@ handle_plugin_offer_in_create_cell(const uint8_t *required_plugins,
                                  circ->p_chan, &request_cell,
                                  direction, 0);
   }
+
+  for (int i=0; i< smartlist_len(circ->base_.missing_plugins); i++)
+    log_debug(LD_PLUGIN_EXCHANGE, "Missing plugin: %s",
+              (char*) smartlist_get(circ->base_.missing_plugins, i));
+
+  return smartlist_len(circ->base_.missing_plugins);
 }
 
 /**
