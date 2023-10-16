@@ -118,7 +118,6 @@ handle_plugin_transferred_cell(cell_t *cell, channel_t *chan)
     continue_process_create_cell(TO_OR_CIRCUIT(circ), circ->saved_create_cell);
   }
 
-
 }
 
 void
@@ -161,6 +160,24 @@ send_missing_plugins_to_peer(uint8_t *payload, circid_t circ_id, channel_t *chan
       send_plugin(current_plugin_name, circ_id, chan, CELL_PLUGIN_TRANSFER_BACK);
     }
   }
+
+  // Free smartlist_t
+  free_smartlist_and_elements(on_disk);
+  free_smartlist_and_elements(in_create);
+
+}
+
+void
+free_smartlist_and_elements(smartlist_t * list) {
+  if (list == NULL)
+    return;
+
+  void * elm = smartlist_pop_last(list);
+  while (elm != NULL) {
+    free(elm);
+    elm = smartlist_pop_last(list);
+  }
+  smartlist_free_(list);
 }
 
 int

@@ -28,4 +28,5 @@ void send_missing_plugins_to_peer(uint8_t *payload, circid_t circ_id,
 void send_plugin(char *plugin_name, circid_t circ_id, channel_t *chan,
                  uint8_t command);
 int is_str_in_smartlist(char * str, smartlist_t * list);
+void free_smartlist_and_elements(smartlist_t * list);
 #endif // PLUGIN_EXCHANGE_H
