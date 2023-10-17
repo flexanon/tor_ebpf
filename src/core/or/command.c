@@ -114,6 +114,7 @@ cell_command_to_string(uint8_t command)
     case CELL_PLUGIN_TRANSFER: return "plugin_transfer";
     case CELL_PLUGIN_TRANSFER_BACK: return "plugin_transfer_back";
     case CELL_PLUGIN_TRANSFERRED: return "plugin_transferred";
+    case CELL_PLUGIN_TRANSFERRED_BACK: return "plugin_transferred_back";
     default: return "unrecognized";
   }
 }
@@ -223,6 +224,7 @@ command_process_cell(channel_t *chan, cell_t *cell)
     case CELL_PLUGIN_TRANSFER:
     case CELL_PLUGIN_TRANSFER_BACK:
     case CELL_PLUGIN_TRANSFERRED:
+    case CELL_PLUGIN_TRANSFERRED_BACK:
       PROCESS_CELL(plugin, cell, chan);
       break;
     default:
@@ -248,14 +250,14 @@ command_process_plugin_cell(cell_t *cell, channel_t *chan)
       handle_plugin_request_cell(cell, chan);
       break;
   case CELL_PLUGIN_TRANSFER_BACK:
-      // TODO implement this :) and remove the IF statement in send_plugin()
-      log_debug(LD_PLUGIN_EXCHANGE, "case CELL_PLUGIN_TRANSFER_BACK");
-      break;
   case CELL_PLUGIN_TRANSFER:
-      handle_plugin_transfer_cell(cell);
+      handle_plugin_transfer_cell(cell, chan);
       break;
   case CELL_PLUGIN_TRANSFERRED:
       handle_plugin_transferred_cell(cell, chan);
+      break;
+  case CELL_PLUGIN_TRANSFERRED_BACK:
+      handle_plugin_transferred_back_cell(cell, chan);
       break;
   }
 }

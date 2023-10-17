@@ -11,7 +11,7 @@
 #define PLUGIN_EXCHANGE_H
 #include "core/or/channel.h"
 
-void handle_plugin_transfer_cell(cell_t *cell);
+void handle_plugin_transfer_cell(cell_t *cell, channel_t *chan);
 void handle_plugin_transferred_cell(cell_t *cell, channel_t *chan);
 void handle_plugin_request_cell(cell_t *cell, channel_t *chan);
 void send_plugin_files(char *plugin_name, circid_t circ_id, channel_t *chan,
@@ -29,4 +29,6 @@ void send_plugin(char *plugin_name, circid_t circ_id, channel_t *chan,
                  uint8_t command);
 int is_str_in_smartlist(char * str, smartlist_t * list);
 void free_smartlist_and_elements(smartlist_t * list);
+void get_dir_name(const char * path, char * dir, int max_len);
+void handle_plugin_transferred_back_cell(cell_t *cell, channel_t *chan);
 #endif // PLUGIN_EXCHANGE_H

@@ -1001,7 +1001,7 @@ circuit_send_first_onion_skin(origin_circuit_t *circ)
 
   // Listing the plugins in the CREATE cell here
   int remaining_len = CELL_PAYLOAD_SIZE - 6 - cc.handshake_len;
-  log_debug(LD_PLUGIN_EXCHANGE, "NOT Listing plugins on disk for CREATE cell (%d bytes free)",
+  log_debug(LD_PLUGIN_EXCHANGE, "Listing plugins on disk for CREATE cell (%d bytes free)",
            remaining_len);
 
   len = list_plugins_on_disk(cc.plugins, remaining_len);
