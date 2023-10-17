@@ -38,10 +38,15 @@
 #include <dirent.h>
 #include "core/or/plugin_exchange.h"
 
+/**
+ * Write the file contents to disk when receiving the cell.
+ * If the cell is a TRANSFER_BACK, forward it
+ * @param cell TRANSFER or TRANSFER_BACK cell
+ * @param chan channel on which the cell arrived
+ */
 void
 handle_plugin_transfer_cell(cell_t *cell, channel_t *chan)
 {
-  log_debug(LD_PLUGIN_EXCHANGE, "In here!");
   int len_name;
   int len_data;
   char file_name[CELL_PAYLOAD_SIZE];
@@ -65,14 +70,10 @@ handle_plugin_transfer_cell(cell_t *cell, channel_t *chan)
   if (cell->command == CELL_PLUGIN_TRANSFER_BACK) {
     log_debug(LD_PLUGIN_EXCHANGE, "cell->command == CELL_PLUGIN_TRANSFER_BACK");
     char dir[PATH_MAX];
-    log_debug(LD_PLUGIN_EXCHANGE, "absolute_dir_name %s", absolute_dir_name);
     strcat(absolute_dir_name, get_options()->PluginsDirectory);
-    log_debug(LD_PLUGIN_EXCHANGE, "absolute_dir_name %s", absolute_dir_name);
     strcat(absolute_dir_name, "/.");
-    log_debug(LD_PLUGIN_EXCHANGE, "absolute_dir_name %s", absolute_dir_name);
     get_dir_name(file_name, dir, CELL_PAYLOAD_SIZE);
     strcat(absolute_dir_name, dir);
-    log_debug(LD_PLUGIN_EXCHANGE, "absolute_dir_name %s", absolute_dir_name);
     log_debug(LD_PLUGIN_EXCHANGE, "Will check for %s", absolute_dir_name);
     struct stat st = {0};
     if (stat(absolute_dir_name, &st) == -1) {
@@ -80,9 +81,6 @@ handle_plugin_transfer_cell(cell_t *cell, channel_t *chan)
                 dir);
       mkdir(absolute_dir_name, 0700);
     }
-
-    // TODO send plugin further down the circuit
-    // TODO double check params to send the cell: is it the right circ and chan?
 
     circuit_t *circ;
     log_debug(LD_PLUGIN_EXCHANGE, "Locating circ with circ_id %u", cell->circ_id);
@@ -98,11 +96,6 @@ handle_plugin_transfer_cell(cell_t *cell, channel_t *chan)
                 cell->circ_id, chan->global_identifier, or_circ->p_circ_id);
       cell->circ_id = or_circ->p_circ_id;
 
-      log_debug(LD_PLUGIN_EXCHANGE, "circ->n_circ_id: %u; or_circ->p_circ_id: %u",
-                circ->n_circ_id, or_circ->p_circ_id);
-
-      log_debug(LD_PLUGIN_EXCHANGE, "Getting circ with id %u, chan %lu",
-                cell->circ_id, or_circ->p_chan->global_identifier);
       circ = circuit_get_by_circid_channel(cell->circ_id, or_circ->p_chan);
       if (circ == NULL)
         log_warn(LD_PLUGIN_EXCHANGE, "circ == NULL!");
@@ -121,8 +114,6 @@ handle_plugin_transfer_cell(cell_t *cell, channel_t *chan)
   strcat(absolute_file_name, "/.");
   strcat(absolute_file_name, file_name);
 
-  log_debug(LD_PLUGIN_EXCHANGE, "About to write %d bytes to %s", len_data, file_name);
-
   FILE *fptr = fopen(absolute_file_name, "a");
   unsigned long bytes_read;
   bytes_read = fwrite(&cell->payload[idx], 1, len_data, fptr);
@@ -132,6 +123,13 @@ handle_plugin_transfer_cell(cell_t *cell, channel_t *chan)
   fclose(fptr);
 }
 
+/**
+ * From a string of the form 'directory/file.txt', extract 'directory'.
+ * Only extract the right-most part (before /).  The input must contain a /
+ * @param path input path of the form 'directory/file.ext'
+ * @param dir output variable that will hold 'directory'
+ * @param max_len maximum length to consider
+ */
 void get_dir_name(const char * path, char * dir, int max_len) {
   memset(dir, 0, PATH_MAX);
   int i = 0;
@@ -141,11 +139,13 @@ void get_dir_name(const char * path, char * dir, int max_len) {
     i++;
   }
   memcpy(dir, path, i);
-  log_debug(LD_PLUGIN_EXCHANGE, "Getting dirname somehow: %s -> %s", path, dir);
 }
 
 /**
- * Move the plugin to its final folder once the transfer is done
+ * Move the plugin to its final folder once the transfer is done.
+ * If no more plugins are awaited, finalise the circuit creation.
+ * @param cell TRANSFERRED cell
+ * @param chan channel on which the cell arrived
  */
 void
 handle_plugin_transferred_cell(cell_t *cell, channel_t *chan)
@@ -154,8 +154,6 @@ handle_plugin_transferred_cell(cell_t *cell, channel_t *chan)
   char new_dir_name[PATH_MAX];
 
   circuit_t *circ;
-  log_debug(LD_PLUGIN_EXCHANGE, "Locating circ with circ_id %u, chan %lu",
-            cell->circ_id, chan->global_identifier);
   circ = circuit_get_by_circid_channel(cell->circ_id, chan);
   if (circ == NULL)
     log_warn(LD_PLUGIN_EXCHANGE, "circ == NULL!");
@@ -210,15 +208,17 @@ handle_plugin_transferred_cell(cell_t *cell, channel_t *chan)
     log_debug(LD_PLUGIN_EXCHANGE, "I was not expecting plugin %s, so not sending any CREATED",
               (char*) cell->payload);
   }
-
 }
 
-
+/**
+ * Continue transferring the TRANSFERRED_BACK cell if needed.
+ * Then, handle the TRANSFERRED cell
+ * @param cell TRANSFERRED_BACK cell to handle
+ * @param chan channel on which the cell arrived
+ */
 void
 handle_plugin_transferred_back_cell(cell_t *cell, channel_t *chan){
   circuit_t *circ;
-  log_debug(LD_PLUGIN_EXCHANGE, "Locating circ with circ_id %u, chan %lu",
-            cell->circ_id, chan->global_identifier);
   circ = circuit_get_by_circid_channel(cell->circ_id, chan);
   if (circ == NULL)
     log_warn(LD_PLUGIN_EXCHANGE, "circ == NULL!");
@@ -233,11 +233,6 @@ handle_plugin_transferred_back_cell(cell_t *cell, channel_t *chan){
               new_cell.circ_id, chan->global_identifier, or_circ->p_circ_id);
     new_cell.circ_id = or_circ->p_circ_id;
 
-    log_debug(LD_PLUGIN_EXCHANGE, "circ->n_circ_id: %u; or_circ->p_circ_id: %u",
-              circ->n_circ_id, or_circ->p_circ_id);
-
-    log_debug(LD_PLUGIN_EXCHANGE, "Getting circ with id %u, chan %lu",
-              new_cell.circ_id, or_circ->p_chan->global_identifier);
     circ = circuit_get_by_circid_channel(new_cell.circ_id, or_circ->p_chan);
     if (circ == NULL)
       log_warn(LD_PLUGIN_EXCHANGE, "circ == NULL!");
@@ -253,11 +248,18 @@ handle_plugin_transferred_back_cell(cell_t *cell, channel_t *chan){
   handle_plugin_transferred_cell(cell, chan);
 }
 
-
+/**
+ * Remove the plugin from the missing_plugins list of the circuit once it is
+ * received.
+ * Given the name, iterate over the list of missing plugins and remove the
+ * corresponding one.
+ * @param plugin_name name of the plugin to remove from the list
+ * @param circ circ holding the list of missing plugin to remove the plugin from
+ */
 void
 mark_plugin_as_received(char * plugin_name, circuit_t *circ)
 {
-  if (circ->missing_plugins == NULL) {
+  if (circ == NULL || circ->missing_plugins == NULL) {
     log_debug(LD_PLUGIN_EXCHANGE, "No list of missing plugins for that circuit, skip.");
     return;
   }
@@ -282,6 +284,14 @@ mark_plugin_as_received(char * plugin_name, circuit_t *circ)
 
 }
 
+/**
+ * Based on the payload and the plugins available on disk, send the plugins that
+ * are on disk but not listed in payload.
+ * Use circ with circ_id and chan to send the plugins to the peer
+ * @param payload payload containing the list of plugins
+ * @param circ_id circuit to use to send the plugins
+ * @param chan channel to use to send the plugins
+ */
 void
 send_missing_plugins_to_peer(uint8_t *payload, circid_t circ_id, channel_t *chan)
 {
@@ -303,9 +313,12 @@ send_missing_plugins_to_peer(uint8_t *payload, circid_t circ_id, channel_t *chan
   // Free smartlist_t
   free_smartlist_and_elements(on_disk);
   free_smartlist_and_elements(in_create);
-
 }
 
+/**
+ * Pop and free all the elements of the list and free the list itself
+ * @param list list to free
+ */
 void
 free_smartlist_and_elements(smartlist_t * list) {
   if (list == NULL)
@@ -319,6 +332,12 @@ free_smartlist_and_elements(smartlist_t * list) {
   smartlist_free_(list);
 }
 
+/**
+ * Check if str is in list (strmcp wise)
+ * @param str string to find
+ * @param list list to search in
+ * @return 1 if str is found in list, 0 otherwise
+ */
 int
 is_str_in_smartlist(char * str, smartlist_t * list) {
   int list_len = smartlist_len(list);
@@ -364,6 +383,14 @@ handle_plugin_request_cell(cell_t *cell, channel_t *chan)
   }
 }
 
+/**
+ * Send the plugin files and the TRANSFERRED cell once all the files are sent
+ * @param plugin_name name of the plugin to send
+ * @param circ_id id of the circuit to use to send the plugin
+ * @param chan channel to use to send the plugin
+ * @param command how to send the plugin: CELL_PLUGIN_TRANSFER
+ *   or CELL_PLUGIN_TRANSFER_BACK
+ */
 void
 send_plugin(char *plugin_name, circid_t circ_id, channel_t *chan,
             uint8_t command)
@@ -448,7 +475,6 @@ send_plugin_files(char *plugin_name, circid_t circ_id, channel_t *chan,
 
     memcpy(&transfer_cell.payload[payload_idx], relative_file_name, strlen((char*)relative_file_name));
     payload_idx += (int) strlen((char*)relative_file_name);
-
 
     unsigned long remaining_space = CELL_PAYLOAD_SIZE-payload_idx-sizeof(int);
 
@@ -579,7 +605,6 @@ handle_plugin_offer_in_create_cell(const uint8_t *required_plugins,
     request_cell.circ_id = circ->p_circ_id;
     request_cell.command = CELL_PLUGIN_REQUEST;
 
-
     cell_direction_t direction = circ->base_.n_chan == chan ? CELL_DIRECTION_OUT : CELL_DIRECTION_IN;
 
     log_debug(LD_PLUGIN_EXCHANGE, "Sending PLUGIN REQUEST cell (circ_id %u): %s",
@@ -599,63 +624,17 @@ handle_plugin_offer_in_create_cell(const uint8_t *required_plugins,
 
 /**
  * Look into the plugin folder for plugins to offer to other relays.
- * Create a single cell with available plugins and place it in the
- * plugin_offer param
+ * Create null terminated CRLF separated list of plugin names in list_out
  *
  * LIMITATION: if there are more plugins than what can fit in a cell, some
  * are just ignored
  *
- * @return the number of plugin offered
+ * @param list_out put the plugin list here
+ * @param max_size number of bytes available to list the plugins
+ * @return number of bytes used to list the plugins
  */
-int
-create_plugin_offer(cell_t *plugin_offer, circid_t circ_id)
-{
-  tor_assert(get_options()->PluginsDirectory);
-
-  struct dirent *de;
-
-  memset(plugin_offer, 0, sizeof(*plugin_offer));
-  plugin_offer->command = CELL_PLUGIN_OFFER;
-  plugin_offer->circ_id = circ_id;
-
-  unsigned long space_left = CELL_PAYLOAD_SIZE-2;
-  int idx = 0;
-  int offered = 0;
-
-  DIR *dr = opendir(get_options()->PluginsDirectory);
-  while ((de = readdir(dr)) != NULL) {
-    if (de->d_name[0] == '.')
-      continue;
-    offered ++;
-    unsigned int i = 0;
-    unsigned long len = strlen(de->d_name);
-
-    if (space_left > len+1) {
-      while (i < len) {
-        plugin_offer->payload[idx] = de->d_name[i];
-        i++;
-        idx++;
-      }
-      plugin_offer->payload[idx] = '\n';
-      idx++;
-      space_left -= (len+1);
-    }
-  }
-  idx = idx > 0 ? (idx-1) : 0;
-  plugin_offer->payload[idx] = 0;
-
-  closedir(dr);
-
-  if (offered > 0)
-    log_debug(LD_PLUGIN_EXCHANGE, "Offering: %s (circ_id %u)", plugin_offer->payload, plugin_offer->circ_id);
-  else
-    log_debug(LD_PLUGIN_EXCHANGE, "Offering nothing (circ_id %u)", plugin_offer->circ_id);
-
-  return offered;
-}
-
-
-uint16_t list_plugins_on_disk(uint8_t *list_out, uint16_t max_size) {
+uint16_t
+list_plugins_on_disk(uint8_t *list_out, uint16_t max_size) {
   tor_assert(get_options()->PluginsDirectory);
 
   struct dirent *de;
@@ -696,10 +675,15 @@ uint16_t list_plugins_on_disk(uint8_t *list_out, uint16_t max_size) {
     log_debug(LD_PLUGIN_EXCHANGE, "Offering nothing");
 
   return max_size - space_left;
-
 }
 
-smartlist_t * smart_list_plugins_on_disk(void) {
+/**
+ * List all the plugin names present on disk, in the plugin directory.
+ * The result is a smartlist containing the names of the plugins on disk.
+ * @return pointer to a smartlist containing the plugin names
+ */
+smartlist_t *
+smart_list_plugins_on_disk(void) {
   tor_assert(get_options()->PluginsDirectory);
 
   struct dirent *de;
@@ -719,7 +703,15 @@ smartlist_t * smart_list_plugins_on_disk(void) {
   return list;
 }
 
-smartlist_t * smart_list_plugins_in_payload(const uint8_t *payload) {
+/**
+ * List all the plugin names contained in payload.  The result is a smartlist
+ * containing the names of the plugins in the payload, in the same order.
+ * @param payload cell payload containing a null terminated CRLF separated list
+ *   of plugin names
+ * @return pointer to a smartlist containing the plugin names
+ */
+smartlist_t *
+smart_list_plugins_in_payload(const uint8_t *payload) {
   smartlist_t * list = smartlist_new();
   char plugin_name[PATH_MAX];
 
