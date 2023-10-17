@@ -6,10 +6,9 @@
  * \file plugin_exchange.c
  * \brief Functions for exchanging plugins between peers.
  * 
- * The protocol starts when a circuit is created (upon reception or emission
- * of a CREATED cell). 
- * Both peer send a PLUGIN_OFFER cell with a list of their available plugins.
- * When a PLUGIN_OFFER cell arrives, a node can choose to request one or more
+ * The protocol starts when a circuit a CREATE cell is sent.
+ * The origin sends a CREATE cell with a list of its available plugins.
+ * When a CREATE cell arrives, a node can choose to request one or more
  * plugins by listing their names in a PLUGIN_REQUEST cell.
  * 
  * Upon reception of a PLUGIN_REQUEST cell, a node starts sending the plugins
@@ -17,6 +16,9 @@
  * cell contain a chunk of a given plugin file. 
  * Once all the plugin files are transferred, the node send a PLUGIN_TRANSFERRED
  * to let the peer know that the plugin has been completely transferred.
+ *
+ * If a node receives a CREATE cell that does not list all of the plugins it
+ * knows, the node can start sending back the plugins missing from the peer.
  */
 
 #include "core/or/or.h"
@@ -167,10 +169,10 @@ handle_plugin_transferred_cell(cell_t *cell, channel_t *chan)
   strcat(dir_name, "/.");
   strcat(dir_name, (char*) cell->payload);
 
-  // If we receive a TRANSFERRED cell for a directory that does not exist
-  // it means that it is an empty directory plugin coming from a node located
-  // close to the exit.
-  // We have to handle this edge case
+  /* If we receive a TRANSFERRED cell for a directory that does not exist
+   * it means that it is an empty directory plugin coming from a node located
+   * close to the exit.
+   * We have to handle this edge case */
 
   struct stat st = {0};
   if (stat(dir_name, &st) == -1) {
