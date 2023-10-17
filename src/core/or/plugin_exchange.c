@@ -85,7 +85,8 @@ handle_plugin_transfer_cell(cell_t *cell, channel_t *chan)
     }
 
     circuit_t *circ;
-    log_debug(LD_PLUGIN_EXCHANGE, "Locating circ with circ_id %u", cell->circ_id);
+    log_debug(LD_PLUGIN_EXCHANGE, "Locating circ with circ_id %u",
+              cell->circ_id);
     circ = circuit_get_by_circid_channel(cell->circ_id, chan);
     if (circ == NULL) {
       log_warn(LD_PLUGIN_EXCHANGE, "circ is NULL");
@@ -94,7 +95,8 @@ handle_plugin_transfer_cell(cell_t *cell, channel_t *chan)
     if (!CIRCUIT_IS_ORIGIN(circ)) {
       or_circuit_t * or_circ;
       or_circ = TO_OR_CIRCUIT(circ);
-      log_debug(LD_PLUGIN_EXCHANGE, "Will pass on TRANSFER_BACK, got it on circ %u and chan %lu, will pass on circ %u",
+      log_debug(LD_PLUGIN_EXCHANGE, "Will pass on TRANSFER_BACK, got it on circ"
+                                    " %u and chan %lu, will pass on circ %u",
                 cell->circ_id, chan->global_identifier, or_circ->p_circ_id);
       cell->circ_id = or_circ->p_circ_id;
 
@@ -176,8 +178,8 @@ handle_plugin_transferred_cell(cell_t *cell, channel_t *chan)
 
   struct stat st = {0};
   if (stat(dir_name, &st) == -1) {
-    log_debug(LD_PLUGIN_EXCHANGE, "Got TRANSFERRED cell for unknown: .%s -> creating directory",
-              dir_name);
+    log_debug(LD_PLUGIN_EXCHANGE, "Got TRANSFERRED cell for unknown: .%s -> "
+                                  "creating directory", dir_name);
     mkdir(dir_name, 0700);
   }
 
@@ -187,7 +189,8 @@ handle_plugin_transferred_cell(cell_t *cell, channel_t *chan)
   strcat(new_dir_name, (char*) cell->payload);
 
   rename(dir_name, new_dir_name);
-  log_notice(LD_PLUGIN_EXCHANGE, "Node (%s) completely received the plugin: %s (circ_id %u)",
+  log_notice(LD_PLUGIN_EXCHANGE, "Node (%s) completely received the plugin: %s"
+                                 " (circ_id %u)",
              get_options()->Nickname, cell->payload, cell->circ_id);
 
   int nb_missing_plugins = smartlist_len(circ->missing_plugins);
@@ -203,12 +206,12 @@ handle_plugin_transferred_cell(cell_t *cell, channel_t *chan)
               (char*) smartlist_get(circ->missing_plugins, i));
 
   if(nb_missing_plugins == 0 && expecting_plugin == 1) {
-    log_debug(LD_PLUGIN_EXCHANGE, "I should now process the CREATE cell with those: %s",
-              circ->saved_create_cell->plugins);
+    log_debug(LD_PLUGIN_EXCHANGE, "I should now process the CREATE cell with "
+                                  "those: %s", circ->saved_create_cell->plugins);
     continue_process_create_cell(TO_OR_CIRCUIT(circ), circ->saved_create_cell);
   } else if (expecting_plugin == 0) {
-    log_debug(LD_PLUGIN_EXCHANGE, "I was not expecting plugin %s, so not sending any CREATED",
-              (char*) cell->payload);
+    log_debug(LD_PLUGIN_EXCHANGE, "I was not expecting plugin %s, so not sending"
+                                  " any CREATED", (char*) cell->payload);
   }
 }
 
@@ -231,7 +234,8 @@ handle_plugin_transferred_back_cell(cell_t *cell, channel_t *chan){
   if (!CIRCUIT_IS_ORIGIN(circ)) {
     or_circuit_t * or_circ;
     or_circ = TO_OR_CIRCUIT(circ);
-    log_debug(LD_PLUGIN_EXCHANGE, "Will pass on TRANSFER_BACK, got it on circ %u and chan %lu, will pass on circ %u",
+    log_debug(LD_PLUGIN_EXCHANGE, "Will pass on TRANSFER_BACK, got it on circ "
+                                  "%u and chan %lu, will pass on circ %u",
               new_cell.circ_id, chan->global_identifier, or_circ->p_circ_id);
     new_cell.circ_id = or_circ->p_circ_id;
 
@@ -281,8 +285,8 @@ mark_plugin_as_received(char * plugin_name, circuit_t *circ)
     }
   }
 
-  log_debug(LD_PLUGIN_EXCHANGE, "Plugin %s not found in list of required plugins for the circuit",
-           plugin_name);
+  log_debug(LD_PLUGIN_EXCHANGE, "Plugin %s not found in list of required plugins"
+                                " for the circuit", plugin_name);
 
 }
 
@@ -306,7 +310,8 @@ send_missing_plugins_to_peer(uint8_t *payload, circid_t circ_id, channel_t *chan
   for(int i = 0; i < nb_plugins_on_disk; i++) {
     current_plugin_name = smartlist_get(on_disk, i);
     if (!is_str_in_smartlist(current_plugin_name, in_create)) {
-      log_debug(LD_PLUGIN_EXCHANGE, "%s not in_create, sending it to peer: circ %u, chan %lu",
+      log_debug(LD_PLUGIN_EXCHANGE, "%s not in_create, sending it to peer: circ"
+                                    " %u, chan %lu",
                 current_plugin_name, circ_id, chan->global_identifier);
       send_plugin(current_plugin_name, circ_id, chan, CELL_PLUGIN_TRANSFER_BACK);
     }
@@ -475,7 +480,8 @@ send_plugin_files(char *plugin_name, circid_t circ_id, channel_t *chan,
            sizeof(len));
     payload_idx += sizeof(int);
 
-    memcpy(&transfer_cell.payload[payload_idx], relative_file_name, strlen((char*)relative_file_name));
+    memcpy(&transfer_cell.payload[payload_idx], relative_file_name,
+           strlen((char*)relative_file_name));
     payload_idx += (int) strlen((char*)relative_file_name);
 
     unsigned long remaining_space = CELL_PAYLOAD_SIZE-payload_idx-sizeof(int);
@@ -497,7 +503,8 @@ send_plugin_files(char *plugin_name, circid_t circ_id, channel_t *chan,
       memcpy(&transfer_cell.payload[payload_idx], &len, sizeof(len));
 
       // Actually send the cell here and zero what is needed for next iteration
-      log_debug(LD_PLUGIN_EXCHANGE, "Sending PLUGIN_TRANSFER cell (circID %u): %lu bytes of %s",
+      log_debug(LD_PLUGIN_EXCHANGE, "Sending PLUGIN_TRANSFER cell (circID %u):"
+                                    " %lu bytes of %s",
                 transfer_cell.circ_id, bytes_read, relative_file_name);
       append_cell_to_circuit_queue(circ,
                                    chan, &transfer_cell,
@@ -564,14 +571,17 @@ handle_plugin_offer_in_create_cell(const uint8_t *required_plugins,
     while (((de = readdir(dr)) != NULL)) {
       if (strcmp(plugin_name, de->d_name) == 0) {
         found = 1;
-        log_debug(LD_PLUGIN_EXCHANGE, "Already have this: %s (circ_id %u)", plugin_name, circ->p_circ_id);
+        log_debug(LD_PLUGIN_EXCHANGE, "Already have this: %s (circ_id %u)",
+                  plugin_name, circ->p_circ_id);
       } else {
         memset(dir, 0, PATH_MAX);
         strcat(dir, ".");
         strcat(dir, plugin_name);
         if (strcmp(dir, de->d_name) == 0) {
           found = 1;
-          log_debug(LD_PLUGIN_EXCHANGE, "Plugin has already been requested: .%s (circ_id %u)", plugin_name, circ->p_circ_id);
+          log_debug(LD_PLUGIN_EXCHANGE, "Plugin has already been requested: .%s"
+                                        " (circ_id %u)",
+                    plugin_name, circ->p_circ_id);
         }
       }
     }
@@ -580,7 +590,8 @@ handle_plugin_offer_in_create_cell(const uint8_t *required_plugins,
     // No need to check for cell overflow capacity as the request is at most
     // as long as the offer (cannot request more than what is offered)
     if (found == 0) {
-      log_debug(LD_PLUGIN_EXCHANGE, "Will request plugin: %s (circ_id %u)", plugin_name, circ->p_circ_id);
+      log_debug(LD_PLUGIN_EXCHANGE, "Will request plugin: %s (circ_id %u)",
+                plugin_name, circ->p_circ_id);
       will_request = 1;
 
       // Put element in circuit info
