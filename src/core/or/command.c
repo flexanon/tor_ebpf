@@ -109,7 +109,6 @@ cell_command_to_string(uint8_t command)
     case CELL_AUTH_CHALLENGE: return "auth_challenge";
     case CELL_AUTHENTICATE: return "authenticate";
     case CELL_AUTHORIZE: return "authorize";
-    case CELL_PLUGIN_OFFER: return "plugin_offer";
     case CELL_PLUGIN_REQUEST: return "plugin_request";
     case CELL_PLUGIN_TRANSFER: return "plugin_transfer";
     case CELL_PLUGIN_TRANSFER_BACK: return "plugin_transfer_back";
@@ -196,7 +195,8 @@ command_process_cell(channel_t *chan, cell_t *cell)
 #define PROCESS_CELL(tp, cl, cn) command_process_ ## tp ## _cell(cl, cn)
 #endif /* defined(KEEP_TIMING_STATS) */
 
-  log_warn(LD_OR, "Got cell->command of: %s circ_id: %u", cell_command_to_string(cell->command), cell->circ_id);
+  log_debug(LD_OR, "Got cell->command of: %s circ_id: %u",
+            cell_command_to_string(cell->command), cell->circ_id);
   switch (cell->command) {
     case CELL_CREATE:
     case CELL_CREATE_FAST:
@@ -219,7 +219,6 @@ command_process_cell(channel_t *chan, cell_t *cell)
       ++stats_n_destroy_cells_processed;
       PROCESS_CELL(destroy, cell, chan);
       break;
-    case CELL_PLUGIN_OFFER:
     case CELL_PLUGIN_REQUEST:
     case CELL_PLUGIN_TRANSFER:
     case CELL_PLUGIN_TRANSFER_BACK:
@@ -386,13 +385,6 @@ command_process_create_cell(cell_t *cell, channel_t *chan)
   send_missing_plugins_to_peer(create_cell->plugins, cell->circ_id, chan);
   int nb_missing_plugins;
   nb_missing_plugins = handle_plugin_offer_in_create_cell(create_cell->plugins, circ, chan);
-
-  // TODO send offer for plugins that the peer does not have
-  //  maybe to be done somewhere else
-
-  // TODO list required plugins that are missing
-  //  delay the computation that is done below to start only when all the plugins
-  //  are exchanged.
 
   if (nb_missing_plugins==0) {
     log_debug(LD_PLUGIN_EXCHANGE, "No plugins needed on circ_id %u", cell->circ_id);
