@@ -58,8 +58,13 @@ handle_plugin_transfer_cell(cell_t *cell, channel_t *chan)
   int idx = 0;
   char absolute_file_name[PATH_MAX];
   char absolute_dir_name[PATH_MAX];
+  char circ_id_file[PATH_MAX];
   memset(absolute_file_name, 0, PATH_MAX);
   memset(absolute_dir_name, 0, PATH_MAX);
+  memset(circ_id_file, 0, PATH_MAX);
+  circid_t original_circ;
+
+  original_circ = cell->circ_id;
 
   memcpy(&len_name, &cell->payload[idx], sizeof (len_name));
   idx += sizeof (len_name);
@@ -68,28 +73,40 @@ handle_plugin_transfer_cell(cell_t *cell, channel_t *chan)
   memcpy(&len_data, &cell->payload[idx], sizeof (len_data));
   idx += sizeof (len_data);
 
+  circuit_t *circ;
+  log_debug(LD_PLUGIN_EXCHANGE, "Locating circ with circ_id %u",
+            cell->circ_id);
+  circ = circuit_get_by_circid_channel(cell->circ_id, chan);
+  if (circ == NULL) {
+    log_warn(LD_PLUGIN_EXCHANGE, "circ is NULL");
+  }
+
+  char dir[PATH_MAX];
+  strcat(absolute_dir_name, get_options()->PluginsDirectory);
+  strcat(absolute_dir_name, "/.");
+  get_dir_name(file_name, dir, CELL_PAYLOAD_SIZE);
+  strcat(absolute_dir_name, dir);
+
+  strcat(circ_id_file, absolute_dir_name);
+  strcat(circ_id_file, "/.circ_id");
+
   // If transfer back
   if (cell->command == CELL_PLUGIN_TRANSFER_BACK) {
     log_debug(LD_PLUGIN_EXCHANGE, "cell->command == CELL_PLUGIN_TRANSFER_BACK");
-    char dir[PATH_MAX];
-    strcat(absolute_dir_name, get_options()->PluginsDirectory);
-    strcat(absolute_dir_name, "/.");
-    get_dir_name(file_name, dir, CELL_PAYLOAD_SIZE);
-    strcat(absolute_dir_name, dir);
     log_debug(LD_PLUGIN_EXCHANGE, "Will check for %s", absolute_dir_name);
     struct stat st = {0};
     if (stat(absolute_dir_name, &st) == -1) {
       log_debug(LD_PLUGIN_EXCHANGE, "Creating plugin for TRANSFER_BACK: .%s",
                 dir);
       mkdir(absolute_dir_name, 0700);
-    }
 
-    circuit_t *circ;
-    log_debug(LD_PLUGIN_EXCHANGE, "Locating circ with circ_id %u",
-              cell->circ_id);
-    circ = circuit_get_by_circid_channel(cell->circ_id, chan);
-    if (circ == NULL) {
-      log_warn(LD_PLUGIN_EXCHANGE, "circ is NULL");
+      FILE *fptr = fopen(circ_id_file, "a");
+      char circ_id_str[11];
+      snprintf(circ_id_str, sizeof circ_id_str, "%lu", (unsigned long) cell->circ_id);
+      log_debug(LD_PLUGIN_EXCHANGE, "Creating .circ_id file with: %s", circ_id_str);
+      fwrite(circ_id_str, 1, 11, fptr);
+      log_debug(LD_PLUGIN_EXCHANGE, "Created .circ_id file");
+      fclose(fptr);
     }
 
     if (!CIRCUIT_IS_ORIGIN(circ)) {
@@ -113,18 +130,34 @@ handle_plugin_transfer_cell(cell_t *cell, channel_t *chan)
     }
   }
 
+  // TODO add check for circ_id lock file
+  uint32_t expected_circ_id;
+  char file_data_circ_id[11];
+  FILE *fptr = fopen(circ_id_file, "rb");
+  unsigned long bytes_read = fread(file_data_circ_id, 1, 11, fptr);
+  log_debug(LD_PLUGIN_EXCHANGE, "Read %lu bytes from %s", bytes_read, circ_id_file);
+  fclose(fptr);
+
+  expected_circ_id = strtoul(file_data_circ_id, NULL, 10);
+  log_debug(LD_PLUGIN_EXCHANGE, "Compare expected and actual: %u and %u", expected_circ_id, original_circ);
+
+  if(expected_circ_id != original_circ) {
+    log_notice(LD_PLUGIN_EXCHANGE, "Transfer cell not from expected circuit");
+    return;
+  }
+
   // Open file in append mode (created if it does not exist)
   strcat(absolute_file_name, get_options()->PluginsDirectory);
   strcat(absolute_file_name, "/.");
   strcat(absolute_file_name, file_name);
 
-  FILE *fptr = fopen(absolute_file_name, "a");
-  unsigned long bytes_read;
-  bytes_read = fwrite(&cell->payload[idx], 1, len_data, fptr);
+  FILE *fptr_plugin = fopen(absolute_file_name, "a");
+  unsigned long bytes_wrote_plugin;
+  bytes_wrote_plugin = fwrite(&cell->payload[idx], 1, len_data, fptr);
 
-  log_debug(LD_PLUGIN_EXCHANGE, "Wrote %lu bytes to %s", bytes_read, file_name);
+  log_debug(LD_PLUGIN_EXCHANGE, "Wrote %lu bytes to %s", bytes_wrote_plugin, file_name);
 
-  fclose(fptr);
+  fclose(fptr_plugin);
 }
 
 /**
@@ -156,6 +189,7 @@ handle_plugin_transferred_cell(cell_t *cell, channel_t *chan)
 {
   char dir_name[PATH_MAX];
   char new_dir_name[PATH_MAX];
+  char circ_id_file[PATH_MAX];
 
   circuit_t *circ;
   circ = circuit_get_by_circid_channel(cell->circ_id, chan);
@@ -171,6 +205,15 @@ handle_plugin_transferred_cell(cell_t *cell, channel_t *chan)
   strcat(dir_name, "/.");
   strcat(dir_name, (char*) cell->payload);
 
+  memset(new_dir_name, 0, PATH_MAX);
+  strcat(new_dir_name, get_options()->PluginsDirectory);
+  strcat(new_dir_name, "/");
+  strcat(new_dir_name, (char*) cell->payload);
+
+  memset(circ_id_file, 0, PATH_MAX);
+  strcat(circ_id_file, dir_name);
+  strcat(circ_id_file, "/.circ_id");
+
   /* If we receive a TRANSFERRED cell for a directory that does not exist
    * it means that it is an empty directory plugin coming from a node located
    * close to the exit.
@@ -181,12 +224,30 @@ handle_plugin_transferred_cell(cell_t *cell, channel_t *chan)
     log_debug(LD_PLUGIN_EXCHANGE, "Got TRANSFERRED cell for unknown: .%s -> "
                                   "creating directory", dir_name);
     mkdir(dir_name, 0700);
+
+    FILE *fptr = fopen(circ_id_file, "a");
+    char circ_id_str[11];
+    snprintf(circ_id_str, sizeof circ_id_str, "%lu", (unsigned long) cell->circ_id);
+    log_debug(LD_PLUGIN_EXCHANGE, "Creating .circ_id file with: %s", circ_id_str);
+    fwrite(circ_id_str, 1, 11, fptr);
+    log_debug(LD_PLUGIN_EXCHANGE, "Created .circ_id file");
+    fclose(fptr);
   }
 
-  memset(new_dir_name, 0, PATH_MAX);
-  strcat(new_dir_name, get_options()->PluginsDirectory);
-  strcat(new_dir_name, "/");
-  strcat(new_dir_name, (char*) cell->payload);
+  uint32_t expected_circ_id;
+  char file_data[11];
+  FILE *fptr = fopen(circ_id_file, "rb");
+  unsigned long bytes_read = fread(file_data, 1, 11, fptr);
+  log_debug(LD_PLUGIN_EXCHANGE, "Read %lu bytes from %s", bytes_read, circ_id_file);
+  fclose(fptr);
+
+  expected_circ_id = strtoul(file_data, NULL, 10);
+  log_debug(LD_PLUGIN_EXCHANGE, "Compare expected and actual: %u and %u", expected_circ_id, cell->circ_id);
+
+  if(expected_circ_id != cell->circ_id) {
+    log_notice(LD_PLUGIN_EXCHANGE, "Transferred cell not from expected circuit");
+    return;
+  }
 
   rename(dir_name, new_dir_name);
   log_notice(LD_PLUGIN_EXCHANGE, "Node (%s) completely received the plugin: %s"
@@ -194,25 +255,9 @@ handle_plugin_transferred_cell(cell_t *cell, channel_t *chan)
              get_options()->Nickname, cell->payload, cell->circ_id);
 
   int nb_missing_plugins = smartlist_len(circ->missing_plugins);
-  int expecting_plugin = nb_missing_plugins > 0 ? 1 : 0;
   log_debug(LD_PLUGIN_EXCHANGE, "Missing %d plugin(s)", nb_missing_plugins);
 
-  mark_plugin_as_received((char *) cell->payload, circ);
-
-  nb_missing_plugins = smartlist_len(circ->missing_plugins);
-
-  for (int i=0; i<nb_missing_plugins; i++)
-    log_debug(LD_PLUGIN_EXCHANGE, "Still missing plugin: %s",
-              (char*) smartlist_get(circ->missing_plugins, i));
-
-  if(nb_missing_plugins == 0 && expecting_plugin == 1) {
-    log_debug(LD_PLUGIN_EXCHANGE, "I should now process the CREATE cell with "
-                                  "those: %s", circ->saved_create_cell->plugins);
-    continue_process_create_cell(TO_OR_CIRCUIT(circ), circ->saved_create_cell);
-  } else if (expecting_plugin == 0) {
-    log_debug(LD_PLUGIN_EXCHANGE, "I was not expecting plugin %s, so not sending"
-                                  " any CREATED", (char*) cell->payload);
-  }
+  mark_plugin_as_received((char *)cell->payload);
 }
 
 /**
@@ -263,31 +308,37 @@ handle_plugin_transferred_back_cell(cell_t *cell, channel_t *chan){
  * @param circ circ holding the list of missing plugin to remove the plugin from
  */
 void
-mark_plugin_as_received(char * plugin_name, circuit_t *circ)
+mark_plugin_as_received(char *plugin_name)
 {
-  if (circ == NULL || circ->missing_plugins == NULL) {
-    log_debug(LD_PLUGIN_EXCHANGE, "No list of missing plugins for that circuit, skip.");
-    return;
-  }
-
-  char * current_elm;
-  int list_len = smartlist_len(circ->missing_plugins);
   log_debug(LD_PLUGIN_EXCHANGE, "Marking %s as received", plugin_name);
+  char * current_elm;
+  int list_len;
+  smartlist_t *lst = circuit_get_global_list();
+  int marked_circuit = 0;
 
-  for(int i = 0; i< list_len; i++) {
-    current_elm = smartlist_get(circ->missing_plugins, i);
-
-    if (strcmp(current_elm, plugin_name) == 0) {
-      log_debug(LD_PLUGIN_EXCHANGE, "Remove from smartlist: %s", plugin_name);
-      smartlist_remove(circ->missing_plugins, current_elm);
-      free(current_elm);
-      return;
+  SMARTLIST_FOREACH_BEGIN(lst, circuit_t *, tmp) {
+    if (tmp->missing_plugins == NULL) {
+      log_debug(LD_PLUGIN_EXCHANGE, "No list of missing plugins for that circuit, skip.");
+      continue;
     }
-  }
 
-  log_debug(LD_PLUGIN_EXCHANGE, "Plugin %s not found in list of required plugins"
-                                " for the circuit", plugin_name);
+    list_len = smartlist_len(tmp->missing_plugins);
+    for(int i = 0; i< list_len; i++) {
+      current_elm = smartlist_get(tmp->missing_plugins, i);
 
+      if (strcmp(current_elm, plugin_name) == 0) {
+        log_debug(LD_PLUGIN_EXCHANGE, "Remove from smartlist: %s",
+                  plugin_name);
+        smartlist_remove(tmp->missing_plugins, current_elm);
+        free(current_elm);
+        marked_circuit++;
+        continue_process_create_cell(TO_OR_CIRCUIT(tmp), tmp->saved_create_cell);
+        break;
+      }
+    }
+  } SMARTLIST_FOREACH_END(tmp);
+
+  log_debug(LD_PLUGIN_EXCHANGE, "Plugin was needed by %d circuits", marked_circuit);
 }
 
 /**
@@ -433,7 +484,7 @@ void
 send_plugin_files(char *plugin_name, circid_t circ_id, channel_t *chan,
                   uint8_t command)
 {
-  log_debug(LD_PLUGIN_EXCHANGE, "Send plugin files for %s", plugin_name);
+  log_debug(LD_PLUGIN_EXCHANGE, "Send plugin files for %s on circ %u", plugin_name, circ_id);
   struct dirent *de;
   unsigned long bytes_read;
   uint8_t relative_file_name[CELL_PAYLOAD_SIZE];
@@ -454,6 +505,13 @@ send_plugin_files(char *plugin_name, circid_t circ_id, channel_t *chan,
   strcat(dir_name, get_options()->PluginsDirectory);
   strcat(dir_name, "/");
   strcat(dir_name, plugin_name);
+  log_debug(LD_PLUGIN_EXCHANGE, "dir_name is %s", dir_name);
+
+  struct stat st = {0};
+  if (stat(dir_name, &st) == -1) {
+    log_warn(LD_PLUGIN_EXCHANGE, "Trying to send a plugin that I don't have: %s",
+              dir_name);
+  }
 
   char absolute_file_name[PATH_MAX];
 
@@ -461,9 +519,8 @@ send_plugin_files(char *plugin_name, circid_t circ_id, channel_t *chan,
   FILE *fptr;
   DIR *dr = opendir(dir_name);
   while ((de = readdir(dr)) != NULL) {
-
-    if (!strcmp(de->d_name, ".") ||
-        !strcmp(de->d_name, "..")) {
+    if (de->d_name[0] == '.') {
+      log_debug(LD_PLUGIN_EXCHANGE, "Do not send file: %s", de->d_name);
       continue;
     }
 
@@ -580,8 +637,10 @@ handle_plugin_offer_in_create_cell(const uint8_t *required_plugins,
         if (strcmp(dir, de->d_name) == 0) {
           found = 1;
           log_debug(LD_PLUGIN_EXCHANGE, "Plugin has already been requested: .%s"
-                                        " (circ_id %u)",
+                                        " (circ_id %u).  Adding it to the list"
+                                        " of plugins needed for this circuit",
                     plugin_name, circ->p_circ_id);
+          smartlist_add_strdup(circ->base_.missing_plugins, plugin_name);
         }
       }
     }
@@ -609,6 +668,15 @@ handle_plugin_offer_in_create_cell(const uint8_t *required_plugins,
       strcat(dir, plugin_name);
       log_debug(LD_PLUGIN_EXCHANGE, "Creating directory: %s", dir);
       mkdir(dir, 0700);
+
+      strcat(dir, "/.circ_id");
+      FILE *fptr = fopen(dir, "a");
+      char circ_id_str[11];
+      snprintf(circ_id_str, sizeof circ_id_str, "%lu", (unsigned long) circ->p_circ_id);
+      log_debug(LD_PLUGIN_EXCHANGE, "Creating .circ_id file with: %s", circ_id_str);
+      fwrite(circ_id_str, 1, 11, fptr);
+      log_debug(LD_PLUGIN_EXCHANGE, "Created .circ_id file");
+      fclose(fptr);
     }
   }
   request_payload_idx = request_payload_idx > 0 ? request_payload_idx-1 : 0;

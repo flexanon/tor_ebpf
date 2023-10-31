@@ -366,8 +366,6 @@ static ssize_t
 create2_cell_body_parse_into(create2_cell_body_t *obj, const uint8_t *input, const size_t len_in)
 {
   log_debug(LD_PLUGIN_EXCHANGE, "create2_cell_body_parse_into input (len %zu)", len_in);
-  for(int i = 0; i<len_in; i++)
-    log_debug(LD_PLUGIN_EXCHANGE, "input[%d]: %d %c", i, input[i], input[i]);
   const uint8_t *ptr = input;
   size_t remaining = len_in;
   ssize_t result = 0;
