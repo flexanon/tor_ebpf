@@ -742,7 +742,9 @@ circuit_deliver_create_cell,(circuit_t *circ,
   circid_t id;
   int r;
 
-  log_debug(LD_PLUGIN_EXCHANGE, "Here we go, relayed: %d", relayed);
+  log_debug(LD_PLUGIN_EXCHANGE, "Sending %s CREATE cell with plugins: %s",
+            relayed == 1 ? "(relayed)" : "",
+            create_cell->plugins);
 
   tor_assert(circ);
   tor_assert(circ->n_chan);
@@ -769,6 +771,7 @@ circuit_deliver_create_cell,(circuit_t *circ,
     goto error;
   }
   log_debug(LD_CIRC,"Chosen circID %u.", (unsigned)id);
+  log_debug(LD_PLUGIN_EXCHANGE,"... circ_id %u.", (unsigned)id);
   circuit_set_n_circid_chan(circ, id, circ->n_chan);
   cell.circ_id = circ->n_circ_id;
 
