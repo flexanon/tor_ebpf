@@ -742,10 +742,6 @@ circuit_deliver_create_cell,(circuit_t *circ,
   circid_t id;
   int r;
 
-  log_debug(LD_PLUGIN_EXCHANGE, "Sending %s CREATE cell with plugins: %s",
-            relayed == 1 ? "(relayed)" : "",
-            create_cell->plugins);
-
   tor_assert(circ);
   tor_assert(circ->n_chan);
   tor_assert(create_cell);
@@ -775,6 +771,9 @@ circuit_deliver_create_cell,(circuit_t *circ,
   circuit_set_n_circid_chan(circ, id, circ->n_chan);
   cell.circ_id = circ->n_circ_id;
 
+  log_debug(LD_PLUGIN_EXCHANGE, "Sending %s CREATE cell with plugins: %s on circ_id %u",
+            relayed == 1 ? "(relayed)" : "",
+            create_cell->plugins, cell.circ_id);
   append_cell_to_circuit_queue(circ, circ->n_chan, &cell,
                                CELL_DIRECTION_OUT, 0);
 

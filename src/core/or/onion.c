@@ -114,10 +114,6 @@ create_cell_init(create_cell_t *cell_out, uint8_t cell_type,
 
   cell_out->plugin_list_len = get_uint16(onionskin+handshake_len);
   memcpy(cell_out->plugins, onionskin+handshake_len+sizeof(uint16_t), cell_out->plugin_list_len);
-
-  log_debug(LD_PLUGIN_EXCHANGE, "%u bytes of plugins parsed: %s",
-            cell_out->plugin_list_len, cell_out->plugins);
-
 }
 
 /** Helper: parse the CREATE2 payload at <b>p</b>, which could be up to
@@ -450,9 +446,6 @@ extend_cell_parse,(extend_cell_t *cell_out,
       extend2_cell_body_free(cell);
       if (r < 0)
         return r;
-
-      log_debug(LD_PLUGIN_EXCHANGE, "%d bytes of plugins parsed: %s",
-                cell_out->create_cell.plugin_list_len, cell_out->create_cell.plugins);
     }
     break;
   default:
