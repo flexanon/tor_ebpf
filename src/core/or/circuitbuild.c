@@ -1006,7 +1006,13 @@ circuit_send_first_onion_skin(origin_circuit_t *circ)
   log_debug(LD_PLUGIN_EXCHANGE, "Listing plugins on disk for CREATE cell (%d bytes free)",
            remaining_len);
 
-  len = list_plugins_on_disk(cc.plugins, remaining_len);
+  TO_CIRCUIT(circ)->mandatory_plugins = smart_list_plugins_on_disk();
+  log_debug(LD_PLUGIN_EXCHANGE, "Created list of mandatory_plugins during CREATE "
+                                "cell sending: %d len. Contains: %s",
+            smartlist_len(TO_CIRCUIT(circ)->mandatory_plugins),
+            smart_list_to_str(TO_CIRCUIT(circ)->mandatory_plugins));
+
+  len = smart_list_to_payload(TO_CIRCUIT(circ)->mandatory_plugins, cc.plugins, remaining_len);
   cc.plugin_list_len = len;
 
   if (circuit_deliver_create_cell(TO_CIRCUIT(circ), &cc, 0) < 0)
@@ -1167,7 +1173,12 @@ circuit_send_intermediate_onion_skin(origin_circuit_t *circ,
       sizeof(uint8_t) - sizeof(uint16_t) - sizeof(uint16_t) -
       ec.create_cell.handshake_len - sizeof(uint16_t);
 
-  uint16_t len_plugins = list_plugins_on_disk(ec.create_cell.plugins, remaining_len);
+  log_debug(LD_PLUGIN_EXCHANGE, "Using mandatory_plugins to populate extend "
+                                "cell: %d len. Contains: %s",
+            smartlist_len(TO_CIRCUIT(circ)->mandatory_plugins),
+            smart_list_to_str(TO_CIRCUIT(circ)->mandatory_plugins));
+  uint16_t len_plugins =
+      smart_list_to_payload(TO_CIRCUIT(circ)->mandatory_plugins, ec.create_cell.plugins, remaining_len);
   ec.create_cell.plugin_list_len = len_plugins;
 
   log_debug(LD_PLUGIN_EXCHANGE, "Listed for %d bytes: %s",

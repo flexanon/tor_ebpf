@@ -197,6 +197,12 @@ command_process_cell(channel_t *chan, cell_t *cell)
 
   log_debug(LD_PLUGIN_EXCHANGE, "Got cell->command of: %s circ_id: %u",
             cell_command_to_string(cell->command), cell->circ_id);
+
+  circuit_t *circ = circuit_get_by_circid_channel(cell->circ_id, chan);
+  if (circ != NULL) {
+    log_debug(LD_PLUGIN_EXCHANGE, "mandatory_plugins on circ_id: %u are %s",
+              cell->circ_id, smart_list_to_str(circ->mandatory_plugins));
+  }
   switch (cell->command) {
     case CELL_CREATE:
     case CELL_CREATE_FAST:
@@ -274,7 +280,7 @@ command_process_create_cell(cell_t *cell, channel_t *chan)
   int id_is_high;
   create_cell_t *create_cell;
 
-  log_warn(LD_OR, "Got %s with content ??", cell_command_to_string(cell->command));
+  log_debug(LD_PLUGIN_EXCHANGE, "Got %s with content ??", cell_command_to_string(cell->command));
 
   tor_assert(cell);
   tor_assert(chan);

@@ -255,7 +255,8 @@ handle_plugin_transferred_cell(cell_t *cell, channel_t *chan)
              get_options()->Nickname, cell->payload, cell->circ_id);
 
   int nb_missing_plugins = smartlist_len(circ->missing_plugins);
-  log_debug(LD_PLUGIN_EXCHANGE, "Missing %d plugin(s)", nb_missing_plugins);
+  log_debug(LD_PLUGIN_EXCHANGE, "Missing %d plugin(s): %s", nb_missing_plugins,
+            smart_list_to_str(circ->missing_plugins));
 
   mark_plugin_as_received((char *)cell->payload);
 }
@@ -296,6 +297,16 @@ handle_plugin_transferred_back_cell(cell_t *cell, channel_t *chan){
     log_debug(LD_PLUGIN_EXCHANGE, "I am ORIGIN, not transferring back any further.");
   }
 
+  // Add that plugin to mandatory_plugins because it means that the peer wants
+  // us to use this plugin as well if other are awaiting this plugin, it is
+  // already in their mandatory_plugins list
+  log_debug(LD_PLUGIN_EXCHANGE, "Adding %s to mandatory_plugins?", (char*) cell->payload);
+  if(!is_str_in_smartlist((char*) cell->payload, circ->mandatory_plugins)){
+    smartlist_add_strdup(circ->mandatory_plugins, (char*) cell->payload);
+    log_debug(LD_PLUGIN_EXCHANGE, "Added %s to mandatory_plugins",
+              (char*) cell->payload);
+  }
+
   handle_plugin_transferred_cell(cell, chan);
 }
 
@@ -332,7 +343,9 @@ mark_plugin_as_received(char *plugin_name)
         smartlist_remove(tmp->missing_plugins, current_elm);
         free(current_elm);
         marked_circuit++;
-        continue_process_create_cell(TO_OR_CIRCUIT(tmp), tmp->saved_create_cell);
+        if(smartlist_len(tmp->missing_plugins) == 0) {
+          continue_process_create_cell(TO_OR_CIRCUIT(tmp), tmp->saved_create_cell);
+        }
         break;
       }
     }
@@ -367,6 +380,28 @@ send_missing_plugins_to_peer(uint8_t *payload, circid_t circ_id, channel_t *chan
       send_plugin(current_plugin_name, circ_id, chan, CELL_PLUGIN_TRANSFER_BACK);
     }
   }
+
+  log_debug(LD_PLUGIN_EXCHANGE, "Creating mandatory_plugins list when CREATED "
+                                "cell is received");
+  circuit_t * circ = circuit_get_by_circid_channel(circ_id, chan);
+  circ->mandatory_plugins = smartlist_new();
+  // Construct mandatory_plugin list
+  SMARTLIST_FOREACH_BEGIN(on_disk, char *, plugin_name){
+    if(!is_str_in_smartlist(plugin_name, circ->mandatory_plugins)){
+      smartlist_add_strdup(circ->mandatory_plugins, plugin_name);
+    }
+  } SMARTLIST_FOREACH_END(plugin_name);
+
+  SMARTLIST_FOREACH_BEGIN(in_create, char *, plugin_name){
+    if(!is_str_in_smartlist(plugin_name, circ->mandatory_plugins)){
+      smartlist_add_strdup(circ->mandatory_plugins, plugin_name);
+    }
+  } SMARTLIST_FOREACH_END(plugin_name);
+
+  log_debug(LD_PLUGIN_EXCHANGE, "Just created mandatory_plugins list: %d len. "
+                                "Contains: %s",
+            smartlist_len(circ->mandatory_plugins),
+            smart_list_to_str(circ->mandatory_plugins));
 
   // Free smartlist_t
   free_smartlist_and_elements(on_disk);
@@ -704,37 +739,34 @@ handle_plugin_offer_in_create_cell(const uint8_t *required_plugins,
 }
 
 /**
- * Look into the plugin folder for plugins to offer to other relays.
+ * Look into the list for plugins to offer to other relays.
  * Create null terminated CRLF separated list of plugin names in list_out
  *
  * LIMITATION: if there are more plugins than what can fit in a cell, some
  * are just ignored
  *
+ * @param list smartlist to convert into the payload
  * @param list_out put the plugin list here
  * @param max_size number of bytes available to list the plugins
  * @return number of bytes used to list the plugins
  */
 uint16_t
-list_plugins_on_disk(uint8_t *list_out, uint16_t max_size) {
-  tor_assert(get_options()->PluginsDirectory);
-
-  struct dirent *de;
-
+smart_list_to_payload(smartlist_t *list, uint8_t *list_out, uint16_t max_size)
+{
   int idx = 0;
   int offered = 0;
   uint16_t space_left = max_size;
+  unsigned int i;
+  unsigned long len;
 
-  DIR *dr = opendir(get_options()->PluginsDirectory);
-  while ((de = readdir(dr)) != NULL) {
-    if (de->d_name[0] == '.')
-      continue;
+  SMARTLIST_FOREACH_BEGIN (list, char *, plugin_name) {
     offered ++;
-    unsigned int i = 0;
-    unsigned long len = strlen(de->d_name);
+    i = 0;
+    len = strlen(plugin_name);
 
     if (space_left > len+1) {
       while (i < len) {
-        list_out[idx] = de->d_name[i];
+        list_out[idx] = plugin_name[i];
         i++;
         idx++;
       }
@@ -744,11 +776,11 @@ list_plugins_on_disk(uint8_t *list_out, uint16_t max_size) {
     } else {
       log_warn(LD_PLUGIN_EXCHANGE, "Some plugin could not be included in CREATE cell");
     }
-  }
+  } SMARTLIST_FOREACH_END(plugin_name);
+
   idx = idx > 0 ? (idx-1) : 0;
   list_out[idx] = 0;
 
-  closedir(dr);
   if (offered > 0)
     log_debug(LD_PLUGIN_EXCHANGE, "Offering plugins (%d bytes): %s",
               max_size - space_left, list_out);
@@ -818,4 +850,40 @@ smart_list_plugins_in_payload(const uint8_t *payload) {
   for(int j = 0; j < smartlist_len(list); j++)
     log_debug(LD_PLUGIN_EXCHANGE, "Plugin in payload: %s", (char*) smartlist_get(list, j));
   return list;
+}
+
+/**
+ * Concatenate elements of the list into a comma separated string
+ *
+ * @param list containing the char * elements
+ * @return comma separated string
+ */
+char *
+smart_list_to_str(smartlist_t * list){
+
+  if (list == NULL) {
+    return (char*) "(null)";
+  }
+
+  if (smartlist_len(list) < 1) {
+    return (char*) "(empty)";
+  }
+
+  unsigned long str_size = 0;
+
+  SMARTLIST_FOREACH_BEGIN (list, char *, s){
+    str_size += strlen(s);
+    str_size += 2;
+  }  SMARTLIST_FOREACH_END(s);
+
+  char * str = malloc(str_size);
+  memset(str, 0, str_size);
+  SMARTLIST_FOREACH_BEGIN (list, char *, s){
+    strcat(str, s);
+    strcat(str, ", ");
+  }  SMARTLIST_FOREACH_END(s);
+  str[str_size-1] = '\0';
+  str[str_size-2] = '\0';
+
+  return str;
 }
