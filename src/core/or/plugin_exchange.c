@@ -621,7 +621,6 @@ int
 handle_plugin_offer_in_create_cell(const uint8_t *required_plugins,
                                    or_circuit_t *circ, channel_t *chan)
 {
-
   if (required_plugins[0] == 0) {
     log_debug(LD_PLUGIN_EXCHANGE,
                "Received empty list of plugin in CREATE cell (circ_id %u)",
@@ -629,35 +628,21 @@ handle_plugin_offer_in_create_cell(const uint8_t *required_plugins,
     return 0;
   }
 
+  // Create list of missing plugins
   tor_assert(get_options()->PluginsDirectory);
   struct dirent *de;
   cell_t request_cell;
-  memset(&request_cell, 0, sizeof(request_cell));
   circ->base_.missing_plugins = smartlist_new();
 
-  char plugin_name[CELL_PAYLOAD_SIZE-2];
   int found;
-  int p_name_idx;
-  int payload_idx = 0;
-  unsigned long request_payload_idx = 0;
-  int last = 0;
-  int will_request = 0;
   char dir[PATH_MAX];
 
-  while (!last) {
-    memset(plugin_name, 0, CELL_PAYLOAD_SIZE - 2);
-    p_name_idx = 0;
-    while (required_plugins[payload_idx] != '\n' && !last) {
-      if (required_plugins[payload_idx] == 0) {
-        last = 1;
-      } else {
-        plugin_name[p_name_idx] = required_plugins[payload_idx];
-        p_name_idx++;
-        payload_idx++;
-      }
-    }
-    payload_idx++;
+  // For every plugin in the payload...
+  smartlist_t * in_payload = smart_list_plugins_in_payload(required_plugins);
+  smartlist_t * to_request = smartlist_new();
 
+  SMARTLIST_FOREACH_BEGIN (in_payload, char *, plugin_name) {
+    // Check if we already have it on disk or recently requested
     DIR *dr = opendir(get_options()->PluginsDirectory);
     found = 0;
     while (((de = readdir(dr)) != NULL)) {
@@ -681,21 +666,15 @@ handle_plugin_offer_in_create_cell(const uint8_t *required_plugins,
     }
     closedir(dr);
 
-    // No need to check for cell overflow capacity as the request is at most
-    // as long as the offer (cannot request more than what is offered)
+    // If not on disk of not requested yet, add it to request
     if (found == 0) {
       log_debug(LD_PLUGIN_EXCHANGE, "Will request plugin: %s (circ_id %u)",
                 plugin_name, circ->p_circ_id);
-      will_request = 1;
+
+      smartlist_add_strdup(to_request, plugin_name);
 
       // Put element in circuit info
       smartlist_add_strdup(circ->base_.missing_plugins, plugin_name);
-
-      memcpy(&request_cell.payload[request_payload_idx],
-             plugin_name, strlen(plugin_name));
-      request_payload_idx += strlen(plugin_name);
-      request_cell.payload[request_payload_idx] = '\n';
-      request_payload_idx ++;
 
       memset(dir, 0, PATH_MAX);
       strcat(dir, get_options()->PluginsDirectory);
@@ -713,13 +692,14 @@ handle_plugin_offer_in_create_cell(const uint8_t *required_plugins,
       log_debug(LD_PLUGIN_EXCHANGE, "Created .circ_id file");
       fclose(fptr);
     }
-  }
-  request_payload_idx = request_payload_idx > 0 ? request_payload_idx-1 : 0;
-  request_cell.payload[request_payload_idx] = 0;
+  }  SMARTLIST_FOREACH_END(plugin_name);
 
-  if (will_request) {
+  // Build cell and send the request to the peer
+  if (smartlist_len(to_request) > 0) {
+    memset(&request_cell, 0, sizeof(request_cell));
     request_cell.circ_id = circ->p_circ_id;
     request_cell.command = CELL_PLUGIN_REQUEST;
+    smart_list_to_payload(to_request, request_cell.payload, CELL_PAYLOAD_SIZE);
 
     cell_direction_t direction = circ->base_.n_chan == chan ? CELL_DIRECTION_OUT : CELL_DIRECTION_IN;
 
@@ -774,7 +754,7 @@ smart_list_to_payload(smartlist_t *list, uint8_t *list_out, uint16_t max_size)
       idx++;
       space_left -= (len+1);
     } else {
-      log_warn(LD_PLUGIN_EXCHANGE, "Some plugin could not be included in CREATE cell");
+      log_warn(LD_PLUGIN_EXCHANGE, "Some plugin could not be included in the cell");
     }
   } SMARTLIST_FOREACH_END(plugin_name);
 
@@ -782,10 +762,10 @@ smart_list_to_payload(smartlist_t *list, uint8_t *list_out, uint16_t max_size)
   list_out[idx] = 0;
 
   if (offered > 0)
-    log_debug(LD_PLUGIN_EXCHANGE, "Offering plugins (%d bytes): %s",
+    log_debug(LD_PLUGIN_EXCHANGE, "Payload of (%d bytes): %s",
               max_size - space_left, list_out);
   else
-    log_debug(LD_PLUGIN_EXCHANGE, "Offering nothing");
+    log_debug(LD_PLUGIN_EXCHANGE, "Nothing in payload");
 
   return max_size - space_left;
 }
