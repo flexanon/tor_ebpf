@@ -858,7 +858,7 @@ smart_list_to_str(smartlist_t * list){
     str_size += 2;
   }  SMARTLIST_FOREACH_END(s);
 
-  log_debug(LD_PLUGIN_EXCHANGE, "char * str = tor_malloc_zero(str_size);");
+  log_debug(LD_PLUGIN_EXCHANGE, "char * str = tor_malloc_zero(str_size); with str_size %lu", str_size);
   char * str = tor_malloc_zero(str_size);
   memset(str, 0, str_size);
   SMARTLIST_FOREACH_BEGIN (list, char *, s){
