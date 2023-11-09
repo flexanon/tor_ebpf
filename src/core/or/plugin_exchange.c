@@ -863,10 +863,10 @@ smart_list_to_str(smartlist_t * list){
   memset(str, 0, str_size);
   SMARTLIST_FOREACH_BEGIN (list, char *, s){
     strcat(str, s);
-    strcat(str, ", ");
+    if(s_sl_idx < s_sl_len -1) {
+      strcat(str, ", ");
+    }
   }  SMARTLIST_FOREACH_END(s);
-  str[str_size-1] = '\0';
-  str[str_size-2] = '\0';
 
   return str;
 }
