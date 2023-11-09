@@ -396,7 +396,8 @@ command_process_create_cell(cell_t *cell, channel_t *chan)
     log_debug(LD_PLUGIN_EXCHANGE, "No plugins needed on circ_id %u", cell->circ_id);
     continue_process_create_cell(circ, create_cell);
   } else {
-    create_cell_t *saved = malloc(sizeof (create_cell_t));
+    log_debug(LD_PLUGIN_EXCHANGE, "create_cell_t *saved = tor_malloc_zero(sizeof (create_cell_t));");
+    create_cell_t *saved = tor_malloc_zero(sizeof (create_cell_t));
     memcpy(saved, create_cell, sizeof(create_cell_t));
     circ->base_.saved_create_cell = saved;
   }

@@ -341,6 +341,7 @@ mark_plugin_as_received(char *plugin_name)
         log_debug(LD_PLUGIN_EXCHANGE, "Remove from smartlist: %s",
                   plugin_name);
         smartlist_remove(tmp->missing_plugins, current_elm);
+        log_debug(LD_PLUGIN_EXCHANGE, "free(current_elm);");
         free(current_elm);
         marked_circuit++;
         if(smartlist_len(tmp->missing_plugins) == 0) {
@@ -419,6 +420,7 @@ free_smartlist_and_elements(smartlist_t * list) {
 
   void * elm = smartlist_pop_last(list);
   while (elm != NULL) {
+    log_debug(LD_PLUGIN_EXCHANGE, "free(current_elm);");
     free(elm);
     elm = smartlist_pop_last(list);
   }
@@ -856,7 +858,8 @@ smart_list_to_str(smartlist_t * list){
     str_size += 2;
   }  SMARTLIST_FOREACH_END(s);
 
-  char * str = malloc(str_size);
+  log_debug(LD_PLUGIN_EXCHANGE, "char * str = tor_malloc_zero(str_size);");
+  char * str = tor_malloc_zero(str_size);
   memset(str, 0, str_size);
   SMARTLIST_FOREACH_BEGIN (list, char *, s){
     strcat(str, s);
