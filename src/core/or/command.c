@@ -195,8 +195,8 @@ command_process_cell(channel_t *chan, cell_t *cell)
 #define PROCESS_CELL(tp, cl, cn) command_process_ ## tp ## _cell(cl, cn)
 #endif /* defined(KEEP_TIMING_STATS) */
 
-//  log_debug(LD_PLUGIN_EXCHANGE, "Got cell->command of: %s circ_id: %u",
-//            cell_command_to_string(cell->command), cell->circ_id);
+  log_debug(LD_PLUGIN_EXCHANGE, "Got cell->command of: %s circ_id: %u",
+            cell_command_to_string(cell->command), cell->circ_id);
 //
 //  circuit_t *circ = circuit_get_by_circid_channel(cell->circ_id, chan);
 //  if (circ != NULL) {
