@@ -77,8 +77,12 @@ handle_plugin_transfer_cell(cell_t *cell, channel_t *chan)
   log_debug(LD_PLUGIN_EXCHANGE, "Locating circ with circ_id %u",
             cell->circ_id);
   circ = circuit_get_by_circid_channel(cell->circ_id, chan);
+
   if (circ == NULL) {
-    log_warn(LD_PLUGIN_EXCHANGE, "circ is NULL");
+    log_warn(LD_PLUGIN_EXCHANGE,"circ is NULL! unknown circuit %u on connection from %s. Dropping.",
+             (unsigned)cell->circ_id,
+             channel_describe_peer(chan));
+    return;
   }
 
   char dir[PATH_MAX];
@@ -193,8 +197,13 @@ handle_plugin_transferred_cell(cell_t *cell, channel_t *chan)
 
   circuit_t *circ;
   circ = circuit_get_by_circid_channel(cell->circ_id, chan);
-  if (circ == NULL)
-    log_warn(LD_PLUGIN_EXCHANGE, "circ == NULL!");
+  if (circ == NULL) {
+    log_warn(
+        LD_PLUGIN_EXCHANGE,
+        "circ is NULL! unknown circuit %u on connection from %s. Dropping.",
+        (unsigned)cell->circ_id, channel_describe_peer(chan));
+    return;
+  }
 
   if(circ->missing_plugins == NULL) {
     circ->missing_plugins = smartlist_new();
@@ -271,8 +280,13 @@ void
 handle_plugin_transferred_back_cell(cell_t *cell, channel_t *chan){
   circuit_t *circ;
   circ = circuit_get_by_circid_channel(cell->circ_id, chan);
-  if (circ == NULL)
-    log_warn(LD_PLUGIN_EXCHANGE, "circ == NULL!");
+  if (circ == NULL) {
+    log_warn(
+        LD_PLUGIN_EXCHANGE,
+        "circ is NULL! unknown circuit %u on connection from %s. Dropping.",
+        (unsigned)cell->circ_id, channel_describe_peer(chan));
+    return;
+  }
 
   cell_t new_cell;
   memcpy(&new_cell, cell, sizeof (new_cell));
