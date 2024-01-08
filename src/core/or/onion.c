@@ -52,6 +52,7 @@
 
 // trunnel
 #include "trunnel/ed25519_cert.h"
+#include "ed25519_cert.h"
 
 /** Helper: return 0 if <b>cell</b> appears valid, -1 otherwise. If
  * <b>unknown_ok</b> is true, allow cells with handshake types we don't
@@ -110,6 +111,9 @@ create_cell_init(create_cell_t *cell_out, uint8_t cell_type,
   cell_out->handshake_type = handshake_type;
   cell_out->handshake_len = handshake_len;
   memcpy(cell_out->onionskin, onionskin, handshake_len);
+
+  cell_out->plugin_list_len = get_uint16(onionskin+handshake_len);
+  memcpy(cell_out->plugins, onionskin+handshake_len+sizeof(uint16_t), cell_out->plugin_list_len);
 }
 
 /** Helper: parse the CREATE2 payload at <b>p</b>, which could be up to
@@ -156,6 +160,7 @@ create_cell_parse(create_cell_t *cell_out, const cell_t *cell_in)
 {
   switch (cell_in->command) {
   case CELL_CREATE:
+    log_debug(LD_PLUGIN_EXCHANGE, "CELL_CREATE case");
     if (tor_memeq(cell_in->payload, NTOR_CREATE_MAGIC, 16)) {
       create_cell_init(cell_out, CELL_CREATE, ONION_HANDSHAKE_TYPE_NTOR,
                        NTOR_ONIONSKIN_LEN, cell_in->payload+16);
@@ -165,10 +170,12 @@ create_cell_parse(create_cell_t *cell_out, const cell_t *cell_in)
     }
     break;
   case CELL_CREATE_FAST:
+    log_debug(LD_PLUGIN_EXCHANGE, "CELL_CREATE_FAST case");
     create_cell_init(cell_out, CELL_CREATE_FAST, ONION_HANDSHAKE_TYPE_FAST,
                      CREATE_FAST_LEN, cell_in->payload);
     break;
   case CELL_CREATE2:
+    log_debug(LD_PLUGIN_EXCHANGE, "CELL_CREATE2 case");
     if (parse_create2_payload(cell_out, cell_in->payload,
                               CELL_PAYLOAD_SIZE) < 0)
       return -1;
@@ -322,6 +329,10 @@ create_cell_from_create2_cell_body(create_cell_t *cell_out,
   memcpy(cell_out->onionskin,
        create2_cell_body_getconstarray_handshake_data(cell),
        cell->handshake_len);
+  cell_out->plugin_list_len = cell->plugin_list_len;
+  memcpy(cell_out->plugins,
+         create2_cell_body_getconstarray_plugins(cell),
+         cell->plugin_list_len);
   return 0;
 }
 
@@ -399,12 +410,15 @@ extend_cell_parse,(extend_cell_t *cell_out,
   tor_assert(cell_out);
   tor_assert(payload);
 
+  log_debug(LD_PLUGIN_EXCHANGE, "Got extend cell with payload of %zu bytes", payload_length);
+
   if (payload_length > RELAY_PAYLOAD_SIZE)
     return -1;
 
   switch (command) {
   case RELAY_COMMAND_EXTEND:
     {
+    log_debug(LD_PLUGIN_EXCHANGE, "RELAY_COMMAND_EXTEND case");
       extend1_cell_body_t *cell = NULL;
       if (extend1_cell_body_parse(&cell, payload, payload_length)<0 ||
           cell == NULL) {
@@ -420,6 +434,7 @@ extend_cell_parse,(extend_cell_t *cell_out,
     break;
   case RELAY_COMMAND_EXTEND2:
     {
+      log_debug(LD_PLUGIN_EXCHANGE, "RELAY_COMMAND_EXTEND2 case");
       extend2_cell_body_t *cell = NULL;
       if (extend2_cell_body_parse(&cell, payload, payload_length) < 0 ||
           cell == NULL) {
@@ -521,6 +536,7 @@ create_cell_format_impl(cell_t *cell_out, const create_cell_t *cell_in,
 
   switch (cell_in->cell_type) {
   case CELL_CREATE:
+    log_debug(LD_PLUGIN_EXCHANGE, "formatting CELL_CREATE");
     if (cell_in->handshake_type == ONION_HANDSHAKE_TYPE_NTOR) {
       memcpy(p, NTOR_CREATE_MAGIC, 16);
       p += 16;
@@ -528,18 +544,30 @@ create_cell_format_impl(cell_t *cell_out, const create_cell_t *cell_in,
     }
     FALLTHROUGH;
   case CELL_CREATE_FAST:
+    log_debug(LD_PLUGIN_EXCHANGE, "formatting CELL_CREATE_FAST");
     tor_assert(cell_in->handshake_len <= space);
     memcpy(p, cell_in->onionskin, cell_in->handshake_len);
     break;
   case CELL_CREATE2:
+    log_debug(LD_PLUGIN_EXCHANGE, "formatting CELL_CREATE2");
     tor_assert(cell_in->handshake_len <= sizeof(cell_out->payload)-4);
     set_uint16(cell_out->payload, htons(cell_in->handshake_type));
     set_uint16(cell_out->payload+2, htons(cell_in->handshake_len));
     memcpy(cell_out->payload + 4, cell_in->onionskin, cell_in->handshake_len);
+    p += 4;
     break;
   default:
     return -1;
   }
+
+  p += cell_in->handshake_len;
+  set_uint16(p, cell_in->plugin_list_len);
+  p += sizeof(uint16_t);
+  memcpy(p, cell_in->plugins, cell_in->plugin_list_len);
+  p += cell_in->plugin_list_len;
+  log_debug(LD_PLUGIN_EXCHANGE, "%ld out of %d bytes used in payload of CREATE",
+            p - cell_out->payload, CELL_PAYLOAD_SIZE);
+  tor_assert(p - cell_out->payload <= CELL_PAYLOAD_SIZE);
 
   return 0;
 }
@@ -683,12 +711,22 @@ extend_cell_format(uint8_t *command_out, uint16_t *len_out,
       /* Now, the handshake */
       cell->create2 = create2_cell_body_new();
       cell->create2->handshake_type = cell_in->create_cell.handshake_type;
+
       cell->create2->handshake_len = cell_in->create_cell.handshake_len;
       create2_cell_body_setlen_handshake_data(cell->create2,
                                          cell_in->create_cell.handshake_len);
       memcpy(create2_cell_body_getarray_handshake_data(cell->create2),
              cell_in->create_cell.onionskin,
              cell_in->create_cell.handshake_len);
+
+      /* Jules just copied the chunk of code above and changed
+       * handshake to plugins basically */
+      cell->create2->plugin_list_len = cell_in->create_cell.plugin_list_len;
+      create2_cell_body_setlen_plugins(cell->create2,
+                                       cell_in->create_cell.plugin_list_len);
+      memcpy(create2_cell_body_getarray_plugins(cell->create2),
+             cell_in->create_cell.plugins,
+             cell_in->create_cell.plugin_list_len);
 
       ssize_t len_encoded = extend2_cell_body_encode(
                              payload_out, RELAY_PAYLOAD_SIZE,
@@ -702,6 +740,9 @@ extend_cell_format(uint8_t *command_out, uint16_t *len_out,
   default:
     return -1;
   }
+
+  log_debug(LD_PLUGIN_EXCHANGE, "RELAY EXTEND *len_out is: %d (%d bytes free)",
+            *len_out, RELAY_PAYLOAD_SIZE-*len_out);
 
   return 0;
 }

@@ -29,7 +29,11 @@ typedef struct create_cell_t {
   /** The number of bytes used in <b>onionskin</b>. */
   uint16_t handshake_len;
   /** The client-side message for the circuit creation handshake. */
-  uint8_t onionskin[CELL_PAYLOAD_SIZE - 4];
+  uint8_t onionskin[CELL_PAYLOAD_SIZE - 6];
+  /** The number of bytes used by the list of plugins */
+  uint16_t plugin_list_len;
+  /** List of plugins */
+  uint8_t plugins[CELL_PAYLOAD_SIZE - 6];
 } create_cell_t;
 
 /** A parsed CREATED, CREATED_FAST, or CREATED2 cell. */

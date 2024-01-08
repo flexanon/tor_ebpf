@@ -27,6 +27,7 @@
 #define CIRCUITBUILD_PRIVATE
 #define OCIRC_EVENT_PRIVATE
 
+#include <dirent.h>
 #include "core/or/or.h"
 #include "app/config/config.h"
 #include "lib/confmgt/confmgt.h"
@@ -81,6 +82,7 @@
 #include "feature/nodelist/node_st.h"
 #include "core/or/or_circuit_st.h"
 #include "core/or/origin_circuit_st.h"
+#include "core/or/plugin_exchange.h"
 
 static int circuit_send_first_onion_skin(origin_circuit_t *circ);
 static int circuit_build_no_more_hops(origin_circuit_t *circ);
@@ -765,9 +767,13 @@ circuit_deliver_create_cell,(circuit_t *circ,
     goto error;
   }
   log_debug(LD_CIRC,"Chosen circID %u.", (unsigned)id);
+  log_debug(LD_PLUGIN_EXCHANGE,"... circ_id %u.", (unsigned)id);
   circuit_set_n_circid_chan(circ, id, circ->n_chan);
   cell.circ_id = circ->n_circ_id;
 
+  log_debug(LD_PLUGIN_EXCHANGE, "Sending %s CREATE cell with plugins: %s on circ_id %u",
+            relayed == 1 ? "(relayed)" : "",
+            create_cell->plugins, cell.circ_id);
   append_cell_to_circuit_queue(circ, circ->n_chan, &cell,
                                CELL_DIRECTION_OUT, 0);
 
@@ -995,6 +1001,20 @@ circuit_send_first_onion_skin(origin_circuit_t *circ)
   }
   cc.handshake_len = len;
 
+  // Listing the plugins in the CREATE cell here
+  int remaining_len = CELL_PAYLOAD_SIZE - 6 - cc.handshake_len;
+  log_debug(LD_PLUGIN_EXCHANGE, "Listing plugins on disk for CREATE cell (%d bytes free)",
+           remaining_len);
+
+  TO_CIRCUIT(circ)->mandatory_plugins = smart_list_plugins_on_disk();
+  log_debug(LD_PLUGIN_EXCHANGE, "Created list of mandatory_plugins during CREATE "
+                                "cell sending: %d len. Contains: %s",
+            smartlist_len(TO_CIRCUIT(circ)->mandatory_plugins),
+            smart_list_to_str(TO_CIRCUIT(circ)->mandatory_plugins));
+
+  len = smart_list_to_payload(TO_CIRCUIT(circ)->mandatory_plugins, cc.plugins, remaining_len);
+  cc.plugin_list_len = len;
+
   if (circuit_deliver_create_cell(TO_CIRCUIT(circ), &cc, 0) < 0)
     return - END_CIRC_REASON_RESOURCELIMIT;
   tor_trace(TR_SUBSYS(circuit), TR_EV(first_onion_skin), circ, circ->cpath);
@@ -1141,6 +1161,28 @@ circuit_send_intermediate_onion_skin(origin_circuit_t *circ,
     return - END_CIRC_REASON_INTERNAL;
   }
   ec.create_cell.handshake_len = len;
+
+  // Listing the plugins in the CREATE cell here
+  // TODO make sure that we can fit the list of plugins in the remaining space
+  // TODO find a good way to compute remaining size in the payload (tricky)
+
+  /* Add the plugin list to payload  */
+  // Guesstimate of the size available to put the plugins into the cell
+  uint16_t remaining_len = RELAY_PAYLOAD_SIZE - sizeof(tor_addr_port_t) -
+      sizeof(tor_addr_port_t) - DIGEST_LEN - sizeof(ed25519_public_key_t) -
+      sizeof(uint8_t) - sizeof(uint16_t) - sizeof(uint16_t) -
+      ec.create_cell.handshake_len - sizeof(uint16_t);
+
+  log_debug(LD_PLUGIN_EXCHANGE, "Using mandatory_plugins to populate extend "
+                                "cell: %d len. Contains: %s",
+            smartlist_len(TO_CIRCUIT(circ)->mandatory_plugins),
+            smart_list_to_str(TO_CIRCUIT(circ)->mandatory_plugins));
+  uint16_t len_plugins =
+      smart_list_to_payload(TO_CIRCUIT(circ)->mandatory_plugins, ec.create_cell.plugins, remaining_len);
+  ec.create_cell.plugin_list_len = len_plugins;
+
+  log_debug(LD_PLUGIN_EXCHANGE, "Listed for %d bytes: %s",
+            len_plugins, ec.create_cell.plugins);
 
   log_info(LD_CIRC,"Sending extend relay cell.");
   {
