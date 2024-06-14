@@ -10,7 +10,7 @@ negotiations.
 This repository holds a set of plugins that can be hooked within different
 parts of the Tor codebase. These plugins can be found in directories located at
 `src/plugins/`. Each plugin can be independently built from the Tor binary by
-invoking `make` in the plugin directory, assuming you have installed clang-6.0.
+invoking `make` in the plugin directory, assuming you have installed clang-14.0.
 Invoking `make` would compile the plugin to eBPF and store it in a '.o' file.
 
 A set of `.o` object files with a `.plugin` that describes where those pieces of
@@ -57,8 +57,6 @@ topology, due to a required extension to manage our Tor system-wide and
 connection plugins.
 
 TODO
-
-%% tee */torrc < torrc
 
 
 # Limitations
