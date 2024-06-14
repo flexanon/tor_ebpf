@@ -504,6 +504,8 @@ circuit_extend(struct cell_t *cell, struct circuit_t *circ)
               "n_chan is %s.",
               channel_describe_peer(n_chan));
 
+    log_debug(LD_PLUGIN_EXCHANGE, "Extending circ_id %u to...",
+              cell->circ_id);
     if (circuit_deliver_create_cell(circ, &ec.create_cell, 1) < 0)
       return -1;
 

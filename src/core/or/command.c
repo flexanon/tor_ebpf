@@ -36,6 +36,8 @@
  *   callbacks registered in command_setup_channel(),
  *   called when channels are created in circuitbuild.c
  */
+#include <dirent.h>
+
 #include "core/or/or.h"
 #include "app/config/config.h"
 #include "core/crypto/onion_crypto.h"
@@ -53,7 +55,6 @@
 #include "feature/hibernate/hibernate.h"
 #include "feature/nodelist/describe.h"
 #include "feature/nodelist/nodelist.h"
-#include "feature/nodelist/routerlist.h"
 #include "feature/relay/circuitbuild_relay.h"
 #include "feature/relay/routermode.h"
 #include "feature/stats/rephist.h"
@@ -63,6 +64,7 @@
 #include "core/or/or_circuit_st.h"
 #include "core/or/origin_circuit_st.h"
 #include "core/or/var_cell_st.h"
+#include "core/or/plugin_exchange.h"
 
 /** How many CELL_CREATE cells have we received, ever? */
 uint64_t stats_n_create_cells_processed = 0;
@@ -82,6 +84,7 @@ static void command_process_create_cell(cell_t *cell, channel_t *chan);
 static void command_process_created_cell(cell_t *cell, channel_t *chan);
 static void command_process_relay_cell(cell_t *cell, channel_t *chan);
 static void command_process_destroy_cell(cell_t *cell, channel_t *chan);
+static void command_process_plugin_cell(cell_t *cell, channel_t *chan);
 
 /** Convert the cell <b>command</b> into a lower-case, human-readable
  * string. */
@@ -106,6 +109,11 @@ cell_command_to_string(uint8_t command)
     case CELL_AUTH_CHALLENGE: return "auth_challenge";
     case CELL_AUTHENTICATE: return "authenticate";
     case CELL_AUTHORIZE: return "authorize";
+    case CELL_PLUGIN_REQUEST: return "plugin_request";
+    case CELL_PLUGIN_TRANSFER: return "plugin_transfer";
+    case CELL_PLUGIN_TRANSFER_BACK: return "plugin_transfer_back";
+    case CELL_PLUGIN_TRANSFERRED: return "plugin_transferred";
+    case CELL_PLUGIN_TRANSFERRED_BACK: return "plugin_transferred_back";
     default: return "unrecognized";
   }
 }
@@ -187,6 +195,14 @@ command_process_cell(channel_t *chan, cell_t *cell)
 #define PROCESS_CELL(tp, cl, cn) command_process_ ## tp ## _cell(cl, cn)
 #endif /* defined(KEEP_TIMING_STATS) */
 
+  log_debug(LD_PLUGIN_EXCHANGE, "Got cell->command of: %s circ_id: %u",
+            cell_command_to_string(cell->command), cell->circ_id);
+//
+//  circuit_t *circ = circuit_get_by_circid_channel(cell->circ_id, chan);
+//  if (circ != NULL) {
+//    log_debug(LD_PLUGIN_EXCHANGE, "mandatory_plugins on circ_id: %u are %s",
+//              cell->circ_id, smart_list_to_str(circ->mandatory_plugins));
+//  }
   switch (cell->command) {
     case CELL_CREATE:
     case CELL_CREATE_FAST:
@@ -209,11 +225,44 @@ command_process_cell(channel_t *chan, cell_t *cell)
       ++stats_n_destroy_cells_processed;
       PROCESS_CELL(destroy, cell, chan);
       break;
+    case CELL_PLUGIN_REQUEST:
+    case CELL_PLUGIN_TRANSFER:
+    case CELL_PLUGIN_TRANSFER_BACK:
+    case CELL_PLUGIN_TRANSFERRED:
+    case CELL_PLUGIN_TRANSFERRED_BACK:
+      PROCESS_CELL(plugin, cell, chan);
+      break;
     default:
       log_fn(LOG_INFO, LD_PROTOCOL,
              "Cell of unknown or unexpected type (%d) received.  "
              "Dropping.",
              cell->command);
+      break;
+  }
+}
+
+/**
+ * Handle the plugin exchange cells.
+ * The protocol is implemented in plugin_exchange.c
+ */
+static void
+command_process_plugin_cell(cell_t *cell, channel_t *chan)
+{
+  log_debug(LD_PLUGIN_EXCHANGE, "Got %s cell on circ_id %u",
+            cell_command_to_string(cell->command), cell->circ_id);
+  switch (cell->command) {
+  case CELL_PLUGIN_REQUEST:
+      handle_plugin_request_cell(cell, chan);
+      break;
+  case CELL_PLUGIN_TRANSFER_BACK:
+  case CELL_PLUGIN_TRANSFER:
+      handle_plugin_transfer_cell(cell, chan);
+      break;
+  case CELL_PLUGIN_TRANSFERRED:
+      handle_plugin_transferred_cell(cell, chan);
+      break;
+  case CELL_PLUGIN_TRANSFERRED_BACK:
+      handle_plugin_transferred_back_cell(cell, chan);
       break;
   }
 }
@@ -230,6 +279,8 @@ command_process_create_cell(cell_t *cell, channel_t *chan)
   const or_options_t *options = get_options();
   int id_is_high;
   create_cell_t *create_cell;
+
+  log_debug(LD_PLUGIN_EXCHANGE, "Got %s with content ??", cell_command_to_string(cell->command));
 
   tor_assert(cell);
   tor_assert(chan);
@@ -337,6 +388,26 @@ command_process_create_cell(cell_t *cell, channel_t *chan)
     rep_hist_note_circuit_handshake_requested(create_cell->handshake_type);
   }
 
+  send_missing_plugins_to_peer(create_cell->plugins, cell->circ_id, chan);
+  int nb_missing_plugins;
+  nb_missing_plugins = handle_plugin_offer_in_create_cell(create_cell->plugins, circ, chan);
+
+  if (nb_missing_plugins==0) {
+    log_debug(LD_PLUGIN_EXCHANGE, "No plugins needed on circ_id %u", cell->circ_id);
+    continue_process_create_cell(circ, create_cell);
+  } else {
+    log_debug(LD_PLUGIN_EXCHANGE, "create_cell_t *saved = tor_malloc_zero(sizeof (create_cell_t));");
+    create_cell_t *saved = tor_malloc_zero(sizeof (create_cell_t));
+    memcpy(saved, create_cell, sizeof(create_cell_t));
+    circ->base_.saved_create_cell = saved;
+  }
+}
+
+void
+continue_process_create_cell(or_circuit_t *circ, create_cell_t *create_cell)
+{
+  log_debug(LD_PLUGIN_EXCHANGE, "Continue processing CREATE cell, all plugins are here! circ_id %u",
+            circ->p_circ_id);
   if (create_cell->handshake_type != ONION_HANDSHAKE_TYPE_FAST) {
     /* hand it off to the cpuworkers, and then return. */
 
@@ -346,7 +417,8 @@ command_process_create_cell(cell_t *cell, channel_t *chan)
       return;
     }
     log_debug(LD_OR,"success: handed off onionskin.");
-  } else {
+  }
+  else {
     /* This is a CREATE_FAST cell; we can handle it immediately without using
      * a CPU worker. */
     uint8_t keys[CPATH_KEY_MATERIAL_LEN];
@@ -454,6 +526,7 @@ command_process_created_cell(cell_t *cell, channel_t *chan)
     relay_send_command_from_edge(0, circ, command,
                                  (const char*)payload, len, NULL);
   }
+
 }
 
 /** Process a 'relay' or 'relay_early' <b>cell</b> that just arrived from

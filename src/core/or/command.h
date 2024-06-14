@@ -17,6 +17,8 @@
 void command_process_cell(channel_t *chan, cell_t *cell);
 void command_setup_channel(channel_t *chan);
 void command_setup_listener(channel_listener_t *chan_l);
+void continue_process_create_cell(or_circuit_t *circ,
+                                  struct create_cell_t *create_cell);
 
 const char *cell_command_to_string(uint8_t command);
 

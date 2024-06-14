@@ -19,6 +19,8 @@ struct create2_cell_body_st {
   uint16_t handshake_type;
   uint16_t handshake_len;
   TRUNNEL_DYNARRAY_HEAD(, uint8_t) handshake_data;
+  uint16_t plugin_list_len;
+  TRUNNEL_DYNARRAY_HEAD(, uint8_t) plugins;
   uint8_t trunnel_error_code_;
 };
 #endif
@@ -179,6 +181,49 @@ const uint8_t  * create2_cell_body_getconstarray_handshake_data(const create2_ce
  * failure.
  */
 int create2_cell_body_setlen_handshake_data(create2_cell_body_t *inp, size_t newlen);
+/** Return the value of the plugin_list_len field of the
+ * create2_cell_body_t in 'inp'
+ */
+uint16_t create2_cell_body_get_plugin_list_len(const create2_cell_body_t *inp);
+/** Set the value of the plugin_list_len field of the
+ * create2_cell_body_t in 'inp' to 'val'. Return 0 on success; return
+ * -1 and set the error code on 'inp' on failure.
+ */
+int create2_cell_body_set_plugin_list_len(create2_cell_body_t *inp, uint16_t val);
+/** Return the length of the dynamic array holding the plugins field
+ * of the create2_cell_body_t in 'inp'.
+ */
+size_t create2_cell_body_getlen_plugins(const create2_cell_body_t *inp);
+/** Return the element at position 'idx' of the dynamic array field
+ * plugins of the create2_cell_body_t in 'inp'.
+ */
+uint8_t create2_cell_body_get_plugins(create2_cell_body_t *inp, size_t idx);
+/** As create2_cell_body_get_plugins, but take and return a const
+ * pointer
+ */
+uint8_t create2_cell_body_getconst_plugins(const create2_cell_body_t *inp, size_t idx);
+/** Change the element at position 'idx' of the dynamic array field
+ * plugins of the create2_cell_body_t in 'inp', so that it will hold
+ * the value 'elt'.
+ */
+int create2_cell_body_set_plugins(create2_cell_body_t *inp, size_t idx, uint8_t elt);
+/** Append a new element 'elt' to the dynamic array field plugins of
+ * the create2_cell_body_t in 'inp'.
+ */
+int create2_cell_body_add_plugins(create2_cell_body_t *inp, uint8_t elt);
+/** Return a pointer to the variable-length array field plugins of
+ * 'inp'.
+ */
+uint8_t * create2_cell_body_getarray_plugins(create2_cell_body_t *inp);
+/** As create2_cell_body_get_plugins, but take and return a const
+ * pointer
+ */
+const uint8_t  * create2_cell_body_getconstarray_plugins(const create2_cell_body_t *inp);
+/** Change the length of the variable-length array field plugins of
+ * 'inp' to 'newlen'.Fill extra elements with 0. Return 0 on success;
+ * return -1 and set the error code on 'inp' on failure.
+ */
+int create2_cell_body_setlen_plugins(create2_cell_body_t *inp, size_t newlen);
 /** Return a newly allocated ed25519_cert_extension with all elements
  * set to zero.
  */

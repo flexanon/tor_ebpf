@@ -120,9 +120,11 @@
 /** Message-passing backend. */
 #define LD_MESG      (UINT64_C(1)<<29)
 #define LD_PLUGIN    (UINT64_C(1)<<30)
+/** Plugin exchange protocol */
+#define LD_PLUGIN_EXCHANGE    (UINT64_C(1)<<31)
 
 /** The number of log domains. */
-#define N_LOGGING_DOMAINS 31
+#define N_LOGGING_DOMAINS 32
 /** The highest log domain */
 #define HIGHEST_RESERVED_LD_DOMAIN_ (UINT64_C(1)<<(N_LOGGING_DOMAINS - 1))
 /** All log domains. */
